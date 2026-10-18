@@ -1,0 +1,13 @@
+.next
+node_modules
+dist
+coverage
+playwright-report
+test-results
+package-lock.json
+src/server/db/migrations
+CHANGELOG.md
+docs/build-prompt.md
+CODE_OF_CONDUCT.md
+AGENTS.md
+.next

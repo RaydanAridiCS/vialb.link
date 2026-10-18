@@ -1,0 +1,29 @@
+import type { Metadata } from "next";
+import { Suspense } from "react";
+import { PageHeader } from "@/components/app-shell";
+import { LinksTable } from "@/features/links/components/links-table";
+import { linkListParamsSchema } from "@/features/links/schemas";
+import { requireSession } from "@/server/auth/session";
+import { getContainer } from "@/server/container";
+
+export const metadata: Metadata = { title: "Links" };
+
+export default async function LinksPage({ searchParams }: PageProps<"/dashboard/links">) {
+  const { actor } = await requireSession();
+  const params = linkListParamsSchema.parse(await searchParams);
+  const result = await getContainer().links.list(actor, {
+    search: params.q,
+    status: params.status,
+    sort: params.sort,
+    page: params.page,
+    pageSize: params.pageSize ?? 20,
+  });
+  return (
+    <>
+      <PageHeader title="Links" description="Search, filter and manage every short link you own." />
+      <Suspense>
+        <LinksTable links={result.items} total={result.total} page={result.page} pageSize={result.pageSize} />
+      </Suspense>
+    </>
+  );
+}

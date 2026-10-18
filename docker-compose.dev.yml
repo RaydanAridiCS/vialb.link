@@ -1,0 +1,29 @@
+# Local development services only (the app runs on your machine with `npm run dev`).
+# Port already used? POSTGRES_PORT=5433 docker compose -f docker-compose.dev.yml up -d
+#   docker compose -f docker-compose.dev.yml up -d
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: toolwright
+      POSTGRES_PASSWORD: toolwright
+      POSTGRES_DB: toolwright
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - toolwright-dev-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U toolwright -d toolwright"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:8-alpine
+    profiles: ["redis"]
+    ports:
+      - "6379:6379"
+
+volumes:
+  toolwright-dev-db:

@@ -1,0 +1,23 @@
+name: Release Please
+
+# Opens/updates a release PR from Conventional Commits on main. Merging it
+# bumps the version, updates CHANGELOG.md and tags the release (which then
+# triggers docker-publish.yml).
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v4
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+          # A PAT lets the created tag trigger other workflows (docker-publish).
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}

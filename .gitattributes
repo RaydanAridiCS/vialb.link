@@ -1,0 +1,7 @@
+* text=auto eol=lf
+*.sh text eol=lf
+*.png binary
+*.ico binary
+*.mmdb binary
+src/server/db/migrations/** linguist-generated
+package-lock.json linguist-generated -diff

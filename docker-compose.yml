@@ -1,0 +1,44 @@
+# Production-style stack: ToolWright + PostgreSQL 17 (+ optional Redis).
+#
+#   cp .env.example .env      # set SITE_URL and BETTER_AUTH_SECRET
+#   docker compose up -d      # → http://localhost:3000
+#   docker compose --profile redis up -d   # with Redis (shared rate limits)
+#
+# Uses the published image by default; `docker compose up --build` builds locally.
+services:
+  app:
+    image: ghcr.io/raydanaridics/toolwright:${TOOLWRIGHT_VERSION:-latest}
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-toolwright}:${POSTGRES_PASSWORD:-toolwright}@postgres:5432/${POSTGRES_DB:-toolwright}
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-toolwright}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-toolwright}
+      POSTGRES_DB: ${POSTGRES_DB:-toolwright}
+    volumes:
+      - toolwright-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:8-alpine
+    restart: unless-stopped
+    profiles: ["redis"]
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+
+volumes:
+  toolwright-db:

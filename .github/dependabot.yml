@@ -1,0 +1,72 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      next-react:
+        patterns: ["next", "react", "react-dom", "eslint-config-next", "@types/react*"]
+      auth-db:
+        patterns: ["better-auth", "drizzle-*", "postgres"]
+      ui:
+        patterns:
+          [
+            "@radix-ui/*",
+            "radix-ui",
+            "lucide-react",
+            "recharts",
+            "sonner",
+            "next-themes",
+            "@tanstack/*",
+            "tailwind*",
+            "@tailwindcss/*",
+          ]
+      testing:
+        patterns:
+          [
+            "vitest",
+            "@vitest/*",
+            "@playwright/test",
+            "@testing-library/*",
+            "testcontainers",
+            "@testcontainers/*",
+            "jsdom",
+          ]
+      tooling:
+        patterns:
+          [
+            "eslint*",
+            "typescript*",
+            "@typescript-eslint/*",
+            "prettier*",
+            "lefthook",
+            "lint-staged",
+            "@commitlint/*",
+          ]
+      minor-and-patch:
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "ci"
+    groups:
+      actions:
+        patterns: ["*"]
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "chore(docker)"
+    groups:
+      docker:
+        patterns: ["*"]
