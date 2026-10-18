@@ -1,36 +1,161 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+<div align="center">
 
-## Getting Started
+<img src="src/app/icon.svg" width="72" height="72" alt="ToolWright logo" />
 
-First, run the development server:
+# ToolWright
+
+**An open-source, self-hostable URL shortener with privacy-friendly analytics.**
+
+[![CI](https://github.com/RaydanAridiCS/toolwright/actions/workflows/ci.yml/badge.svg)](https://github.com/RaydanAridiCS/toolwright/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/RaydanAridiCS/toolwright/actions/workflows/codeql.yml/badge.svg)](https://github.com/RaydanAridiCS/toolwright/actions/workflows/codeql.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Docker image](https://img.shields.io/badge/ghcr.io-raydanaridics%2Ftoolwright-2496ED?logo=docker&logoColor=white)](https://github.com/RaydanAridiCS/toolwright/pkgs/container/toolwright)
+
+[Quick start](#quick-start) · [Features](#features) · [API](#api) · [Self-hosting guide](docs/self-hosting.md) · [Architecture](docs/architecture.md) · [Contributing](CONTRIBUTING.md)
+
+</div>
+
+---
+
+<!-- Screenshots: run `npm run seed`, sign in as demo@toolwright.local, then capture these pages. -->
+
+|       Landing page       |      Link analytics      |     Links dashboard      |
+| :----------------------: | :----------------------: | :----------------------: |
+| _screenshot coming soon_ | _screenshot coming soon_ | _screenshot coming soon_ |
+
+## Features
+
+- 🔗 **Short links**: random codes (crypto-secure nanoid, no look-alike characters) or custom case-sensitive codes
+- ⏳ **Expiry & access limits**: presets or custom dates; visit limits enforced atomically in the database
+- 🔒 **Password protection**: argon2id, rate-limited unlock page; link-preview bots never see the destination
+- 🖼️ **Link previews**: custom Open Graph title, description and image for Slack, Discord, X, WhatsApp…
+- 📊 **Analytics without tracking**: clicks over time, weekday × hour heatmap, countries & cities, devices, browsers, OS, referrers, UTM campaigns, languages, bot filtering, CSV export. Raw IPs are never stored.
+- 🧾 **QR codes**: PNG/SVG on demand with your colours
+- 🧰 **Dashboard**: search, filters, sorting, bulk disable/delete/export, edit everything except the code
+- 🔑 **REST API**: API keys, per-key rate limits, OpenAPI 3.1 + interactive docs
+- 👥 **Accounts**: email/password, optional GitHub & Google, TOTP 2FA with backup codes, data export, account deletion
+- 🛡️ **Admin**: instance settings, user roles and bans, every link on the instance, stats
+- 🕶️ **Anonymous links (optional)**: forced lifetime, stricter rate limits, Cloudflare Turnstile, claim them after sign-up
+- 🚫 **Anti-abuse**: domain blocklist, optional Google Safe Browsing, self-link protection
+- 🌗 **Polished UI**: responsive, accessible, light/dark/system themes
+- 🐳 **Easy to run**: one Docker image (amd64/arm64), migrations on start, health checks
+
+## Quick start
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/RaydanAridiCS/toolwright.git && cd toolwright
+cp .env.example .env    # set SITE_URL and BETTER_AUTH_SECRET (openssl rand -base64 32)
+docker compose up -d    # → http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Sign up: **the first account becomes the administrator**. See the
+[self-hosting guide](docs/self-hosting.md) for reverse proxies (Caddy, nginx),
+Coolify/Dokploy, GeoLite2, backups and upgrades.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Local development
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm install
+cp .env.example .env
+docker compose -f docker-compose.dev.yml up -d   # PostgreSQL 17
+npm run db:migrate
+npm run seed        # optional demo data → demo@toolwright.local / demo-password-123
+npm run dev
+```
 
-## Learn More
+Everything else (tests, scripts, conventions) is in [CONTRIBUTING.md](CONTRIBUTING.md).
 
-To learn more about Next.js, take a look at the following resources:
+## Configuration
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+The most important variables (all of them are in [docs/configuration.md](docs/configuration.md) and [`.env.example`](.env.example)):
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| Variable                                             | Default       | Description                                              |
+| ---------------------------------------------------- | ------------- | -------------------------------------------------------- |
+| `SITE_URL`                                           | —             | Public base URL; every absolute URL is built from it     |
+| `DATABASE_URL`                                       | —             | PostgreSQL connection string                             |
+| `BETTER_AUTH_SECRET`                                 | —             | ≥ 32 random characters                                   |
+| `ALLOW_SIGNUPS`                                      | `true`        | Allow new accounts (overridable in the admin UI)         |
+| `ALLOW_ANONYMOUS_LINKS`                              | `false`       | Shorten without an account (overridable)                 |
+| `ANON_LINK_TTL_HOURS`                                | `720`         | Lifetime of anonymous links                              |
+| `REDIRECT_STATUS`                                    | `302`         | `302` or `307` (never permanent)                         |
+| `FORWARD_QUERY_PARAMS`                               | `true`        | Pass `?utm_*` etc. through to the destination            |
+| `TRUST_PROXY` / `TRUSTED_PROXY_HOPS`                 | `false` / `1` | Read the client IP from `X-Forwarded-For` behind a proxy |
+| `GEOLITE2_DB_PATH`                                   | —             | Local MaxMind database for country/city analytics        |
+| `TRUST_PROXY_GEO_HEADERS`                            | `false`       | Use CDN geo headers (Cloudflare, Vercel, CloudFront)     |
+| `REDIS_URL`                                          | —             | Shared rate limits across replicas                       |
+| `GITHUB_CLIENT_ID/SECRET`, `GOOGLE_CLIENT_ID/SECRET` | —             | Optional OAuth sign-in                                   |
+| `SMTP_*`                                             | —             | Password reset & verification emails                     |
+| `TURNSTILE_SITE_KEY/SECRET_KEY`                      | —             | Captcha for anonymous links                              |
+| `SAFE_BROWSING_API_KEY`                              | —             | Google Safe Browsing check on creation                   |
 
-## Deploy on Vercel
+## API
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Create a key in **Dashboard → API keys**, then:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+curl -X POST https://go.example.com/api/v1/links \
+  -H "Authorization: Bearer tw_your_key" \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://example.com/a/very/long/path","code":"launch","maxClicks":100}'
+```
+
+```json
+{
+  "id": "0199…",
+  "code": "launch",
+  "shortUrl": "https://go.example.com/launch",
+  "status": "active",
+  "clickCount": 0,
+  "…": "…"
+}
+```
+
+Interactive reference at `/docs/api`, OpenAPI document at `/api/v1/openapi.json`,
+and more examples in [docs/api.md](docs/api.md).
+
+## Tech stack
+
+| Area               | Choice                                                                                                                         |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
+| Framework          | [Next.js 16](https://nextjs.org) (App Router, Server Actions, Route Handlers, `proxy.ts`), React 19, TypeScript (strict)       |
+| UI                 | Tailwind CSS v4, [shadcn/ui](https://ui.shadcn.com) (New York), lucide-react, next-themes, sonner, Recharts, TanStack Table v9 |
+| Data               | PostgreSQL 17, [Drizzle ORM](https://orm.drizzle.team) + committed SQL migrations, postgres.js                                 |
+| Auth               | [Better Auth](https://www.better-auth.com): email/password, OAuth, TOTP 2FA, admin plugin                                      |
+| Validation         | zod (shared client/server schemas), react-hook-form, next-safe-action                                                          |
+| Security & privacy | argon2id, nonce-based CSP, hashed visitor IDs, rate limiting (memory/Redis), Turnstile, Safe Browsing                          |
+| API docs           | OpenAPI 3.1 via zod-to-openapi, Scalar                                                                                         |
+| Testing            | Vitest (unit + Testcontainers integration), Playwright (E2E), Testing Library                                                  |
+| Tooling            | ESLint (flat, typescript-eslint strict), Prettier, lefthook, lint-staged, commitlint, release-please                           |
+| Delivery           | Multi-stage Docker image (non-root, standalone), Docker Compose, GHCR, GitHub Actions, CodeQL, Dependabot                      |
+
+## Architecture
+
+```mermaid
+flowchart LR
+  B[Browser / API client] --> PX[proxy.ts<br/>CSP nonce + security headers]
+  PX --> RT[Routes & server actions<br/>src/app · src/features]
+  RT --> SV[Services<br/>src/server/services]
+  SV --> RI[Repository interfaces]
+  SV --> PO[Ports<br/>Clock · Geo · RateLimiter · Mailer · …]
+  RI --> DR[Drizzle repositories] --> PG[(PostgreSQL)]
+  PO --> AD[Adapters<br/>argon2 · MaxMind · Redis · SMTP · Turnstile]
+  RT -. "GET /{code}" .-> RS[RedirectService] -. "after()" .-> AN[AnalyticsService]
+```
+
+Routes stay thin, services hold the business rules (and authorization), and only
+the Drizzle repositories touch SQL. Details, the redirect decision flow, the data
+model and the security model are in [docs/architecture.md](docs/architecture.md).
+
+## Roadmap
+
+See [ROADMAP.md](ROADMAP.md). Next up: tags, CSV import, webhooks and custom domains.
+
+## Contributing
+
+Issues and pull requests are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md)
+and the [Code of Conduct](CODE_OF_CONDUCT.md). Report security issues privately as
+described in [SECURITY.md](SECURITY.md).
+
+## License
+
+[MIT](LICENSE) © 2026 Raydan Aridi
