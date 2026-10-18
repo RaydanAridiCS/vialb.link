@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ChevronDown, Loader2 } from "lucide-react";
+import { ChevronDown, CornerDownRight, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useAction } from "next-safe-action/hooks";
 import { useForm, useWatch, type Resolver } from "react-hook-form";
@@ -105,9 +105,18 @@ export function LinkForm({ link, siteUrl }: { link?: LinkDto; siteUrl: string })
     ) as unknown as Resolver<LinkFormValues>,
     defaultValues: defaultsFor(link),
   });
-  const [expiration, accessLimit, passwordAction, qrFg, qrBg, customCode] = useWatch({
+  const [expiration, accessLimit, passwordAction, qrFg, qrBg, customCode, destinationUrl, title] = useWatch({
     control: form.control,
-    name: ["expiration", "accessLimit", "passwordAction", "qrFgColor", "qrBgColor", "customCode"],
+    name: [
+      "expiration",
+      "accessLimit",
+      "passwordAction",
+      "qrFgColor",
+      "qrBgColor",
+      "customCode",
+      "destinationUrl",
+      "title",
+    ],
   });
 
   const onError = ({ error }: { error: { serverError?: string } }) => {
@@ -175,7 +184,7 @@ export function LinkForm({ link, siteUrl }: { link?: LinkDto; siteUrl: string })
         <div className="space-y-6 lg:col-span-2">
           <Card>
             <CardHeader>
-              <CardTitle>Destination</CardTitle>
+              <CardTitle className="font-display text-2xl font-normal">Destination</CardTitle>
               <CardDescription>Where should this link take people?</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -205,11 +214,11 @@ export function LinkForm({ link, siteUrl }: { link?: LinkDto; siteUrl: string })
                     <FormItem>
                       <FormLabel>Custom code (optional)</FormLabel>
                       <div className="flex items-center">
-                        <span className="flex h-9 items-center rounded-l-md border border-r-0 bg-muted px-3 text-sm text-muted-foreground">
+                        <span className="flex h-9 items-center rounded-l-lg border border-r-0 border-input bg-muted px-3 font-mono text-sm text-muted-foreground">
                           {siteUrl.replace(/^https?:\/\//, "")}/
                         </span>
                         <FormControl>
-                          <Input className="rounded-l-none" placeholder="launch-2026" {...field} />
+                          <Input className="rounded-l-none font-mono" placeholder="launch-2026" {...field} />
                         </FormControl>
                       </div>
                       <FormDescription>
@@ -267,7 +276,7 @@ export function LinkForm({ link, siteUrl }: { link?: LinkDto; siteUrl: string })
 
           <Card>
             <CardHeader>
-              <CardTitle>Limits & protection</CardTitle>
+              <CardTitle className="font-display text-2xl font-normal">Limits and protection</CardTitle>
               <CardDescription>Expire the link, cap its visits or require a password.</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4 sm:grid-cols-2">
@@ -424,14 +433,14 @@ export function LinkForm({ link, siteUrl }: { link?: LinkDto; siteUrl: string })
             </CardContent>
           </Card>
 
-          <details className="group rounded-xl border bg-card">
-            <summary className="flex cursor-pointer list-none items-center justify-between px-6 py-4 font-semibold">
+          <details className="group rounded-2xl border bg-card shadow-paper">
+            <summary className="flex cursor-pointer list-none items-center justify-between rounded-2xl px-6 py-5 font-display text-2xl outline-none focus-visible:ring-4 focus-visible:ring-ring/25">
               Link preview (Open Graph)
               <ChevronDown className="size-4 transition-transform group-open:rotate-180" aria-hidden />
             </summary>
             <div className="space-y-4 px-6 pb-6">
               <p className="text-sm text-muted-foreground">
-                Controls the card shown when the link is shared in Slack, Discord, X, WhatsApp, …
+                Controls the card shown when the link is shared in Slack, Discord, X or WhatsApp.
               </p>
               <FormField
                 control={form.control}
@@ -477,15 +486,28 @@ export function LinkForm({ link, siteUrl }: { link?: LinkDto; siteUrl: string })
           </details>
         </div>
 
-        <div className="space-y-6">
-          <Card>
+        <div className="space-y-4 lg:sticky lg:top-24 lg:self-start">
+          <Card className="gap-5 overflow-hidden pt-0">
+            <div className="space-y-2 border-b bg-muted/50 px-6 py-5">
+              <p className="text-xs text-muted-foreground">Live preview</p>
+              <p className="truncate font-medium">{title || "Untitled link"}</p>
+              <p className="w-fit max-w-full truncate rounded-md bg-accent px-2 py-0.5 font-mono text-sm text-accent-foreground">
+                {previewUrl.replace(/^https?:\/\//, "")}
+              </p>
+              <p className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+                <CornerDownRight className="size-3.5 shrink-0" aria-hidden />
+                <span className="truncate">{destinationUrl || "Your destination URL"}</span>
+              </p>
+            </div>
             <CardHeader>
               <CardTitle>QR code</CardTitle>
-              <CardDescription>Default colours for downloads.</CardDescription>
+              <CardDescription>Default colors for downloads.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex justify-center">
-                <QrPreview value={previewUrl} fg={qrFg} bg={qrBg} size={176} />
+                <div className="rounded-2xl border bg-white p-2 shadow-paper">
+                  <QrPreview value={previewUrl} fg={qrFg} bg={qrBg} size={168} />
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 {(["qrFgColor", "qrBgColor"] as const).map((name) => (
@@ -516,12 +538,12 @@ export function LinkForm({ link, siteUrl }: { link?: LinkDto; siteUrl: string })
               </div>
             </CardContent>
           </Card>
-          <div className="flex gap-2 lg:sticky lg:top-32">
-            <Button type="submit" className="flex-1" disabled={pending} data-testid="link-submit">
+          <div className="flex gap-2">
+            <Button type="submit" size="lg" className="flex-1" disabled={pending} data-testid="link-submit">
               {pending ? <Loader2 className="size-4 animate-spin" /> : null}
               {mode === "create" ? "Create link" : "Save changes"}
             </Button>
-            <Button type="button" variant="outline" onClick={() => router.back()}>
+            <Button type="button" size="lg" variant="outline" onClick={() => router.back()}>
               Cancel
             </Button>
           </div>

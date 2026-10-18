@@ -29,7 +29,7 @@ export default async function SignInPage({ searchParams }: PageProps<"/sign-in">
       {params.reset ? (
         <p
           role="status"
-          className="rounded-md bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-400"
+          className="rounded-lg border border-success/20 bg-success/10 px-3 py-2 text-sm text-success"
         >
           Password updated. Sign in with your new password.
         </p>

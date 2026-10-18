@@ -9,7 +9,7 @@ export async function getAuthPageConfig() {
   const [effective, userCount] = await Promise.all([settings.get(), repos.users.count()]);
   return {
     providers: enabledSocialProviders,
-    // Without SMTP, reset links only reach the server log — useful in development only.
+    // Without SMTP, reset links only reach the server log, which is useful in development only.
     showForgot: mailer.isConfigured || env.NODE_ENV !== "production",
     allowSignups: effective.allowSignups || userCount === 0,
     requireVerification: env.REQUIRE_EMAIL_VERIFICATION,

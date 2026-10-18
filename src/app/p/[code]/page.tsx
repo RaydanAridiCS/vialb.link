@@ -22,15 +22,18 @@ export default async function PasswordPage({ params, searchParams }: PageProps<"
 
   return (
     <CenteredPage>
-      <Card>
+      <Card className="gap-5 py-8">
         <CardHeader className="items-center text-center">
-          <div className="mx-auto mb-2 grid size-12 place-items-center rounded-full bg-muted">
-            <Lock className="size-5" aria-hidden />
+          <div className="mx-auto mb-3 grid size-14 place-items-center rounded-2xl bg-accent text-accent-foreground">
+            <Lock className="size-6" aria-hidden />
           </div>
           <CardTitle>
-            <h1 className="text-xl">This link is password protected</h1>
+            <h1 className="font-display text-3xl font-normal">This link is password protected</h1>
           </CardTitle>
-          <CardDescription>Enter the password you were given to continue.</CardDescription>
+          <CardDescription>
+            Enter the password you were given to continue to{" "}
+            <span className="font-mono text-foreground">/{code}</span>.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <UnlockForm code={code} query={forwarded.toString()} />

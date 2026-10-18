@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, BarChart3, Loader2, QrCode } from "lucide-react";
+import { ArrowRight, BarChart3, Link2, Loader2, QrCode } from "lucide-react";
 import Link from "next/link";
 import { useAction } from "next-safe-action/hooks";
 import QRCode from "qrcode";
@@ -23,7 +23,7 @@ export function storeClaimToken(token: string) {
     const tokens = Array.isArray(existing) ? existing.filter((t): t is string => typeof t === "string") : [];
     localStorage.setItem(CLAIM_TOKENS_STORAGE_KEY, JSON.stringify([...tokens, token].slice(-100)));
   } catch {
-    // storage unavailable (private mode) — the link still works, it just can't be claimed later
+    // storage unavailable (private mode): the link still works, it just can't be claimed later
   }
 }
 
@@ -91,7 +91,8 @@ export function QuickShorten({
         <Label htmlFor="quick-url" className="sr-only">
           Paste a long URL
         </Label>
-        <div className="flex flex-col gap-2 rounded-xl border bg-card p-2 shadow-sm sm:flex-row">
+        <div className="flex flex-col gap-2 rounded-2xl border bg-card p-2 shadow-lifted transition-shadow focus-within:border-primary/50 focus-within:ring-4 focus-within:ring-ring/20 sm:flex-row sm:items-center">
+          <Link2 className="ml-3 hidden size-5 shrink-0 text-muted-foreground sm:block" aria-hidden />
           <Input
             id="quick-url"
             name="url"
@@ -101,19 +102,19 @@ export function QuickShorten({
             placeholder="Paste a long URL…"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
-            className="h-11 border-0 text-base shadow-none focus-visible:ring-0"
+            className="h-12 border-0 bg-transparent text-base shadow-none focus-visible:ring-0 dark:bg-transparent"
             aria-invalid={!!error}
             aria-describedby={error ? "quick-url-error" : undefined}
             disabled={!canCreate}
           />
           {canCreate ? (
-            <Button type="submit" size="lg" disabled={isPending} className="h-11">
+            <Button type="submit" size="lg" disabled={isPending} className="h-12 rounded-xl px-6">
               {isPending ? <Loader2 className="size-4 animate-spin" /> : null}
               Shorten
               <ArrowRight className="size-4" />
             </Button>
           ) : (
-            <Button size="lg" asChild className="h-11">
+            <Button size="lg" asChild className="h-12 rounded-xl px-6">
               <Link href="/sign-up">Sign up to shorten</Link>
             </Button>
           )}
@@ -132,7 +133,10 @@ export function QuickShorten({
       </form>
 
       {created ? (
-        <Card data-testid="quick-result" className="animate-in fade-in slide-in-from-bottom-2">
+        <Card
+          data-testid="quick-result"
+          className="animate-in gap-4 py-5 text-left duration-500 fade-in slide-in-from-bottom-2"
+        >
           <CardContent className="space-y-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
@@ -140,7 +144,7 @@ export function QuickShorten({
                   href={created.link.shortUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="block truncate text-lg font-semibold text-primary underline-offset-4 hover:underline"
+                  className="block truncate font-mono text-lg font-medium text-primary underline-offset-4 hover:underline"
                   data-testid="quick-short-url"
                 >
                   {created.link.shortUrl}
@@ -175,14 +179,14 @@ export function QuickShorten({
               </div>
             ) : null}
             {!created.signedIn ? (
-              <p className="text-sm text-muted-foreground">
+              <p className="border-t border-dashed pt-4 text-sm text-muted-foreground">
                 {created.link.expiresAt
                   ? `This anonymous link expires on ${new Date(created.link.expiresAt).toLocaleString()}. `
                   : ""}
                 <Link href="/sign-up" className="text-foreground underline underline-offset-4">
                   Create an account
                 </Link>{" "}
-                to keep it and see analytics — it will be added to your dashboard automatically.
+                to keep it and see analytics. It will be added to your dashboard automatically.
               </p>
             ) : null}
           </CardContent>

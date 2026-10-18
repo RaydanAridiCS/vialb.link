@@ -8,3 +8,16 @@ export function GithubIcon(props: SVGProps<SVGSVGElement>) {
     </svg>
   );
 }
+
+/** The ToolWright mark: two chain links on a signal-orange tile. */
+export function LogoMark({ className, ...props }: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 32 32" aria-hidden className={className} {...props}>
+      <rect width="32" height="32" rx="9" className="fill-primary" />
+      <g transform="rotate(-45 16 16)" fill="none" stroke="#fff" strokeWidth="2.6" strokeLinecap="round">
+        <rect x="5.5" y="12.5" width="12.5" height="7" rx="3.5" />
+        <rect x="14" y="12.5" width="12.5" height="7" rx="3.5" />
+      </g>
+    </svg>
+  );
+}

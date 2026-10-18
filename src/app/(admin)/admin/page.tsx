@@ -23,7 +23,7 @@ export default async function AdminPage() {
           value={stats.clicks}
           icon={<MousePointerClick className="size-4" />}
         />
-        <KpiCard label="Clicks · 24h" value={stats.clicks24h} icon={<Timer className="size-4" />} />
+        <KpiCard label="Clicks, last 24 hours" value={stats.clicks24h} icon={<Timer className="size-4" />} />
       </div>
       <InstanceSettingsForm
         overrides={detailed.overrides}

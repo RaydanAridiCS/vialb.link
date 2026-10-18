@@ -25,6 +25,7 @@ export function UnlockForm({ code, query }: { code: string; query: string }) {
         <Label htmlFor="link-password">Password</Label>
         <Input
           id="link-password"
+          className="h-11"
           type="password"
           autoComplete="off"
           autoFocus
@@ -38,7 +39,7 @@ export function UnlockForm({ code, query }: { code: string; query: string }) {
           {error}
         </p>
       </div>
-      <Button type="submit" className="w-full" disabled={isPending || password.length === 0}>
+      <Button type="submit" size="lg" className="w-full" disabled={isPending || password.length === 0}>
         {isPending ? <Loader2 className="size-4 animate-spin" /> : <LockOpen className="size-4" />}
         Continue
       </Button>

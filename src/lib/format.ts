@@ -27,7 +27,7 @@ export function countryName(code: string): string {
 }
 
 export function formatDateTime(iso: string | Date | null | undefined): string {
-  if (!iso) return "—";
+  if (!iso) return "Not set";
   const date = typeof iso === "string" ? new Date(iso) : iso;
   return date.toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" });
 }

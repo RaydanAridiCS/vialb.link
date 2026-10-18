@@ -1,7 +1,7 @@
 import { Ban, Clock, Gauge } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { CenteredPage } from "@/components/centered-page";
+import { CenteredPage, StatusNumber } from "@/components/centered-page";
 import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = { title: "Link unavailable", robots: { index: false, follow: false } };
@@ -34,16 +34,18 @@ export default async function GonePage({ params, searchParams }: PageProps<"/gon
   const { icon: Icon, title, body } = REASONS[reason];
   return (
     <CenteredPage>
-      <div className="space-y-4 text-center" data-testid="gone-page" data-reason={reason}>
-        <div className="mx-auto grid size-14 place-items-center rounded-full bg-muted">
-          <Icon className="size-6" aria-hidden />
+      <div className="space-y-5 text-center" data-testid="gone-page" data-reason={reason}>
+        <StatusNumber>410</StatusNumber>
+        <div className="inline-flex items-center gap-2 rounded-full border bg-card px-3 py-1 font-mono text-xs text-muted-foreground">
+          <Icon className="size-3.5 text-primary" aria-hidden />/{code}
         </div>
-        <p className="font-mono text-sm text-muted-foreground">410 · /{code}</p>
-        <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
+        <h1 className="font-display text-4xl">{title}</h1>
         <p className="text-muted-foreground">{body}</p>
-        <Button asChild>
-          <Link href="/">Create your own short link</Link>
-        </Button>
+        <div className="pt-2">
+          <Button asChild>
+            <Link href="/">Create your own short link</Link>
+          </Button>
+        </div>
       </div>
     </CenteredPage>
   );

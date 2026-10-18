@@ -14,7 +14,7 @@ export interface NavItem {
 export function AppNav({ items }: { items: NavItem[] }) {
   const pathname = usePathname();
   return (
-    <nav aria-label="Sections" className="-mb-px flex gap-1 overflow-x-auto">
+    <nav aria-label="Sections" className="flex gap-1 overflow-x-auto">
       {items.map((item) => {
         const active = item.exact
           ? pathname === item.href
@@ -25,10 +25,10 @@ export function AppNav({ items }: { items: NavItem[] }) {
             href={item.href}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "border-b-2 px-3 py-2 text-sm whitespace-nowrap transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
+              "rounded-full px-3.5 py-1.5 text-sm whitespace-nowrap transition-colors outline-none focus-visible:ring-4 focus-visible:ring-ring/25",
               active
-                ? "border-primary font-medium text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground",
+                ? "bg-ink font-medium text-ink-foreground dark:bg-foreground dark:text-background"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground",
             )}
           >
             {item.label}

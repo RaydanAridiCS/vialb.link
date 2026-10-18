@@ -59,6 +59,7 @@ export const RESERVED_CODES: ReadonlySet<string> = new Set(
     "app",
     "new",
     "qr",
+    "demo",
     ".well-known",
   ].map((c) => c.toLowerCase()),
 );

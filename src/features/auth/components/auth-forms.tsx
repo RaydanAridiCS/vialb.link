@@ -138,7 +138,7 @@ export function SignInForm({ showForgot }: { showForgot: boolean }) {
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
+        <Button type="submit" size="lg" className="w-full" disabled={form.formState.isSubmitting}>
           {form.formState.isSubmitting ? <Loader2 className="size-4 animate-spin" /> : null}
           Sign in
         </Button>
@@ -240,7 +240,7 @@ export function SignUpForm({ requireVerification }: { requireVerification: boole
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
+        <Button type="submit" size="lg" className="w-full" disabled={form.formState.isSubmitting}>
           {form.formState.isSubmitting ? <Loader2 className="size-4 animate-spin" /> : null}
           Create account
         </Button>
@@ -285,7 +285,7 @@ export function ForgotPasswordForm() {
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
+        <Button type="submit" size="lg" className="w-full" disabled={form.formState.isSubmitting}>
           Send reset link
         </Button>
       </form>
@@ -343,7 +343,7 @@ export function ResetPasswordForm({ token }: { token: string | null }) {
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full" disabled={!token || form.formState.isSubmitting}>
+        <Button type="submit" size="lg" className="w-full" disabled={!token || form.formState.isSubmitting}>
           Set new password
         </Button>
       </form>
@@ -407,7 +407,7 @@ export function TwoFactorForm() {
           Trust this device for 30 days
         </Label>
       </div>
-      <Button type="submit" className="w-full" disabled={pending || code.length < 6}>
+      <Button type="submit" size="lg" className="w-full" disabled={pending || code.length < 6}>
         Verify
       </Button>
       <Button

@@ -10,7 +10,7 @@ export default async function AdminLayout({ children }: LayoutProps<"/">) {
         { href: "/admin", label: "Instance", exact: true },
         { href: "/admin/users", label: "Users" },
         { href: "/admin/links", label: "All links" },
-        { href: "/dashboard", label: "← My dashboard", exact: true },
+        { href: "/dashboard", label: "My dashboard", exact: true },
       ]}
     >
       {children}

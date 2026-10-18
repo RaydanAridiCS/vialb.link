@@ -9,7 +9,7 @@ export function Providers({ children, nonce }: { children: ReactNode; nonce?: st
   return (
     <ThemeProvider
       attribute="class"
-      defaultTheme="system"
+      defaultTheme="light"
       enableSystem
       disableTransitionOnChange
       nonce={nonce}

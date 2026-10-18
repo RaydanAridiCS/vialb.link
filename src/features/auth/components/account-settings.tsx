@@ -35,7 +35,7 @@ export function ProfileCard({ name, email }: { name: string; email: string }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Profile</CardTitle>
+        <CardTitle className="font-display text-2xl font-normal">Profile</CardTitle>
         <CardDescription>Signed in as {email}</CardDescription>
       </CardHeader>
       <form
@@ -86,7 +86,7 @@ export function ChangePasswordCard() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Password</CardTitle>
+        <CardTitle className="font-display text-2xl font-normal">Password</CardTitle>
         <CardDescription>Changing it signs out your other sessions.</CardDescription>
       </CardHeader>
       <Form {...form}>
@@ -188,7 +188,7 @@ export function TwoFactorCard({ enabled }: { enabled: boolean }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
+        <CardTitle className="flex items-center gap-2 font-display text-2xl font-normal">
           Two-factor authentication
           {enabled ? (
             <Badge>
@@ -205,7 +205,9 @@ export function TwoFactorCard({ enabled }: { enabled: boolean }) {
       <CardContent className="space-y-4">
         {backupCodes ? (
           <div className="space-y-2 rounded-lg border p-4">
-            <p className="text-sm font-medium">Backup codes — store them somewhere safe. Each works once.</p>
+            <p className="text-sm font-medium">
+              Backup codes. Store them somewhere safe. Each one works once.
+            </p>
             <ul className="grid grid-cols-2 gap-1 font-mono text-sm sm:grid-cols-5">
               {backupCodes.map((c) => (
                 <li key={c}>{c}</li>
@@ -288,9 +290,9 @@ export function DataCard() {
   }
 
   return (
-    <Card className="border-destructive/40">
+    <Card className="border-destructive/30 bg-destructive/[0.03]">
       <CardHeader>
-        <CardTitle>Your data</CardTitle>
+        <CardTitle className="font-display text-2xl font-normal">Your data</CardTitle>
         <CardDescription>Export everything or permanently delete your account.</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-wrap gap-2">

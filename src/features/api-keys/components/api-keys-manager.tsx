@@ -54,9 +54,9 @@ export function ApiKeysManager({ keys, siteUrl }: { keys: ApiKeyDto[]; siteUrl: 
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Create an API key</CardTitle>
+          <CardTitle className="font-display text-2xl font-normal">Create an API key</CardTitle>
           <CardDescription>
-            Keys act on your behalf. The secret is shown only once — store it safely.
+            Keys act on your behalf. The secret is shown only once, so store it safely.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -84,23 +84,23 @@ export function ApiKeysManager({ keys, siteUrl }: { keys: ApiKeyDto[]; siteUrl: 
           </form>
           {secret ? (
             <div
-              className="space-y-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-4"
+              className="animate-in space-y-3 rounded-2xl bg-ink p-5 text-ink-foreground fade-in slide-in-from-top-1"
               role="status"
             >
               <p className="flex items-center gap-2 text-sm font-medium">
-                <TriangleAlert className="size-4" aria-hidden /> Copy your key now — you won&apos;t see it
-                again.
+                <TriangleAlert className="size-4 text-primary" aria-hidden /> Copy your key now. You
+                won&apos;t see it again.
               </p>
               <div className="flex items-center gap-2">
                 <code
-                  className="flex-1 truncate rounded-md border bg-background px-3 py-2 font-mono text-sm"
+                  className="flex-1 truncate rounded-lg border border-white/10 bg-white/[0.06] px-3 py-2 font-mono text-sm"
                   data-testid="api-key-secret"
                 >
                   {secret}
                 </code>
-                <CopyButton value={secret} />
+                <CopyButton value={secret} variant="default" />
               </div>
-              <pre className="overflow-x-auto rounded-md border bg-background p-3 text-xs">
+              <pre className="overflow-x-auto rounded-lg border border-white/10 bg-black/30 p-3 font-mono text-xs leading-5 text-white/80">
                 <code>{`curl -X POST ${siteUrl}/api/v1/links \\
   -H "Authorization: Bearer ${secret}" \\
   -H "Content-Type: application/json" \\
@@ -113,12 +113,14 @@ export function ApiKeysManager({ keys, siteUrl }: { keys: ApiKeyDto[]; siteUrl: 
 
       <Card>
         <CardHeader>
-          <CardTitle>Your keys</CardTitle>
+          <CardTitle className="font-display text-2xl font-normal">Your keys</CardTitle>
         </CardHeader>
         <CardContent>
           {keys.length === 0 ? (
-            <div className="flex flex-col items-center gap-2 py-8 text-sm text-muted-foreground">
-              <KeyRound className="size-6" aria-hidden />
+            <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed py-10 text-sm text-muted-foreground">
+              <span className="grid size-11 place-items-center rounded-2xl bg-accent text-accent-foreground">
+                <KeyRound className="size-5" aria-hidden />
+              </span>
               No API keys yet.
             </div>
           ) : (
@@ -141,7 +143,11 @@ export function ApiKeysManager({ keys, siteUrl }: { keys: ApiKeyDto[]; siteUrl: 
                       <TableCell className="font-medium">
                         {key.name} {key.revokedAt ? <Badge variant="outline">revoked</Badge> : null}
                       </TableCell>
-                      <TableCell className="font-mono text-xs">{key.prefix}…</TableCell>
+                      <TableCell>
+                        <span className="rounded-md bg-muted px-2 py-0.5 font-mono text-xs">
+                          {key.prefix}…
+                        </span>
+                      </TableCell>
                       <TableCell className="text-muted-foreground">
                         {key.lastUsedAt ? formatRelative(key.lastUsedAt) : "Never"}
                       </TableCell>

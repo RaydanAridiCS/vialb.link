@@ -89,7 +89,7 @@ export function UsersTable({
           onChange={(e) => setQuery(e.target.value)}
         />
       </form>
-      <div className="overflow-x-auto rounded-lg border">
+      <div className="relative overflow-x-auto rounded-2xl border bg-card shadow-paper">
         <Table>
           <TableHeader>
             <TableRow>

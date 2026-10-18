@@ -13,7 +13,11 @@ export default async function DashboardLayout({ children }: LayoutProps<"/">) {
     ...(isAdmin ? [{ href: "/admin", label: "Admin" }] : []),
   ];
   return (
-    <AppShell user={{ name: session.user.name, email: session.user.email, isAdmin }} items={items}>
+    <AppShell
+      user={{ name: session.user.name, email: session.user.email, isAdmin }}
+      items={items}
+      showNewLink
+    >
       <ClaimLinks />
       {children}
     </AppShell>

@@ -5,6 +5,7 @@ import {
   BarChart3,
   Copy,
   Download,
+  Link2,
   Lock,
   MoreHorizontal,
   Pencil,
@@ -52,12 +53,12 @@ const helper = createColumnHelper<typeof features, LinkDto>();
 
 const STATUS_STYLES: Record<
   LinkStatus,
-  { label: string; variant: "default" | "secondary" | "destructive" | "outline" }
+  { label: string; variant: "success" | "warning" | "secondary"; dot: string }
 > = {
-  active: { label: "Active", variant: "default" },
-  expired: { label: "Expired", variant: "secondary" },
-  limit_reached: { label: "Limit reached", variant: "secondary" },
-  disabled: { label: "Disabled", variant: "outline" },
+  active: { label: "Active", variant: "success", dot: "bg-success" },
+  expired: { label: "Expired", variant: "warning", dot: "bg-warning" },
+  limit_reached: { label: "Limit reached", variant: "warning", dot: "bg-warning" },
+  disabled: { label: "Disabled", variant: "secondary", dot: "bg-muted-foreground" },
 };
 
 function toCsv(rows: LinkDto[]): string {
@@ -163,7 +164,7 @@ export function LinksTable({ links, total, page, pageSize, admin = false }: Link
           cell: ({ row }) => {
             const link = row.original;
             return (
-              <div className="max-w-[22rem] min-w-0 space-y-0.5">
+              <div className="max-w-[24rem] min-w-0 space-y-1">
                 <div className="flex items-center gap-1.5">
                   <Link href={`/dashboard/links/${link.id}`} className="truncate font-medium hover:underline">
                     {link.title ?? `/${link.code}`}
@@ -180,7 +181,7 @@ export function LinksTable({ links, total, page, pageSize, admin = false }: Link
                   href={link.shortUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="block truncate font-mono text-xs text-primary hover:underline"
+                  className="inline-block max-w-full truncate rounded-md bg-accent px-1.5 py-0.5 font-mono text-xs text-accent-foreground hover:underline"
                 >
                   {link.shortUrl.replace(/^https?:\/\//, "")}
                 </a>
@@ -196,14 +197,19 @@ export function LinksTable({ links, total, page, pageSize, admin = false }: Link
           header: "Status",
           cell: ({ row }) => {
             const s = STATUS_STYLES[row.original.status];
-            return <Badge variant={s.variant}>{s.label}</Badge>;
+            return (
+              <Badge variant={s.variant}>
+                <span aria-hidden className={`size-1.5 rounded-full ${s.dot}`} />
+                {s.label}
+              </Badge>
+            );
           },
         }),
         helper.display({
           id: "clicks",
           header: "Clicks",
           cell: ({ row }) => (
-            <span className="tabular-nums">
+            <span className="font-mono text-sm tabular-nums">
               {formatNumber(row.original.clickCount)}
               {row.original.maxClicks !== null ? (
                 <span className="text-muted-foreground"> / {formatNumber(row.original.maxClicks)}</span>
@@ -280,11 +286,11 @@ export function LinksTable({ links, total, page, pageSize, admin = false }: Link
 
   return (
     <div className="space-y-4">
-      <Toolbar admin={admin} />
+      <Toolbar />
 
       {selected.length > 0 ? (
         <div
-          className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/50 px-3 py-2 text-sm"
+          className="flex animate-in flex-wrap items-center gap-2 rounded-xl border border-primary/20 bg-accent/60 px-3 py-2 text-sm fade-in slide-in-from-top-1"
           role="region"
           aria-label="Bulk actions"
         >
@@ -318,7 +324,7 @@ export function LinksTable({ links, total, page, pageSize, admin = false }: Link
         </div>
       ) : null}
 
-      <div className="overflow-x-auto rounded-lg border">
+      <div className="relative overflow-x-auto rounded-2xl border bg-card shadow-paper">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((group) => (
@@ -334,7 +340,7 @@ export function LinksTable({ links, total, page, pageSize, admin = false }: Link
           <TableBody>
             {table.getRowModel().rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-48 text-center">
+                <TableCell colSpan={columns.length} className="h-64 text-center">
                   <EmptyState />
                 </TableCell>
               </TableRow>
@@ -346,7 +352,7 @@ export function LinksTable({ links, total, page, pageSize, admin = false }: Link
                   data-testid="link-row"
                 >
                   {row.getAllCells().map((cell) => (
-                    <TableCell key={cell.id} className="align-top">
+                    <TableCell key={cell.id} className="py-3.5 align-top">
                       <table.FlexRender cell={cell} />
                     </TableCell>
                   ))}
@@ -407,7 +413,7 @@ function useUrlParams() {
   return { searchParams, set, pending };
 }
 
-function Toolbar({ admin }: { admin: boolean }) {
+function Toolbar() {
   const { searchParams, set, pending } = useUrlParams();
   const [query, setQuery] = useState(searchParams.get("q") ?? "");
 
@@ -423,14 +429,14 @@ function Toolbar({ admin }: { admin: boolean }) {
     <div className="flex flex-col gap-2 sm:flex-row sm:items-center" aria-busy={pending}>
       <div className="relative flex-1">
         <Search
-          className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
+          className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
           aria-hidden
         />
         <Input
           type="search"
           aria-label="Search links"
           placeholder="Search by code, title or destination…"
-          className="pl-8"
+          className="h-10 rounded-xl pl-9"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
@@ -439,13 +445,13 @@ function Toolbar({ admin }: { admin: boolean }) {
         value={searchParams.get("status") ?? "all"}
         onValueChange={(v) => set({ status: v === "all" ? null : v })}
       >
-        <SelectTrigger className="w-full sm:w-40" aria-label="Filter by status">
+        <SelectTrigger className="w-full data-[size=default]:h-10 sm:w-44" aria-label="Filter by status">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all">All statuses</SelectItem>
           <SelectItem value="active">Active</SelectItem>
-          <SelectItem value="expired">Expired / limit</SelectItem>
+          <SelectItem value="expired">Expired or at limit</SelectItem>
           <SelectItem value="disabled">Disabled</SelectItem>
           <SelectItem value="protected">Password protected</SelectItem>
         </SelectContent>
@@ -454,7 +460,7 @@ function Toolbar({ admin }: { admin: boolean }) {
         value={searchParams.get("sort") ?? "created_desc"}
         onValueChange={(v) => set({ sort: v === "created_desc" ? null : v })}
       >
-        <SelectTrigger className="w-full sm:w-44" aria-label="Sort links">
+        <SelectTrigger className="w-full data-[size=default]:h-10 sm:w-44" aria-label="Sort links">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -464,13 +470,6 @@ function Toolbar({ admin }: { admin: boolean }) {
           <SelectItem value="clicks_asc">Fewest clicks</SelectItem>
         </SelectContent>
       </Select>
-      {admin ? null : (
-        <Button asChild>
-          <Link href="/dashboard/links/new">
-            <Plus className="size-4" /> New link
-          </Link>
-        </Button>
-      )}
     </div>
   );
 }
@@ -517,7 +516,11 @@ function EmptyState() {
   const searchParams = useSearchParams();
   const filtered = searchParams.has("q") || searchParams.has("status");
   return (
-    <div className="space-y-3 text-muted-foreground">
+    <div className="mx-auto flex max-w-sm flex-col items-center gap-3 text-muted-foreground">
+      <span className="grid size-12 place-items-center rounded-2xl bg-accent text-accent-foreground">
+        {filtered ? <Search className="size-5" aria-hidden /> : <Link2 className="size-5" aria-hidden />}
+      </span>
+      <p className="font-display text-2xl text-foreground">{filtered ? "Nothing found" : "No links yet"}</p>
       <p>{filtered ? "No links match these filters." : "You haven't created any links yet."}</p>
       {filtered ? null : (
         <Button size="sm" asChild>

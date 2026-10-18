@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 
 export function AuthCard({
   title,
@@ -13,17 +12,13 @@ export function AuthCard({
   footer?: ReactNode;
 }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-xl">
-          <h1>{title}</h1>
-        </CardTitle>
-        {description ? <CardDescription>{description}</CardDescription> : null}
-      </CardHeader>
-      <CardContent className="space-y-4">{children}</CardContent>
-      {footer ? (
-        <CardFooter className="justify-center text-sm text-muted-foreground">{footer}</CardFooter>
-      ) : null}
-    </Card>
+    <div className="space-y-8">
+      <div className="space-y-2">
+        <h1 className="font-display text-[2.6rem] leading-tight">{title}</h1>
+        {description ? <p className="text-muted-foreground">{description}</p> : null}
+      </div>
+      <div className="space-y-4">{children}</div>
+      {footer ? <div className="border-t pt-6 text-sm text-muted-foreground">{footer}</div> : null}
+    </div>
   );
 }
