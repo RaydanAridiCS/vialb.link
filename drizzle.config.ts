@@ -5,7 +5,7 @@ export default defineConfig({
   schema: "./src/server/db/schema/index.ts",
   out: "./src/server/db/migrations",
   dbCredentials: {
-    url: process.env.DATABASE_URL ?? "postgres://toolwright:toolwright@localhost:5432/toolwright",
+    url: process.env.DATABASE_URL ?? "postgres://vialb:vialb@localhost:5432/vialb",
   },
   strict: true,
   verbose: true,

@@ -14,13 +14,13 @@ import { account, clicks, links, user } from "@/server/db/schema";
 import type { NewClick } from "@/server/domain/types";
 import { sha256Hex } from "@/server/lib/hashing";
 
-const DEMO = { email: "demo@toolwright.local", password: "demo-password-123", name: "Demo User" };
+const DEMO = { email: "demo@vialb.local", password: "demo-password-123", name: "Demo User" };
 
 const SAMPLE_LINKS = [
   {
-    url: "https://github.com/RaydanAridiCS/toolwright",
+    url: "https://github.com/RaydanAridiCS/vialb.link",
     code: "repo",
-    title: "ToolWright on GitHub",
+    title: "Vialb on GitHub",
     weight: 9,
   },
   { url: "https://nextjs.org/docs", code: "next-docs", title: "Next.js documentation", weight: 6 },

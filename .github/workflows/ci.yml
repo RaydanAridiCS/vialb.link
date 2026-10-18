@@ -39,15 +39,15 @@ jobs:
       postgres:
         image: postgres:17-alpine
         env:
-          POSTGRES_USER: toolwright
-          POSTGRES_PASSWORD: toolwright
-          POSTGRES_DB: toolwright_test
+          POSTGRES_USER: vialb
+          POSTGRES_PASSWORD: vialb
+          POSTGRES_DB: vialb_test
         ports: ["5432:5432"]
         options: >-
-          --health-cmd "pg_isready -U toolwright -d toolwright_test"
+          --health-cmd "pg_isready -U vialb -d vialb_test"
           --health-interval 5s --health-timeout 5s --health-retries 20
     env:
-      TEST_DATABASE_URL: postgres://toolwright:toolwright@localhost:5432/toolwright_test
+      TEST_DATABASE_URL: postgres://vialb:vialb@localhost:5432/vialb_test
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -72,17 +72,17 @@ jobs:
       postgres:
         image: postgres:17-alpine
         env:
-          POSTGRES_USER: toolwright
-          POSTGRES_PASSWORD: toolwright
-          POSTGRES_DB: toolwright
+          POSTGRES_USER: vialb
+          POSTGRES_PASSWORD: vialb
+          POSTGRES_DB: vialb
         ports: ["5432:5432"]
         options: >-
-          --health-cmd "pg_isready -U toolwright -d toolwright"
+          --health-cmd "pg_isready -U vialb -d vialb"
           --health-interval 5s --health-timeout 5s --health-retries 20
     env:
-      E2E_DATABASE_URL: postgres://toolwright:toolwright@localhost:5432/toolwright_e2e
+      E2E_DATABASE_URL: postgres://vialb:vialb@localhost:5432/vialb_e2e
       # Build-time placeholders; the E2E web server gets its own values.
-      DATABASE_URL: postgres://toolwright:toolwright@localhost:5432/toolwright_e2e
+      DATABASE_URL: postgres://vialb:vialb@localhost:5432/vialb_e2e
       SITE_URL: http://localhost:3100
       BETTER_AUTH_SECRET: ci-only-secret-ci-only-secret-ci-only-secret
     steps:

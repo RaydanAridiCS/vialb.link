@@ -349,7 +349,7 @@ describe("domain errors", () => {
   it("instanceof works across bundled module copies (brand-based)", () => {
     // Simulate an error created by a different copy of errors.ts: same brand, different class.
     const foreign = Object.assign(new Error("Incorrect password"), {
-      [Symbol.for("toolwright.DomainError")]: true,
+      [Symbol.for("vialb.DomainError")]: true,
       code: "VALIDATION_ERROR",
     });
     expect(foreign instanceof ValidationError).toBe(true);

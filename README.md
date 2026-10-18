@@ -1,15 +1,15 @@
 <div align="center">
 
-<img src="src/app/icon.svg" width="72" height="72" alt="ToolWright logo" />
+<img src="src/app/icon.svg" width="72" height="72" alt="Vialb logo" />
 
-# ToolWright
+# Vialb
 
 **An open-source, self-hostable URL shortener with privacy-friendly analytics.**
 
-[![CI](https://github.com/RaydanAridiCS/toolwright/actions/workflows/ci.yml/badge.svg)](https://github.com/RaydanAridiCS/toolwright/actions/workflows/ci.yml)
-[![CodeQL](https://github.com/RaydanAridiCS/toolwright/actions/workflows/codeql.yml/badge.svg)](https://github.com/RaydanAridiCS/toolwright/actions/workflows/codeql.yml)
+[![CI](https://github.com/RaydanAridiCS/vialb.link/actions/workflows/ci.yml/badge.svg)](https://github.com/RaydanAridiCS/vialb.link/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/RaydanAridiCS/vialb.link/actions/workflows/codeql.yml/badge.svg)](https://github.com/RaydanAridiCS/vialb.link/actions/workflows/codeql.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Docker image](https://img.shields.io/badge/ghcr.io-raydanaridics%2Ftoolwright-2496ED?logo=docker&logoColor=white)](https://github.com/RaydanAridiCS/toolwright/pkgs/container/toolwright)
+[![Docker image](https://img.shields.io/badge/ghcr.io-raydanaridics%2Fvialb.link-2496ED?logo=docker&logoColor=white)](https://github.com/RaydanAridiCS/vialb.link/pkgs/container/vialb.link)
 
 [Quick start](#quick-start) · [Features](#features) · [API](#api) · [Self-hosting guide](docs/self-hosting.md) · [Architecture](docs/architecture.md) · [Contributing](CONTRIBUTING.md)
 
@@ -17,7 +17,7 @@
 
 ---
 
-<!-- Screenshots: run `npm run seed`, sign in as demo@toolwright.local, then capture these pages. -->
+<!-- Screenshots: run `npm run seed`, sign in as demo@vialb.local, then capture these pages. -->
 
 |       Landing page       |      Link analytics      |     Links dashboard      |
 | :----------------------: | :----------------------: | :----------------------: |
@@ -43,7 +43,7 @@
 ## Quick start
 
 ```bash
-git clone https://github.com/RaydanAridiCS/toolwright.git && cd toolwright
+git clone https://github.com/RaydanAridiCS/vialb.link.git && cd vialb.link
 cp .env.example .env    # set SITE_URL and BETTER_AUTH_SECRET (openssl rand -base64 32)
 docker compose up -d    # → http://localhost:3000
 ```
@@ -59,7 +59,7 @@ npm install
 cp .env.example .env
 docker compose -f docker-compose.dev.yml up -d   # PostgreSQL 17
 npm run db:migrate
-npm run seed        # optional demo data → demo@toolwright.local / demo-password-123
+npm run seed        # optional demo data → demo@vialb.local / demo-password-123
 npm run dev
 ```
 

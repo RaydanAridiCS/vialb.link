@@ -14,7 +14,7 @@ export default async function AdminPage() {
   const [stats, detailed] = await Promise.all([admin.stats(actor), settings.getDetailed()]);
   return (
     <>
-      <PageHeader title="Instance" description="Statistics and settings for this ToolWright instance." />
+      <PageHeader title="Instance" description="Statistics and settings for this Vialb instance." />
       <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard label="Users" value={stats.users} icon={<Users className="size-4" />} />
         <KpiCard label="Links" value={stats.links} icon={<Link2 className="size-4" />} />

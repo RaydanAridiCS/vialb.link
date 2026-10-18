@@ -238,7 +238,7 @@ export default async function HomePage() {
           <Reveal delay={120} className="relative">
             <Terminal
               lines={[
-                `git clone ${GITHUB_URL}.git && cd toolwright`,
+                `git clone ${GITHUB_URL}.git && cd vialb.link`,
                 "cp .env.example .env",
                 "# set SITE_URL and BETTER_AUTH_SECRET in .env",
                 "docker compose up -d",

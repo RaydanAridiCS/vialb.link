@@ -6,15 +6,15 @@ services:
     image: postgres:17-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: toolwright
-      POSTGRES_PASSWORD: toolwright
-      POSTGRES_DB: toolwright
+      POSTGRES_USER: vialb
+      POSTGRES_PASSWORD: vialb
+      POSTGRES_DB: vialb
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
-      - toolwright-dev-db:/var/lib/postgresql/data
+      - vialb-dev-db:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U toolwright -d toolwright"]
+      test: ["CMD-SHELL", "pg_isready -U vialb -d vialb"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -26,4 +26,4 @@ services:
       - "6379:6379"
 
 volumes:
-  toolwright-dev-db:
+  vialb-dev-db:

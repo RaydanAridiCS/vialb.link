@@ -1,6 +1,6 @@
 # Importing links from the legacy app
 
-ToolWright replaces the URL shortener that used to live inside a larger toolkit
+Vialb replaces the URL shortener that used to live inside a larger toolkit
 site (Express + React + Prisma/SQLite). Links can be migrated with
 [`scripts/import-legacy.ts`](../scripts/import-legacy.ts); old printed
 `/s/{code}` links keep working through a permanent redirect to `/{code}`.
@@ -41,9 +41,9 @@ sqlite3 -json prisma/dev.db "
 
 A CSV with the same header row works too.
 
-## 2. Prepare ToolWright
+## 2. Prepare Vialb
 
-- Run ToolWright at least once and **sign up** (the first user is the admin).
+- Run Vialb at least once and **sign up** (the first user is the admin).
 - Ask existing users to sign up with the same email they used before, so their
   links are assigned to them. Links whose email has no account go to the admin.
 
@@ -61,7 +61,7 @@ pointing at the instance's database.
 
 ## What gets mapped how
 
-| Legacy                          | ToolWright                                                                         |
+| Legacy                          | Vialb                                                                              |
 | ------------------------------- | ---------------------------------------------------------------------------------- |
 | `shortCode`                     | `code` (must match `^[A-Za-z0-9_-]{3,50}$` and not be reserved, otherwise skipped) |
 | `originalUrl`                   | `destination_url` (only `http`/`https`; `javascript:` etc. are skipped)            |
@@ -74,4 +74,4 @@ pointing at the instance's database.
 | `userEmail`                     | owner (matched case-insensitively), else the first admin                           |
 
 Existing codes are never overwritten. Click history isn't imported, because the
-old app stored raw IP addresses, which ToolWright deliberately doesn't keep.
+old app stored raw IP addresses, which Vialb deliberately doesn't keep.

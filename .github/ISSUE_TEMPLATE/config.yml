@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
   - name: 🔒 Report a security vulnerability
-    url: https://github.com/RaydanAridiCS/toolwright/security/advisories/new
+    url: https://github.com/RaydanAridiCS/vialb.link/security/advisories/new
     about: Please report vulnerabilities privately — never in a public issue.
   - name: 💬 Questions & ideas
-    url: https://github.com/RaydanAridiCS/toolwright/discussions
+    url: https://github.com/RaydanAridiCS/vialb.link/discussions
     about: Ask questions and share ideas in GitHub Discussions.

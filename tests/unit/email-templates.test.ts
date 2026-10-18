@@ -5,20 +5,20 @@ describe("email-templates", () => {
   describe("renderVerificationEmail", () => {
     it("renders both plain-text and HTML containing the verification URL and app name", () => {
       const result = renderVerificationEmail({
-        appName: "ToolWright",
-        siteUrl: "https://toolwright.com",
-        verificationUrl: "https://toolwright.com/api/auth/verify-email?token=xyz",
+        appName: "Vialb",
+        siteUrl: "https://vialb.link",
+        verificationUrl: "https://vialb.link/api/auth/verify-email?token=xyz",
         userEmail: "user@example.com",
         userName: "Alex Doe",
       });
 
-      expect(result.text).toContain("ToolWright");
-      expect(result.text).toContain("https://toolwright.com/api/auth/verify-email?token=xyz");
+      expect(result.text).toContain("Vialb");
+      expect(result.text).toContain("https://vialb.link/api/auth/verify-email?token=xyz");
       expect(result.text).toContain("user@example.com");
       expect(result.text).toContain("Alex Doe");
 
-      expect(result.html).toContain("ToolWright");
-      expect(result.html).toContain("https://toolwright.com/api/auth/verify-email?token=xyz");
+      expect(result.html).toContain("Vialb");
+      expect(result.html).toContain("https://vialb.link/api/auth/verify-email?token=xyz");
       expect(result.html).toContain("user@example.com");
       expect(result.html).toContain("Alex Doe");
       expect(result.html).toContain("Verify email address");
@@ -26,9 +26,9 @@ describe("email-templates", () => {
 
     it("escapes user input to prevent HTML injection in emails", () => {
       const result = renderVerificationEmail({
-        appName: "ToolWright",
-        siteUrl: "https://toolwright.com",
-        verificationUrl: "https://toolwright.com/api/auth/verify-email?token=xyz",
+        appName: "Vialb",
+        siteUrl: "https://vialb.link",
+        verificationUrl: "https://vialb.link/api/auth/verify-email?token=xyz",
         userEmail: "<script>alert(1)</script>@example.com",
         userName: "<img src=x onerror=alert(1)>",
       });
@@ -43,27 +43,27 @@ describe("email-templates", () => {
   describe("renderPasswordResetEmail", () => {
     it("renders both plain-text and HTML containing reset URL", () => {
       const result = renderPasswordResetEmail({
-        appName: "ToolWright",
-        siteUrl: "https://toolwright.com",
-        resetUrl: "https://toolwright.com/reset-password?token=secret123",
+        appName: "Vialb",
+        siteUrl: "https://vialb.link",
+        resetUrl: "https://vialb.link/reset-password?token=secret123",
         userEmail: "reset@example.com",
       });
 
-      expect(result.text).toContain("https://toolwright.com/reset-password?token=secret123");
-      expect(result.html).toContain("https://toolwright.com/reset-password?token=secret123");
+      expect(result.text).toContain("https://vialb.link/reset-password?token=secret123");
+      expect(result.html).toContain("https://vialb.link/reset-password?token=secret123");
       expect(result.html).toContain("Reset password");
     });
   });
 
   it("keeps the plain-text part unescaped and states the real 1 hour expiry", () => {
     const input = {
-      appName: "ToolWright",
-      siteUrl: "https://toolwright.com",
+      appName: "Vialb",
+      siteUrl: "https://vialb.link",
       userEmail: "tj@example.com",
       userName: "Tom & Jerry",
     };
-    const verify = renderVerificationEmail({ ...input, verificationUrl: "https://toolwright.com/v" });
-    const reset = renderPasswordResetEmail({ ...input, resetUrl: "https://toolwright.com/r" });
+    const verify = renderVerificationEmail({ ...input, verificationUrl: "https://vialb.link/v" });
+    const reset = renderPasswordResetEmail({ ...input, resetUrl: "https://vialb.link/r" });
 
     for (const { text, html } of [verify, reset]) {
       expect(text).toContain("Hi Tom & Jerry,");

@@ -15,7 +15,7 @@ track the `latest` Docker tag or the newest `vX.Y` tag.
 **Please do not open public issues for security problems.**
 
 Report vulnerabilities privately through
-[GitHub Security Advisories](https://github.com/RaydanAridiCS/toolwright/security/advisories/new).
+[GitHub Security Advisories](https://github.com/RaydanAridiCS/vialb.link/security/advisories/new).
 Include:
 
 - a description of the issue and its impact,
@@ -39,4 +39,4 @@ Things we especially care about:
 Security-relevant defaults are documented in
 [docs/architecture.md](docs/architecture.md#security-model) and
 [docs/configuration.md](docs/configuration.md). In particular, set
-`TRUST_PROXY=true` only when ToolWright runs behind a reverse proxy you control.
+`TRUST_PROXY=true` only when Vialb runs behind a reverse proxy you control.

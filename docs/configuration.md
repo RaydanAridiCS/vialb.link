@@ -42,13 +42,13 @@ Booleans accept `true/false`, `1/0`, `yes/no`, `on/off`.
 
 ## Reverse proxy, client IP & headers
 
-| Variable             | Default    | Description                                                                                                                                    |
-| -------------------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `TRUST_PROXY`        | `false`    | Trust `X-Forwarded-For`. **Only enable behind a proxy you control.**                                                                           |
-| `TRUSTED_PROXY_HOPS` | `1`        | Number of proxies in front of ToolWright. The client IP is the entry this many positions from the right (e.g. Cloudflare → Caddy → app = `2`). |
-| `HSTS_MAX_AGE`       | `15552000` | Seconds for `Strict-Transport-Security` (sent only when `SITE_URL` is https). `0` disables it.                                                 |
+| Variable             | Default    | Description                                                                                                                               |
+| -------------------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `TRUST_PROXY`        | `false`    | Trust `X-Forwarded-For`. **Only enable behind a proxy you control.**                                                                      |
+| `TRUSTED_PROXY_HOPS` | `1`        | Number of proxies in front of Vialb. The client IP is the entry this many positions from the right (e.g. Cloudflare → Caddy → app = `2`). |
+| `HSTS_MAX_AGE`       | `15552000` | Seconds for `Strict-Transport-Security` (sent only when `SITE_URL` is https). `0` disables it.                                            |
 
-**How the client IP is determined.** With `TRUST_PROXY=true`, ToolWright reads
+**How the client IP is determined.** With `TRUST_PROXY=true`, Vialb reads
 `X-Forwarded-For` from the right and skips `TRUSTED_PROXY_HOPS - 1` entries;
 entries further left are client-controlled and ignored. With `TRUST_PROXY=false`
 it uses the socket address. Next.js only exposes that address by adding it as
@@ -64,7 +64,7 @@ never stored.
 | `TRUST_PROXY_GEO_HEADERS` | `false` | Read country/region/city from CDN headers (`cf-ipcountry`, `cf-ipcity`, `x-vercel-ip-country`, `cloudfront-viewer-country`, …). Only behind such a CDN. |
 | `GEOLITE2_DB_PATH`        | —       | Path to a MaxMind GeoLite2 City (or Country) `.mmdb` file, used when headers don't provide a country.                                                   |
 
-Without either, location is "Unknown". ToolWright never calls a third-party
+Without either, location is "Unknown". Vialb never calls a third-party
 geolocation API.
 
 ## Scaling & anti-abuse
@@ -77,12 +77,12 @@ geolocation API.
 
 ## Docker Compose helpers
 
-| Variable                                              | Default      | Description                                     |
-| ----------------------------------------------------- | ------------ | ----------------------------------------------- |
-| `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | `toolwright` | Credentials for the bundled Postgres container. |
-| `APP_PORT`                                            | `3000`       | Host port for the app container.                |
-| `TOOLWRIGHT_VERSION`                                  | `latest`     | Image tag to run.                               |
-| `SKIP_MIGRATIONS`                                     | `false`      | Skip running migrations on container start.     |
+| Variable                                              | Default  | Description                                     |
+| ----------------------------------------------------- | -------- | ----------------------------------------------- |
+| `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | `vialb`  | Credentials for the bundled Postgres container. |
+| `APP_PORT`                                            | `3000`   | Host port for the app container.                |
+| `VIALB_VERSION`                                       | `latest` | Image tag to run.                               |
+| `SKIP_MIGRATIONS`                                     | `false`  | Skip running migrations on container start.     |
 
 ## Instance settings in the admin UI
 

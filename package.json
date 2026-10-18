@@ -1,5 +1,5 @@
 {
-  "name": "toolwright",
+  "name": "vialb",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -106,11 +106,11 @@
   "author": "Raydan Aridi",
   "repository": {
     "type": "git",
-    "url": "https://github.com/RaydanAridiCS/toolwright.git"
+    "url": "https://github.com/RaydanAridiCS/vialb.link.git"
   },
-  "homepage": "https://github.com/RaydanAridiCS/toolwright#readme",
+  "homepage": "https://github.com/RaydanAridiCS/vialb.link#readme",
   "bugs": {
-    "url": "https://github.com/RaydanAridiCS/toolwright/issues"
+    "url": "https://github.com/RaydanAridiCS/vialb.link/issues"
   },
   "packageManager": "npm@11.18.0",
   "engines": {

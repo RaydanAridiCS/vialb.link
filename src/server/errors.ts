@@ -11,8 +11,8 @@
 export type DomainErrorCode =
   "NOT_FOUND" | "CONFLICT" | "GONE" | "FORBIDDEN" | "UNAUTHORIZED" | "VALIDATION_ERROR" | "RATE_LIMITED";
 
-const DOMAIN_ERROR = Symbol.for("toolwright.DomainError");
-const UNIQUE_VIOLATION = Symbol.for("toolwright.UniqueViolationError");
+const DOMAIN_ERROR = Symbol.for("vialb.DomainError");
+const UNIQUE_VIOLATION = Symbol.for("vialb.UniqueViolationError");
 
 interface Branded {
   [DOMAIN_ERROR]: true;

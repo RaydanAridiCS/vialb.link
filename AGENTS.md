@@ -8,7 +8,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
-# ToolWright — notes for contributors and coding agents
+# Vialb — notes for contributors and coding agents
 
 - Read `docs/architecture.md` first. Layering is strict: routes/actions → services → repository interfaces/ports.
   Only `src/server/repositories/drizzle/*`, `src/server/db/*` and `src/server/auth/*` may import Drizzle (ESLint-enforced).

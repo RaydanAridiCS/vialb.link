@@ -1,4 +1,4 @@
-# Production-style stack: ToolWright + PostgreSQL 17 (+ optional Redis).
+# Production-style stack: Vialb + PostgreSQL 17 (+ optional Redis).
 #
 #   cp .env.example .env      # set SITE_URL and BETTER_AUTH_SECRET
 #   docker compose up -d      # → http://localhost:3000
@@ -7,12 +7,12 @@
 # Uses the published image by default; `docker compose up --build` builds locally.
 services:
   app:
-    image: ghcr.io/raydanaridics/toolwright:${TOOLWRIGHT_VERSION:-latest}
+    image: ghcr.io/raydanaridics/vialb.link:${VIALB_VERSION:-latest}
     build: .
     restart: unless-stopped
     env_file: .env
     environment:
-      DATABASE_URL: postgres://${POSTGRES_USER:-toolwright}:${POSTGRES_PASSWORD:-toolwright}@postgres:5432/${POSTGRES_DB:-toolwright}
+      DATABASE_URL: postgres://${POSTGRES_USER:-vialb}:${POSTGRES_PASSWORD:-vialb}@postgres:5432/${POSTGRES_DB:-vialb}
     ports:
       - "${APP_PORT:-3000}:3000"
     depends_on:
@@ -23,11 +23,11 @@ services:
     image: postgres:17-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-toolwright}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-toolwright}
-      POSTGRES_DB: ${POSTGRES_DB:-toolwright}
+      POSTGRES_USER: ${POSTGRES_USER:-vialb}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-vialb}
+      POSTGRES_DB: ${POSTGRES_DB:-vialb}
     volumes:
-      - toolwright-db:/var/lib/postgresql/data
+      - vialb-db:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
@@ -41,4 +41,4 @@ services:
     command: ["redis-server", "--save", "", "--appendonly", "no"]
 
 volumes:
-  toolwright-db:
+  vialb-db:

@@ -146,11 +146,11 @@ function buildContainer() {
 export type Container = ReturnType<typeof buildContainer>;
 
 declare global {
-  var __toolwrightContainer: Container | undefined;
+  var __vialbContainer: Container | undefined;
 }
 
 export function getContainer(): Container {
   // Cached on globalThis so dev hot-reloads keep rate-limit state and pools.
-  globalThis.__toolwrightContainer ??= buildContainer();
-  return globalThis.__toolwrightContainer;
+  globalThis.__vialbContainer ??= buildContainer();
+  return globalThis.__vialbContainer;
 }

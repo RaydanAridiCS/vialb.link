@@ -13,7 +13,7 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import postgres from "postgres";
 
-const LOCK_KEY = 7_311_942_001; // arbitrary, stable advisory-lock id for ToolWright
+const LOCK_KEY = 7_311_942_001; // arbitrary, stable advisory-lock id for Vialb
 
 async function main() {
   const url = process.env.DATABASE_URL;

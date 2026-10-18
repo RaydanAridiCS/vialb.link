@@ -1,6 +1,6 @@
 # Architecture
 
-ToolWright is a single Next.js 16 application (App Router) backed by
+Vialb is a single Next.js 16 application (App Router) backed by
 PostgreSQL. It follows a **repository pattern + service layer** so business
 rules live in plain TypeScript classes that are easy to test without a
 database or a framework.
@@ -131,7 +131,7 @@ Migrations are committed SQL in `src/server/db/migrations` (generated with
 
 ## Rendering model
 
-Next.js 16 enables **Cache Components** by default; ToolWright turns it off
+Next.js 16 enables **Cache Components** by default; Vialb turns it off
 (`next.config.ts`). The app sets a strict, nonce-based Content Security Policy in
 `src/proxy.ts`, and nonces require every HTML page to be rendered per request.
 Almost every page is user-specific anyway (dashboard, analytics, settings), so

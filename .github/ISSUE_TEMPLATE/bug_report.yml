@@ -25,14 +25,14 @@ body:
   - type: input
     id: version
     attributes:
-      label: ToolWright version / image tag
-      placeholder: e.g. v0.2.0 or ghcr.io/raydanaridics/toolwright:latest
+      label: Vialb version / image tag
+      placeholder: e.g. v0.2.0 or ghcr.io/raydanaridics/vialb.link:latest
     validations:
       required: true
   - type: dropdown
     id: deployment
     attributes:
-      label: How do you run ToolWright?
+      label: How do you run Vialb?
       options:
         - Docker Compose
         - Docker (other orchestrator)

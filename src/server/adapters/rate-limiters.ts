@@ -48,7 +48,7 @@ return { current, ttl }
 export class RedisRateLimiter implements RateLimiter {
   constructor(
     private readonly redis: Redis,
-    private readonly prefix = "toolwright:rl:",
+    private readonly prefix = "vialb:rl:",
   ) {}
 
   async consume(key: string, limit: number, windowMs: number): Promise<RateLimitResult> {

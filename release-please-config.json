@@ -3,7 +3,7 @@
   "packages": {
     ".": {
       "release-type": "node",
-      "package-name": "toolwright",
+      "package-name": "vialb",
       "changelog-path": "CHANGELOG.md",
       "include-v-in-tag": true,
       "bump-minor-pre-major": true,

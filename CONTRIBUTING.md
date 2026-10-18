@@ -1,6 +1,6 @@
-# Contributing to ToolWright
+# Contributing to Vialb
 
-Thanks for your interest in improving ToolWright! This guide covers local
+Thanks for your interest in improving Vialb! This guide covers local
 setup, conventions and how the code is organised.
 
 By participating you agree to follow the [Code of Conduct](CODE_OF_CONDUCT.md).
@@ -14,7 +14,7 @@ Security issues go through [private advisories](SECURITY.md), never public issue
 ## Local setup
 
 ```bash
-git clone https://github.com/RaydanAridiCS/toolwright.git && cd toolwright
+git clone https://github.com/RaydanAridiCS/vialb.link.git && cd vialb.link
 npm install
 npx lefthook install          # git hooks: lint-staged, commitlint, pre-push checks
 cp .env.example .env          # defaults work for local development
@@ -52,10 +52,10 @@ docker-compose.dev.yml up -d` and use `localhost:5440` in `DATABASE_URL`.
 ```bash
 npm run build
 npx playwright install chromium
-E2E_DATABASE_URL=postgres://toolwright:toolwright@localhost:5432/toolwright_e2e npm run test:e2e
+E2E_DATABASE_URL=postgres://vialb:vialb@localhost:5432/vialb_e2e npm run test:e2e
 ```
 
-The suite creates/migrates/wipes the `toolwright_e2e` database and starts
+The suite creates/migrates/wipes the `vialb_e2e` database and starts
 `next start` on port 3100. Set `E2E_REUSE_SERVER=1` to reuse a server you
 started yourself.
 

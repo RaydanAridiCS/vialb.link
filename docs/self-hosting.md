@@ -1,13 +1,13 @@
-# Self-hosting ToolWright
+# Self-hosting Vialb
 
-ToolWright ships as a single Docker image
-(`ghcr.io/raydanaridics/toolwright`, `linux/amd64` + `linux/arm64`) that needs
+Vialb ships as a single Docker image
+(`ghcr.io/raydanaridics/vialb.link`, `linux/amd64` + `linux/arm64`) that needs
 a PostgreSQL 15+ database (17 recommended). Redis is optional.
 
 ## Quick start with Docker Compose
 
 ```bash
-git clone https://github.com/RaydanAridiCS/toolwright.git && cd toolwright
+git clone https://github.com/RaydanAridiCS/vialb.link.git && cd vialb.link
 cp .env.example .env
 # edit .env: set SITE_URL and a random BETTER_AUTH_SECRET (openssl rand -base64 32)
 docker compose up -d
@@ -85,7 +85,7 @@ Managed Transform).
 Both can deploy straight from this repository or from the image:
 
 1. Create a PostgreSQL 17 database resource and copy its internal connection string.
-2. Create an application from `ghcr.io/raydanaridics/toolwright:latest`
+2. Create an application from `ghcr.io/raydanaridics/vialb.link:latest`
    (or "Dockerfile" build from the Git repository), port `3000`.
 3. Add the environment variables: `DATABASE_URL`, `SITE_URL` (your domain),
    `BETTER_AUTH_SECRET`, `TRUST_PROXY=true`, `TRUSTED_PROXY_HOPS=1`.
@@ -99,7 +99,7 @@ Coolify and Dokploy route traffic through Traefik, which sets `X-Forwarded-For`.
 1. Create a free MaxMind account and generate a license key.
 2. Download **GeoLite2-City** (`.mmdb`), e.g. with
    [`geoipupdate`](https://github.com/maxmind/geoipupdate) on a schedule.
-3. Mount it read-only and point ToolWright at it:
+3. Mount it read-only and point Vialb at it:
 
 ```yaml
 # docker-compose.override.yml
@@ -120,9 +120,9 @@ All data lives in PostgreSQL:
 
 ```bash
 # backup
-docker compose exec -T postgres pg_dump -U toolwright -Fc toolwright > toolwright-$(date +%F).dump
+docker compose exec -T postgres pg_dump -U vialb -Fc vialb > vialb-$(date +%F).dump
 # restore into an empty database
-docker compose exec -T postgres pg_restore -U toolwright -d toolwright --clean --if-exists < toolwright-2026-01-01.dump
+docker compose exec -T postgres pg_restore -U vialb -d vialb --clean --if-exists < vialb-2026-01-01.dump
 ```
 
 Schedule the backup with cron or your platform's backup feature and store copies off-site.
@@ -134,11 +134,11 @@ docker compose pull && docker compose up -d
 ```
 
 Migrations run automatically. Read the [CHANGELOG](../CHANGELOG.md) before
-major upgrades. To pin a version, set `TOOLWRIGHT_VERSION=1.2.3` in `.env`.
+major upgrades. To pin a version, set `VIALB_VERSION=1.2.3` in `.env`.
 
 ## Scaling out
 
-ToolWright is stateless. To run several replicas:
+Vialb is stateless. To run several replicas:
 
 - set `REDIS_URL` so rate limits are shared,
 - point all replicas at the same Postgres,

@@ -3,7 +3,7 @@ import { defineConfig, devices } from "@playwright/test";
 const PORT = Number(process.env.E2E_PORT ?? 3100);
 const BASE_URL = `http://localhost:${PORT}`;
 export const E2E_DATABASE_URL =
-  process.env.E2E_DATABASE_URL ?? "postgres://toolwright:toolwright@localhost:5432/toolwright_e2e";
+  process.env.E2E_DATABASE_URL ?? "postgres://vialb:vialb@localhost:5432/vialb_e2e";
 
 /**
  * E2E tests run against the production build (`npm run build` first) with a

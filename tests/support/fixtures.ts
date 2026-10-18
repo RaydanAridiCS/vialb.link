@@ -119,7 +119,7 @@ export function buildFixture(options: FixtureOptions = {}) {
     clock,
     hasher,
     limiter,
-    siteName: "ToolWright",
+    siteName: "Vialb",
     siteUrl: SITE_URL,
     forwardQueryParams: options.forwardQueryParams ?? true,
   });

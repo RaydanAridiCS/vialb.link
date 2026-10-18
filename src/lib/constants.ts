@@ -2,9 +2,9 @@
  * Project-wide constants. The product name lives here (and only here) so the
  * project is trivial to rename or white-label.
  */
-export const APP_NAME = "ToolWright";
+export const APP_NAME = "Vialb";
 export const APP_TAGLINE = "Open-source, self-hostable URL shortener with privacy-friendly analytics.";
-export const GITHUB_REPO = "RaydanAridiCS/toolwright";
+export const GITHUB_REPO = "RaydanAridiCS/vialb.link";
 export const GITHUB_URL = `https://github.com/${GITHUB_REPO}`;
 export const DOCKER_IMAGE = `ghcr.io/${GITHUB_REPO.toLowerCase()}`;
 
@@ -165,4 +165,4 @@ export const API_KEY_PREFIX = "tw_";
 export const ANALYTICS_RANGES = ["24h", "7d", "30d", "90d", "all", "custom"] as const;
 export type AnalyticsRange = (typeof ANALYTICS_RANGES)[number];
 
-export const CLAIM_TOKENS_STORAGE_KEY = "toolwright:claim-tokens";
+export const CLAIM_TOKENS_STORAGE_KEY = "vialb:claim-tokens";

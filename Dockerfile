@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 # ---------------------------------------------------------------------------
-# ToolWright — multi-stage image: deps → build → minimal non-root runner.
+# Vialb — multi-stage image: deps → build → minimal non-root runner.
 # ---------------------------------------------------------------------------
 ARG NODE_VERSION=24
 
@@ -35,17 +35,17 @@ ENV NODE_ENV=production \
     HOSTNAME=0.0.0.0 \
     MIGRATIONS_DIR=/app/migrations
 
-RUN addgroup -S -g 1001 nodejs && adduser -S -u 1001 -G nodejs toolwright
+RUN addgroup -S -g 1001 nodejs && adduser -S -u 1001 -G nodejs vialb
 
-COPY --from=build --chown=toolwright:nodejs /app/.next/standalone ./
-COPY --from=build --chown=toolwright:nodejs /app/.next/static ./.next/static
-COPY --from=build --chown=toolwright:nodejs /app/public ./public
-COPY --from=build --chown=toolwright:nodejs /app/dist/migrate.cjs ./migrate.cjs
-COPY --from=build --chown=toolwright:nodejs /app/src/server/db/migrations ./migrations
-COPY --chown=toolwright:nodejs scripts/docker-entrypoint.sh ./docker-entrypoint.sh
+COPY --from=build --chown=vialb:nodejs /app/.next/standalone ./
+COPY --from=build --chown=vialb:nodejs /app/.next/static ./.next/static
+COPY --from=build --chown=vialb:nodejs /app/public ./public
+COPY --from=build --chown=vialb:nodejs /app/dist/migrate.cjs ./migrate.cjs
+COPY --from=build --chown=vialb:nodejs /app/src/server/db/migrations ./migrations
+COPY --chown=vialb:nodejs scripts/docker-entrypoint.sh ./docker-entrypoint.sh
 RUN chmod +x ./docker-entrypoint.sh
 
-USER toolwright
+USER vialb
 EXPOSE 3000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \

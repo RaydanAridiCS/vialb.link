@@ -57,7 +57,7 @@ describe("OG preview HTML", () => {
   it("escapes every interpolated value", () => {
     expect(escapeHtml(`<script>"'&\``)).toBe("&lt;script&gt;&quot;&#39;&amp;&#96;");
     const html = renderPreviewHtml({
-      siteName: "ToolWright",
+      siteName: "Vialb",
       shortUrl: "https://sho.rt/abc",
       title: `"><script>alert(1)</script>`,
       description: `<img src=x onerror=alert(1)>`,
@@ -72,7 +72,7 @@ describe("OG preview HTML", () => {
   });
   it("omits the destination when none is given (protected links)", () => {
     const html = renderPreviewHtml({
-      siteName: "ToolWright",
+      siteName: "Vialb",
       shortUrl: "https://sho.rt/abc",
       title: "Protected",
       description: null,

@@ -1,11 +1,11 @@
 The prompt (final deliverable)
 
-# Build "ToolWright": an open-source, self-hostable URL shortener
+# Build "Vialb": an open-source, self-hostable URL shortener
 
 You are building a brand-new, production-quality, open-source URL shortener in an EMPTY directory.
 It replaces a messy URL shortener that used to live inside a larger toolkit site (Express + React + Prisma/SQLite).
 Do not copy that code. The requirements below are distilled from it, including its bugs (which you must NOT reproduce).
-Project name: **ToolWright** (keep the name in one constant/config so it is trivial to rename).
+Project name: **Vialb** (keep the name in one constant/config so it is trivial to rename).
 
 Work in phases. At the end of each phase, run typecheck + lint + tests and commit with a Conventional Commit message.
 Before choosing versions, check the latest stable versions (`npm view <pkg> version`) and use them; do not use canary/beta.
