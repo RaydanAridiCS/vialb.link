@@ -14,7 +14,7 @@ export function AuthAside() {
         aria-hidden
         className="pointer-events-none absolute -right-32 -bottom-32 size-[30rem] rounded-full bg-primary/30 blur-[120px]"
       />
-      <p className="relative max-w-md font-display text-5xl leading-[1.05]">
+      <p className="relative max-w-md font-display text-4xl leading-[1.1]">
         Every link is a small experiment. <em className="text-primary">Read the results.</em>
       </p>
       <div className="relative w-full max-w-md rounded-2xl border border-white/10 bg-white/[0.04] p-6 backdrop-blur">

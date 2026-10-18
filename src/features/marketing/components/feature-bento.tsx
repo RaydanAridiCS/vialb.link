@@ -148,7 +148,7 @@ export function FeatureBento({
 
         <Tile
           title="Private by design"
-          body="Visitors are counted with a daily-salted hash. Raw IP addresses are never written to disk."
+          body="Link visitors are counted with a daily-salted hash. Their IP addresses are never written to disk."
           delay={160}
         >
           <div className="flex w-full max-w-64 flex-col items-stretch gap-2 font-mono text-xs">
@@ -175,9 +175,9 @@ export function FeatureBento({
               <span className="text-white/45"># Create a short link</span>
               {"\n"}
               <span className="text-primary">curl</span> -X POST https://{host}/api/v1/links \{"\n"}
-              {"  "}-H <span className="text-[#9fd3a8]">&quot;Authorization: Bearer tw_••••&quot;</span> \
+              {"  "}-H <span className="text-[#9cc3f0]">&quot;Authorization: Bearer tw_••••&quot;</span> \
               {"\n"}
-              {"  "}-d <span className="text-[#9fd3a8]">&apos;{`{"url":"https://example.com"}`}&apos;</span>
+              {"  "}-d <span className="text-[#9cc3f0]">&apos;{`{"url":"https://example.com"}`}&apos;</span>
             </code>
           </pre>
         </Tile>
@@ -192,7 +192,7 @@ export function FeatureBento({
               {host}/launch
             </div>
             <div className="ml-auto w-56 overflow-hidden rounded-xl border bg-card shadow-paper">
-              <div className="h-16 bg-[linear-gradient(135deg,var(--chart-1),var(--chart-3))]" />
+              <div className="h-16 bg-[linear-gradient(135deg,var(--chart-1),var(--chart-2))]" />
               <div className="space-y-0.5 p-2.5">
                 <p className="text-xs font-medium">Introducing Acme 2.0</p>
                 <p className="text-[11px] text-muted-foreground">Faster builds and a new CLI.</p>

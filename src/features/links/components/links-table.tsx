@@ -520,7 +520,7 @@ function EmptyState() {
       <span className="grid size-12 place-items-center rounded-2xl bg-accent text-accent-foreground">
         {filtered ? <Search className="size-5" aria-hidden /> : <Link2 className="size-5" aria-hidden />}
       </span>
-      <p className="font-display text-2xl text-foreground">{filtered ? "Nothing found" : "No links yet"}</p>
+      <p className="font-display text-xl text-foreground">{filtered ? "Nothing found" : "No links yet"}</p>
       <p>{filtered ? "No links match these filters." : "You haven't created any links yet."}</p>
       {filtered ? null : (
         <Button size="sm" asChild>

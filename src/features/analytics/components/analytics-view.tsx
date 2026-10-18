@@ -67,7 +67,7 @@ export function InsightCards({ insights, className }: { insights: Insight[]; cla
             <Lightbulb className="size-3.5" aria-hidden />
             {insight.label}
           </p>
-          <p className="mt-2 truncate font-display text-[1.75rem] leading-tight">{insight.value}</p>
+          <p className="mt-2 truncate font-display text-2xl leading-tight">{insight.value}</p>
           <p className="mt-1 text-sm text-muted-foreground">{insight.detail}</p>
         </div>
       ))}

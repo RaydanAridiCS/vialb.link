@@ -54,7 +54,7 @@ export function ApiKeysManager({ keys, siteUrl }: { keys: ApiKeyDto[]; siteUrl: 
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle className="font-display text-2xl font-normal">Create an API key</CardTitle>
+          <CardTitle className="font-display text-xl">Create an API key</CardTitle>
           <CardDescription>
             Keys act on your behalf. The secret is shown only once, so store it safely.
           </CardDescription>
@@ -113,7 +113,7 @@ export function ApiKeysManager({ keys, siteUrl }: { keys: ApiKeyDto[]; siteUrl: 
 
       <Card>
         <CardHeader>
-          <CardTitle className="font-display text-2xl font-normal">Your keys</CardTitle>
+          <CardTitle className="font-display text-xl">Your keys</CardTitle>
         </CardHeader>
         <CardContent>
           {keys.length === 0 ? (

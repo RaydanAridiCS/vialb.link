@@ -21,10 +21,10 @@ export function CenteredPage({ children }: { children: ReactNode }) {
   );
 }
 
-/** Large serif status line used by the 404, gone and error pages. */
+/** Large status number used by the 404, gone and error pages. */
 export function StatusNumber({ children }: { children: ReactNode }) {
   return (
-    <p aria-hidden className="font-display text-[7rem] leading-none text-primary sm:text-[9rem]">
+    <p aria-hidden className="font-display text-[6rem] leading-none text-primary sm:text-[7.5rem]">
       {children}
     </p>
   );

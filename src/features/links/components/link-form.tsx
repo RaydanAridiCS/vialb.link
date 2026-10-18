@@ -184,7 +184,7 @@ export function LinkForm({ link, siteUrl }: { link?: LinkDto; siteUrl: string })
         <div className="space-y-6 lg:col-span-2">
           <Card>
             <CardHeader>
-              <CardTitle className="font-display text-2xl font-normal">Destination</CardTitle>
+              <CardTitle className="font-display text-xl">Destination</CardTitle>
               <CardDescription>Where should this link take people?</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -276,7 +276,7 @@ export function LinkForm({ link, siteUrl }: { link?: LinkDto; siteUrl: string })
 
           <Card>
             <CardHeader>
-              <CardTitle className="font-display text-2xl font-normal">Limits and protection</CardTitle>
+              <CardTitle className="font-display text-xl">Limits and protection</CardTitle>
               <CardDescription>Expire the link, cap its visits or require a password.</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4 sm:grid-cols-2">
@@ -434,7 +434,7 @@ export function LinkForm({ link, siteUrl }: { link?: LinkDto; siteUrl: string })
           </Card>
 
           <details className="group rounded-2xl border bg-card shadow-paper">
-            <summary className="flex cursor-pointer list-none items-center justify-between rounded-2xl px-6 py-5 font-display text-2xl outline-none focus-visible:ring-4 focus-visible:ring-ring/25">
+            <summary className="flex cursor-pointer list-none items-center justify-between rounded-2xl px-6 py-5 font-display text-xl outline-none focus-visible:ring-4 focus-visible:ring-ring/25">
               Link preview (Open Graph)
               <ChevronDown className="size-4 transition-transform group-open:rotate-180" aria-hidden />
             </summary>

@@ -56,9 +56,17 @@ export function AppShell({
       <footer className="border-t">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-5 text-xs text-muted-foreground sm:px-6">
           <span>Times are shown in UTC.</span>
-          <Link href="/docs/api" className="hover:text-foreground">
-            API reference
-          </Link>
+          <nav aria-label="Footer" className="flex gap-4">
+            <Link href="/docs/api" className="hover:text-foreground">
+              API reference
+            </Link>
+            <Link href="/terms" className="hover:text-foreground">
+              Terms
+            </Link>
+            <Link href="/privacy" className="hover:text-foreground">
+              Privacy
+            </Link>
+          </nav>
         </div>
       </footer>
     </div>
@@ -77,7 +85,7 @@ export function PageHeader({
   return (
     <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div className="min-w-0 space-y-1.5">
-        <h1 className="truncate font-display text-4xl leading-tight sm:text-[2.75rem]">{title}</h1>
+        <h1 className="truncate font-display text-3xl leading-tight sm:text-4xl">{title}</h1>
         {description ? <div className="text-sm text-muted-foreground">{description}</div> : null}
       </div>
       {actions ? <div className="flex shrink-0 flex-wrap gap-2">{actions}</div> : null}

@@ -39,7 +39,7 @@ export default async function GonePage({ params, searchParams }: PageProps<"/gon
         <div className="inline-flex items-center gap-2 rounded-full border bg-card px-3 py-1 font-mono text-xs text-muted-foreground">
           <Icon className="size-3.5 text-primary" aria-hidden />/{code}
         </div>
-        <h1 className="font-display text-4xl">{title}</h1>
+        <h1 className="font-display text-3xl">{title}</h1>
         <p className="text-muted-foreground">{body}</p>
         <div className="pt-2">
           <Button asChild>

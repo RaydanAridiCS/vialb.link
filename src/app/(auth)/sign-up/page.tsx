@@ -36,6 +36,17 @@ export default async function SignUpPage() {
     <AuthCard title="Create your account" description="Shorten, track and manage your links." footer={footer}>
       <SocialButtons providers={config.providers} />
       <SignUpForm requireVerification={config.requireVerification} />
+      <p className="text-xs text-muted-foreground">
+        By creating an account you agree to the{" "}
+        <Link href="/terms" className="underline underline-offset-4 hover:text-foreground">
+          Terms of use
+        </Link>{" "}
+        and the{" "}
+        <Link href="/privacy" className="underline underline-offset-4 hover:text-foreground">
+          Privacy policy
+        </Link>
+        .
+      </p>
     </AuthCard>
   );
 }

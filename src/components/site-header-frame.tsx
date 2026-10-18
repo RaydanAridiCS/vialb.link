@@ -46,7 +46,7 @@ export function MobileNav({ links, signedIn }: { links: SiteNavLink[]; signedIn:
         </Button>
       </SheetTrigger>
       <SheetContent side="right" className="w-72 gap-0 p-6">
-        <SheetTitle className="font-display text-2xl">Menu</SheetTitle>
+        <SheetTitle className="font-display text-xl">Menu</SheetTitle>
         <nav aria-label="Mobile" className="mt-6 flex flex-col">
           {links.map((link) =>
             link.external ? (

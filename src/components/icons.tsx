@@ -9,7 +9,7 @@ export function GithubIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
-/** The ToolWright mark: two chain links on a signal-orange tile. */
+/** The ToolWright mark: two chain links on a deep green tile. */
 export function LogoMark({ className, ...props }: SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 32 32" aria-hidden className={className} {...props}>

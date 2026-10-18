@@ -18,7 +18,7 @@ export function Logo({ className }: { className?: string }) {
       )}
     >
       <LogoMark className="size-7" />
-      <span className="font-display text-[1.45rem] leading-none">{APP_NAME}</span>
+      <span className="font-display text-[1.3rem] leading-none">{APP_NAME}</span>
     </Link>
   );
 }
@@ -109,7 +109,8 @@ const FOOTER_COLUMNS: { title: string; links: SiteNavLink[] }[] = [
     links: [
       { href: GITHUB_URL, label: "Source code", external: true },
       { href: `${GITHUB_URL}/issues`, label: "Report an issue", external: true },
-      { href: `${GITHUB_URL}/blob/main/LICENSE`, label: "MIT license", external: true },
+      { href: "/terms", label: "Terms of use" },
+      { href: "/privacy", label: "Privacy policy" },
     ],
   },
 ];
@@ -158,7 +159,7 @@ export function SiteFooter() {
               Source on GitHub
             </a>
           </p>
-          <p>Raw IP addresses are never stored.</p>
+          <p>Link visitors&apos; IP addresses are never stored.</p>
         </div>
       </div>
     </footer>

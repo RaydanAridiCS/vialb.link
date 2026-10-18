@@ -20,7 +20,7 @@ function Step({
   return (
     <Reveal as="li" delay={delay} className="relative flex flex-col">
       <div className="flex items-center gap-3">
-        <span className="font-display text-5xl leading-none text-primary">{number}</span>
+        <span className="font-display text-4xl leading-none text-primary">{number}</span>
         <span className="h-px flex-1 bg-border" aria-hidden />
         <span className="text-muted-foreground [&_svg]:size-5" aria-hidden>
           {icon}
@@ -62,7 +62,7 @@ export function HowItWorks({ host }: { host: string }) {
       <Step
         number="2"
         title="Share it anywhere"
-        body="Post it, print it as a QR code, send it by email. It redirects in milliseconds."
+        body="Post it, print it as a QR code or send it by email."
         icon={<Share2 />}
         delay={100}
       >

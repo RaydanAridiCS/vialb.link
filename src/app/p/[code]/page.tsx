@@ -28,7 +28,7 @@ export default async function PasswordPage({ params, searchParams }: PageProps<"
             <Lock className="size-6" aria-hidden />
           </div>
           <CardTitle>
-            <h1 className="font-display text-3xl font-normal">This link is password protected</h1>
+            <h1 className="font-display text-xl">This link is password protected</h1>
           </CardTitle>
           <CardDescription>
             Enter the password you were given to continue to{" "}

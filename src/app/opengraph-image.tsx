@@ -19,7 +19,9 @@ export default function OpengraphImage() {
         padding: 72,
         background: "#faf8f5",
         color: "#1a1814",
-        fontFamily: "serif",
+        fontFamily: "sans-serif",
+        fontWeight: 700,
+        letterSpacing: -2,
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
@@ -28,7 +30,7 @@ export default function OpengraphImage() {
             width: 64,
             height: 64,
             borderRadius: 18,
-            background: "#d04a12",
+            background: "#0f7a55",
             color: "#ffffff",
             display: "flex",
             alignItems: "center",
@@ -45,7 +47,7 @@ export default function OpengraphImage() {
           style={{ display: "flex", flexDirection: "column", fontSize: 84, lineHeight: 1.02, maxWidth: 680 }}
         >
           <span>Short links you own.</span>
-          <span style={{ color: "#d04a12", fontStyle: "italic" }}>Numbers you can trust.</span>
+          <span style={{ color: "#0f7a55" }}>Numbers you can trust.</span>
         </div>
         <div style={{ display: "flex", alignItems: "flex-end", gap: 8, height: 180 }}>
           {BARS.map((h, i) => (
@@ -55,7 +57,7 @@ export default function OpengraphImage() {
                 width: 14,
                 height: h * 1.8,
                 borderRadius: 4,
-                background: i === 6 ? "#d04a12" : "#e7c9b8",
+                background: i === 6 ? "#0f7a55" : "#bfe0cf",
               }}
             />
           ))}

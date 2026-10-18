@@ -35,7 +35,7 @@ export function ProfileCard({ name, email }: { name: string; email: string }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="font-display text-2xl font-normal">Profile</CardTitle>
+        <CardTitle className="font-display text-xl">Profile</CardTitle>
         <CardDescription>Signed in as {email}</CardDescription>
       </CardHeader>
       <form
@@ -86,7 +86,7 @@ export function ChangePasswordCard() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="font-display text-2xl font-normal">Password</CardTitle>
+        <CardTitle className="font-display text-xl">Password</CardTitle>
         <CardDescription>Changing it signs out your other sessions.</CardDescription>
       </CardHeader>
       <Form {...form}>
@@ -188,7 +188,7 @@ export function TwoFactorCard({ enabled }: { enabled: boolean }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 font-display text-2xl font-normal">
+        <CardTitle className="flex items-center gap-2 font-display text-xl">
           Two-factor authentication
           {enabled ? (
             <Badge>
@@ -292,7 +292,7 @@ export function DataCard() {
   return (
     <Card className="border-destructive/30 bg-destructive/[0.03]">
       <CardHeader>
-        <CardTitle className="font-display text-2xl font-normal">Your data</CardTitle>
+        <CardTitle className="font-display text-xl">Your data</CardTitle>
         <CardDescription>Export everything or permanently delete your account.</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-wrap gap-2">

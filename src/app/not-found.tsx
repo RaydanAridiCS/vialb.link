@@ -7,7 +7,7 @@ export default function NotFound() {
     <CenteredPage>
       <div className="space-y-5 text-center">
         <StatusNumber>404</StatusNumber>
-        <h1 className="font-display text-4xl">Nothing lives here</h1>
+        <h1 className="font-display text-3xl">Nothing lives here</h1>
         <p className="text-muted-foreground">
           The page or short link you are looking for doesn&apos;t exist. Check the address for typos.
         </p>

@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 /** Marketing pages only. Short links are never listed. */
 export default function sitemap(): MetadataRoute.Sitemap {
-  return ["", "/demo", "/docs/api", "/sign-up", "/sign-in"].map((path) => ({
+  return ["", "/demo", "/docs/api", "/sign-up", "/sign-in", "/terms", "/privacy"].map((path) => ({
     url: `${env.SITE_URL}${path}`,
     changeFrequency: "monthly",
     priority: path === "" ? 1 : 0.5,

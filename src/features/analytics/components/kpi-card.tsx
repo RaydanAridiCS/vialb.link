@@ -34,7 +34,7 @@ export function KpiCard({
           {formatNumber(value)}
         </p>
       ) : (
-        <p className="mt-3 truncate font-display text-[2.1rem] leading-none">{value}</p>
+        <p className="mt-3 truncate font-display text-[1.65rem] leading-none">{value}</p>
       )}
       <div className="mt-3 flex min-h-5 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
         {changePct !== undefined ? <Delta value={changePct} /> : null}

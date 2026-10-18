@@ -43,7 +43,7 @@ export default async function DemoPage({ searchParams }: PageProps<"/demo">) {
             Sample data, no account needed
           </p>
           <h1
-            className="animate-rise mt-5 max-w-3xl font-display text-5xl leading-[1.02] text-balance sm:text-7xl"
+            className="animate-rise mt-5 max-w-3xl font-display text-4xl leading-[1.05] text-balance sm:text-6xl"
             style={{ "--rise-delay": "80ms" } as CSSProperties}
           >
             See what a single link <em className="text-primary">can tell you</em>.
@@ -99,7 +99,7 @@ export default async function DemoPage({ searchParams }: PageProps<"/demo">) {
       <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6" aria-labelledby="report-title">
         <div className="mb-8 flex flex-col gap-4 rounded-2xl border bg-card p-5 shadow-paper sm:flex-row sm:items-center sm:justify-between sm:p-6">
           <div className="min-w-0 space-y-2">
-            <h2 id="report-title" className="font-display text-3xl leading-tight">
+            <h2 id="report-title" className="font-display text-2xl leading-tight">
               {scenario.title}
             </h2>
             <div className="flex min-w-0 flex-col gap-1.5 text-sm text-muted-foreground sm:flex-row sm:items-center sm:gap-3">
@@ -131,7 +131,7 @@ export default async function DemoPage({ searchParams }: PageProps<"/demo">) {
       <section className="border-t bg-card/60">
         <div className="mx-auto flex max-w-6xl flex-col items-start gap-6 px-4 py-16 sm:px-6 md:flex-row md:items-center md:justify-between">
           <div className="max-w-xl space-y-3">
-            <h2 className="font-display text-4xl leading-tight sm:text-5xl">
+            <h2 className="font-display text-2xl leading-tight sm:text-4xl">
               Your links deserve this report.
             </h2>
             <p className="text-muted-foreground">

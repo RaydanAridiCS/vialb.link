@@ -40,7 +40,7 @@ export default async function OverviewPage() {
             className="pointer-events-none absolute -top-24 -right-24 size-72 rounded-full bg-primary/15 blur-3xl"
           />
           <div className="relative max-w-xl space-y-4">
-            <h2 className="font-display text-4xl leading-tight">Your first link is one paste away.</h2>
+            <h2 className="font-display text-3xl leading-tight">Your first link is one paste away.</h2>
             <p className="text-muted-foreground">
               Shorten a URL, share it anywhere, and this page fills up with clicks, countries and sources.
             </p>

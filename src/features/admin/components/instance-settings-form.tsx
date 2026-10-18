@@ -48,7 +48,7 @@ export function InstanceSettingsForm({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="font-display text-2xl font-normal">Instance settings</CardTitle>
+        <CardTitle className="font-display text-xl">Instance settings</CardTitle>
         <CardDescription>
           Environment variables provide the defaults; values saved here override them until reset to
           “Default”.

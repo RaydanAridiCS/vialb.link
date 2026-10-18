@@ -52,7 +52,7 @@ export function AnalyticsPreview({
               <p className="mt-1.5 font-mono text-2xl font-medium tabular-nums">
                 {formatNumber(data.summary.uniqueVisitors)}
               </p>
-              <p className="mt-1 text-[11px] text-muted-foreground">No cookies, no raw IPs</p>
+              <p className="mt-1 text-[11px] text-muted-foreground">No cookies, no stored IPs</p>
             </div>
           </div>
           <div className="rounded-xl border p-3.5">

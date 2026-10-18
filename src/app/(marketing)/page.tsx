@@ -19,14 +19,14 @@ import { env } from "@/lib/env";
 import { getSession } from "@/server/auth/session";
 import { getContainer } from "@/server/container";
 
-const FACTS = ["MIT licensed", "Raw IPs never stored", "OpenAPI 3.1", "One docker compose up"];
+const FACTS = ["MIT licensed", "Visitor IPs never stored", "OpenAPI 3.1", "One docker compose up"];
 
 const delay = (ms: number) => ({ "--rise-delay": `${ms}ms` }) as CSSProperties;
 
 function SectionHeading({ title, body, id }: { title: ReactNode; body: string; id: string }) {
   return (
     <Reveal className="mx-auto mb-14 max-w-2xl text-center">
-      <h2 id={id} className="font-display text-4xl leading-[1.05] text-balance sm:text-6xl">
+      <h2 id={id} className="font-display text-3xl leading-[1.08] text-balance sm:text-5xl">
         {title}
       </h2>
       <p className="mt-4 text-lg text-balance text-muted-foreground">{body}</p>
@@ -68,7 +68,7 @@ export default async function HomePage() {
             <ArrowRight className="size-3" aria-hidden />
           </a>
           <h1
-            className="animate-rise mt-7 max-w-4xl font-display text-[3.4rem] leading-[0.98] text-balance sm:text-[5.5rem]"
+            className="animate-rise mt-7 max-w-4xl font-display text-[2.6rem] leading-[1.02] text-balance sm:text-[4.4rem]"
             style={delay(80)}
           >
             Short links you own. <em className="text-primary">Numbers</em> you can trust.
@@ -182,7 +182,7 @@ export default async function HomePage() {
             />
           </Reveal>
           <Reveal delay={100} className="space-y-6">
-            <h2 id="spotlight-title" className="font-display text-4xl leading-[1.05] sm:text-6xl">
+            <h2 id="spotlight-title" className="font-display text-3xl leading-[1.08] sm:text-5xl">
               A restaurant learns it should <em className="text-primary">staff up on Fridays</em>.
             </h2>
             <p className="text-lg text-muted-foreground">
@@ -212,7 +212,7 @@ export default async function HomePage() {
             className="pointer-events-none absolute -top-40 -right-40 size-[32rem] rounded-full bg-primary/25 blur-[120px]"
           />
           <Reveal className="relative space-y-6">
-            <h2 id="selfhost-title" className="font-display text-4xl leading-[1.05] sm:text-6xl">
+            <h2 id="selfhost-title" className="font-display text-3xl leading-[1.08] sm:text-5xl">
               Your links. Your server. <em className="text-primary">Your data.</em>
             </h2>
             <p className="max-w-md text-lg text-white/65">
@@ -255,11 +255,11 @@ export default async function HomePage() {
           className="pointer-events-none absolute inset-0 bg-dots [mask-image:radial-gradient(ellipse_at_center,black,transparent_70%)] opacity-60"
         />
         <Reveal className="relative mx-auto flex max-w-3xl flex-col items-center px-4 py-28 text-center sm:px-6 sm:py-36">
-          <h2 className="font-display text-5xl leading-[1.02] text-balance sm:text-7xl">
+          <h2 className="font-display text-4xl leading-[1.05] text-balance sm:text-6xl">
             Make your next link <em className="text-primary">count</em>.
           </h2>
           <p className="mt-5 max-w-lg text-lg text-muted-foreground">
-            Free, open source and ready in a few minutes.
+            Free and open source under the MIT license.
           </p>
           <div className="mt-9 flex flex-wrap justify-center gap-3">
             <Button size="lg" variant="ink" asChild>

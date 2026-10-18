@@ -19,10 +19,10 @@ export default function ErrorPage({ error, retry }: { error: unknown; retry: () 
       />
       <div className="relative max-w-md space-y-5 text-center">
         <LogoMark className="mx-auto size-10" />
-        <p aria-hidden className="font-display text-[7rem] leading-none text-primary">
+        <p aria-hidden className="font-display text-[6rem] leading-none text-primary">
           500
         </p>
-        <h1 className="font-display text-4xl">Something broke on our side</h1>
+        <h1 className="font-display text-3xl">Something broke on our side</h1>
         <p className="text-muted-foreground">
           The error has been logged. Try again, and if it keeps happening, let the person who runs this
           instance know.
