@@ -11,6 +11,8 @@ import { getContainer } from "@/server/container";
 import { db } from "@/server/db/client";
 import * as schema from "@/server/db/schema";
 
+import { renderPasswordResetEmail, renderVerificationEmail } from "@/server/auth/email-templates";
+
 const socialProviders: Parameters<typeof betterAuth>[0]["socialProviders"] = {};
 if (env.GITHUB_CLIENT_ID && env.GITHUB_CLIENT_SECRET) {
   socialProviders.github = { clientId: env.GITHUB_CLIENT_ID, clientSecret: env.GITHUB_CLIENT_SECRET };
@@ -21,9 +23,9 @@ if (env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET) {
 
 export const enabledSocialProviders = Object.keys(socialProviders) as ("github" | "google")[];
 
-async function sendMail(to: string, subject: string, text: string) {
+async function sendMail(to: string, subject: string, text: string, html?: string) {
   try {
-    await getContainer().mailer.send({ to, subject, text });
+    await getContainer().mailer.send({ to, subject, text, html });
   } catch (error) {
     logger.error({ err: error, subject }, "Failed to send email");
   }
@@ -51,18 +53,28 @@ export const auth = betterAuth({
     requireEmailVerification: env.REQUIRE_EMAIL_VERIFICATION,
     revokeSessionsOnPasswordReset: true,
     sendResetPassword: async ({ user, url }) => {
-      await sendMail(
-        user.email,
-        `Reset your ${APP_NAME} password`,
-        `Someone requested a password reset for your ${APP_NAME} account.\n\nReset it here (valid for 1 hour):\n${url}\n\nIf this wasn't you, ignore this email.`,
-      );
+      const { text, html } = renderPasswordResetEmail({
+        appName: APP_NAME,
+        siteUrl: env.SITE_URL,
+        resetUrl: url,
+        userEmail: user.email,
+        userName: user.name,
+      });
+      await sendMail(user.email, `Reset your ${APP_NAME} password`, text, html);
     },
   },
   emailVerification: {
     sendOnSignUp: env.REQUIRE_EMAIL_VERIFICATION,
     autoSignInAfterVerification: true,
     sendVerificationEmail: async ({ user, url }) => {
-      await sendMail(user.email, `Verify your ${APP_NAME} email`, `Confirm your email address:\n${url}`);
+      const { text, html } = renderVerificationEmail({
+        appName: APP_NAME,
+        siteUrl: env.SITE_URL,
+        verificationUrl: url,
+        userEmail: user.email,
+        userName: user.name,
+      });
+      await sendMail(user.email, `Verify your ${APP_NAME} email`, text, html);
     },
   },
   socialProviders,

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { AuthCard } from "@/features/auth/components/auth-card";
-import { SignUpForm, SocialButtons } from "@/features/auth/components/auth-forms";
+import { SignUpView } from "@/features/auth/components/sign-up-view";
 import { getAuthPageConfig } from "@/features/auth/config";
 import { getSession } from "@/server/auth/session";
 
@@ -33,20 +33,10 @@ export default async function SignUpPage() {
     );
   }
   return (
-    <AuthCard title="Create your account" description="Shorten, track and manage your links." footer={footer}>
-      <SocialButtons providers={config.providers} />
-      <SignUpForm requireVerification={config.requireVerification} />
-      <p className="text-xs text-muted-foreground">
-        By creating an account you agree to the{" "}
-        <Link href="/terms" className="underline underline-offset-4 hover:text-foreground">
-          Terms of use
-        </Link>{" "}
-        and the{" "}
-        <Link href="/privacy" className="underline underline-offset-4 hover:text-foreground">
-          Privacy policy
-        </Link>
-        .
-      </p>
-    </AuthCard>
+    <SignUpView
+      providers={config.providers}
+      requireVerification={config.requireVerification}
+      footer={footer}
+    />
   );
 }

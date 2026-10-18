@@ -34,6 +34,14 @@ export default async function SignInPage({ searchParams }: PageProps<"/sign-in">
           Password updated. Sign in with your new password.
         </p>
       ) : null}
+      {params.verified ? (
+        <p
+          role="status"
+          className="rounded-lg border border-success/20 bg-success/10 px-3 py-2 text-sm text-success"
+        >
+          Email verified successfully. Sign in with your credentials.
+        </p>
+      ) : null}
       <SocialButtons providers={config.providers} />
       <SignInForm showForgot={config.showForgot} />
     </AuthCard>

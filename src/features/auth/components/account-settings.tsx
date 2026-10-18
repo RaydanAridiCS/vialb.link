@@ -28,14 +28,39 @@ import { QrPreview } from "@/features/links/components/qr-preview";
 import { authClient } from "@/lib/auth-client";
 import { changePasswordSchema } from "../schemas";
 
-export function ProfileCard({ name, email }: { name: string; email: string }) {
+export function ProfileCard({
+  name,
+  email,
+  emailVerified,
+}: {
+  name: string;
+  email: string;
+  emailVerified?: boolean;
+}) {
   const router = useRouter();
   const [value, setValue] = useState(name);
   const [pending, setPending] = useState(false);
+  const [sendingVerification, setSendingVerification] = useState(false);
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="font-display text-xl">Profile</CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="font-display text-xl">Profile</CardTitle>
+          {emailVerified ? (
+            <Badge
+              variant="outline"
+              className="gap-1 border-emerald-500/30 bg-emerald-500/10 text-xs text-emerald-600 dark:text-emerald-400"
+            >
+              <ShieldCheck className="size-3" />
+              Verified
+            </Badge>
+          ) : (
+            <Badge variant="outline" className="gap-1 text-xs text-muted-foreground">
+              Unverified
+            </Badge>
+          )}
+        </div>
         <CardDescription>Signed in as {email}</CardDescription>
       </CardHeader>
       <form
@@ -51,9 +76,47 @@ export function ProfileCard({ name, email }: { name: string; email: string }) {
           }
         }}
       >
-        <CardContent className="space-y-2">
-          <Label htmlFor="profile-name">Display name</Label>
-          <Input id="profile-name" value={value} maxLength={80} onChange={(e) => setValue(e.target.value)} />
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="profile-name">Display name</Label>
+            <Input
+              id="profile-name"
+              value={value}
+              maxLength={80}
+              onChange={(e) => setValue(e.target.value)}
+            />
+          </div>
+
+          {!emailVerified ? (
+            <div className="flex flex-col justify-between gap-2 rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs sm:flex-row sm:items-center">
+              <span className="text-muted-foreground">Your email address is not verified yet.</span>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-7 shrink-0 text-xs"
+                disabled={sendingVerification}
+                onClick={async () => {
+                  setSendingVerification(true);
+                  try {
+                    const { error } = await authClient.sendVerificationEmail({
+                      email,
+                      callbackURL: "/verify-email",
+                    });
+                    if (error) {
+                      toast.error(error.message ?? "Could not send verification email");
+                    } else {
+                      toast.success("Verification link sent! Check your inbox.");
+                    }
+                  } finally {
+                    setSendingVerification(false);
+                  }
+                }}
+              >
+                {sendingVerification ? "Sending..." : "Send verification link"}
+              </Button>
+            </div>
+          ) : null}
         </CardContent>
         <CardFooter className="mt-4">
           <Button type="submit" disabled={pending || value.trim() === "" || value === name}>

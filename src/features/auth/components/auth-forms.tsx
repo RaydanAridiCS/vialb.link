@@ -1,12 +1,13 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2 } from "lucide-react";
+import { AlertCircle, CheckCircle2, Loader2, Mail, MailCheck } from "lucide-react";
 import { GithubIcon } from "@/components/icons";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
+import { toast } from "sonner";
 import type { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -78,6 +79,10 @@ export function SocialButtons({ providers }: { providers: Provider[] }) {
 export function SignInForm({ showForgot }: { showForgot: boolean }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
+  const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
+  const [resendingVerification, setResendingVerification] = useState(false);
+  const [verificationResent, setVerificationResent] = useState(false);
+
   const form = useForm<z.input<typeof signInSchema>>({
     resolver: zodResolver(signInSchema),
     defaultValues: { email: "", password: "" },
@@ -85,11 +90,16 @@ export function SignInForm({ showForgot }: { showForgot: boolean }) {
 
   async function onSubmit(values: z.input<typeof signInSchema>) {
     setError(null);
+    setUnverifiedEmail(null);
+    setVerificationResent(false);
+
     const { data, error: authError } = await authClient.signIn.email({
       ...values,
       callbackURL: "/dashboard",
     });
+
     if (authError) {
+      if (authError.code === "EMAIL_NOT_VERIFIED") setUnverifiedEmail(values.email);
       setError(authError.message ?? "Invalid email or password");
       return;
     }
@@ -102,6 +112,63 @@ export function SignInForm({ showForgot }: { showForgot: boolean }) {
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" noValidate>
         <FormError message={error} />
+
+        {unverifiedEmail ? (
+          <div className="animate-in space-y-2.5 rounded-xl border border-primary/20 bg-primary/5 p-3.5 text-xs fade-in-50">
+            <div className="flex items-center gap-2 font-medium text-primary">
+              <AlertCircle className="size-4 shrink-0" />
+              <span>Email verification required</span>
+            </div>
+            <p className="leading-relaxed text-muted-foreground">
+              Your email hasn&apos;t been verified yet. Check your inbox or click below to receive a new
+              activation link.
+            </p>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-8 w-full text-xs font-medium"
+              disabled={resendingVerification || verificationResent}
+              onClick={async () => {
+                setResendingVerification(true);
+                try {
+                  const { error: resendError } = await authClient.sendVerificationEmail({
+                    email: unverifiedEmail,
+                    callbackURL: "/verify-email",
+                  });
+                  if (resendError) {
+                    toast.error(resendError.message ?? "Failed to resend verification link");
+                  } else {
+                    setVerificationResent(true);
+                    toast.success("Verification link sent! Check your inbox.");
+                  }
+                } catch {
+                  toast.error("Failed to send verification link.");
+                } finally {
+                  setResendingVerification(false);
+                }
+              }}
+            >
+              {resendingVerification ? (
+                <>
+                  <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+                  Sending...
+                </>
+              ) : verificationResent ? (
+                <>
+                  <CheckCircle2 className="mr-1.5 size-3.5 text-emerald-500" />
+                  Link sent! Check your inbox
+                </>
+              ) : (
+                <>
+                  <Mail className="mr-1.5 size-3.5" />
+                  Resend verification email
+                </>
+              )}
+            </Button>
+          </div>
+        ) : null}
+
         <FormField
           control={form.control}
           name="email"
@@ -147,10 +214,15 @@ export function SignInForm({ showForgot }: { showForgot: boolean }) {
   );
 }
 
-export function SignUpForm({ requireVerification }: { requireVerification: boolean }) {
+export function SignUpForm({
+  requireVerification,
+  onVerificationRequired,
+}: {
+  requireVerification: boolean;
+  onVerificationRequired: (email: string) => void;
+}) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
-  const [verifyEmail, setVerifyEmail] = useState<string | null>(null);
   const form = useForm<z.input<typeof signUpSchema>>({
     resolver: zodResolver(signUpSchema),
     defaultValues: { name: "", email: "", password: "", confirm: "" },
@@ -162,26 +234,19 @@ export function SignUpForm({ requireVerification }: { requireVerification: boole
       name: values.name,
       email: values.email,
       password: values.password,
-      callbackURL: "/dashboard",
+      // Where the emailed verification link lands (only used when verification is required).
+      callbackURL: "/verify-email",
     });
     if (authError) {
       setError(authError.message ?? "Could not create your account");
       return;
     }
     if (requireVerification) {
-      setVerifyEmail(values.email);
+      onVerificationRequired(values.email);
       return;
     }
     router.push("/dashboard");
     router.refresh();
-  }
-
-  if (verifyEmail) {
-    return (
-      <p className="text-sm" role="status">
-        We sent a verification link to <strong>{verifyEmail}</strong>. Open it to activate your account.
-      </p>
-    );
   }
 
   return (
@@ -264,9 +329,21 @@ export function ForgotPasswordForm() {
 
   if (sent) {
     return (
-      <p className="text-sm" role="status">
-        If an account exists for that email, a reset link is on its way.
-      </p>
+      <div className="animate-in space-y-4 text-center duration-300 fade-in-50" role="status">
+        <div className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/25">
+          <MailCheck className="size-6" />
+        </div>
+        <div className="space-y-1">
+          <h3 className="font-display text-lg font-semibold text-foreground">Check your email</h3>
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            If an account exists for that address, we&apos;ve sent a password reset link. Please check your
+            inbox and spam folder.
+          </p>
+        </div>
+        <Button type="button" variant="outline" size="sm" className="text-xs" onClick={() => setSent(false)}>
+          Send to a different email
+        </Button>
+      </div>
     );
   }
   return (

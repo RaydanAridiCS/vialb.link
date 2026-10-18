@@ -16,7 +16,11 @@ export default async function SettingsPage() {
     <>
       <PageHeader title="Settings" description="Manage your account and security." />
       <div className="max-w-3xl space-y-6">
-        <ProfileCard name={session.user.name} email={session.user.email} />
+        <ProfileCard
+          name={session.user.name}
+          email={session.user.email}
+          emailVerified={session.user.emailVerified}
+        />
         <ChangePasswordCard />
         <TwoFactorCard enabled={session.user.twoFactorEnabled === true} />
         <DataCard />
