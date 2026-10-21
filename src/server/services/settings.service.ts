@@ -31,10 +31,15 @@ export class SettingsService {
 
   async get(): Promise<InstanceSettings> {
     if (this.cache && this.cache.expiresAt > this.now()) return this.cache.value;
-    const override = await this.repo.get();
-    const value = this.merge(override);
-    this.cache = { value, expiresAt: this.now() + CACHE_TTL_MS };
-    return value;
+    try {
+      const override = await this.repo.get();
+      const value = this.merge(override);
+      this.cache = { value, expiresAt: this.now() + CACHE_TTL_MS };
+      return value;
+    } catch {
+      // If the database is unreachable or misconfigured, gracefully fall back to environment defaults.
+      return this.defaults;
+    }
   }
 
   /** Effective values plus which fields are overridden (for the admin UI). */
@@ -43,13 +48,18 @@ export class SettingsService {
     overrides: InstanceSettingsOverride;
     defaults: InstanceSettings;
   }> {
-    const override = (await this.repo.get()) ?? {
+    const fallbackOverride: InstanceSettingsOverride = {
       allowAnonymousLinks: null,
       allowSignups: null,
       anonLinkTtlHours: null,
       blockedDomains: null,
     };
-    return { effective: this.merge(override), overrides: override, defaults: this.defaults };
+    try {
+      const override = (await this.repo.get()) ?? fallbackOverride;
+      return { effective: this.merge(override), overrides: override, defaults: this.defaults };
+    } catch {
+      return { effective: this.defaults, overrides: fallbackOverride, defaults: this.defaults };
+    }
   }
 
   async update(actor: Actor, update: SettingsUpdate): Promise<InstanceSettings> {

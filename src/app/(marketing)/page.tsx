@@ -40,9 +40,18 @@ function SectionHeading({ title, body, id }: { title: ReactNode; body: string; i
 
 export default async function HomePage() {
   const [session, settings, nonce] = await Promise.all([
-    getSession(),
-    getContainer().settings.get(),
-    headers().then((h) => h.get("x-nonce") ?? undefined),
+    getSession().catch(() => null),
+    getContainer()
+      .settings.get()
+      .catch(() => ({
+        allowAnonymousLinks: env.ALLOW_ANONYMOUS_LINKS,
+        allowSignups: env.ALLOW_SIGNUPS,
+        anonLinkTtlHours: env.ANON_LINK_TTL_HOURS,
+        blockedDomains: [],
+      })),
+    headers()
+      .then((h) => h.get("x-nonce") ?? undefined)
+      .catch(() => undefined),
   ]);
   const { abuse } = getContainer();
   const host = new URL(env.SITE_URL).host;

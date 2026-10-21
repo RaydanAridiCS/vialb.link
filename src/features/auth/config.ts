@@ -6,7 +6,15 @@ import { getContainer } from "@/server/container";
 /** What the auth pages should offer on this instance. */
 export async function getAuthPageConfig() {
   const { settings, mailer, repos } = getContainer();
-  const [effective, userCount] = await Promise.all([settings.get(), repos.users.count()]);
+  const [effective, userCount] = await Promise.all([
+    settings.get().catch(() => ({
+      allowAnonymousLinks: env.ALLOW_ANONYMOUS_LINKS,
+      allowSignups: env.ALLOW_SIGNUPS,
+      anonLinkTtlHours: env.ANON_LINK_TTL_HOURS,
+      blockedDomains: [],
+    })),
+    repos.users.count().catch(() => 1),
+  ]);
   return {
     providers: enabledSocialProviders,
     // Without SMTP, reset links only reach the server log, which is useful in development only.

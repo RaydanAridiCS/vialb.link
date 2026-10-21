@@ -150,7 +150,10 @@ declare global {
 }
 
 export function getContainer(): Container {
-  // Cached on globalThis so dev hot-reloads keep rate-limit state and pools.
+  if (env.NODE_ENV === "development") {
+    return buildContainer();
+  }
+  // Cached on globalThis in production so warm workers share rate-limit state and pools.
   globalThis.__vialbContainer ??= buildContainer();
   return globalThis.__vialbContainer;
 }

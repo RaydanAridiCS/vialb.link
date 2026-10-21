@@ -236,6 +236,30 @@ describe("SettingsService + AdminService", () => {
     ).toThrow();
   });
 
+  it("gracefully falls back to environment defaults when DB repository throws", async () => {
+    const brokenRepo = {
+      get: async () => {
+        throw new Error("DB connection failure");
+      },
+      upsert: async () => {
+        throw new Error("DB connection failure");
+      },
+      getOrCreateDailySalt: async () => {
+        throw new Error("DB connection failure");
+      },
+    };
+    const defaults = {
+      allowAnonymousLinks: true,
+      allowSignups: true,
+      anonLinkTtlHours: 720,
+      blockedDomains: [],
+    };
+    const service = new SettingsService(brokenRepo, defaults);
+    expect(await service.get()).toEqual(defaults);
+    const detailed = await service.getDetailed();
+    expect(detailed.effective).toEqual(defaults);
+  });
+
   it("blocks links to newly blocked domains", async () => {
     const f = buildFixture();
     await f.settings.update(users.admin, { blockedDomains: ["spam.test"] });

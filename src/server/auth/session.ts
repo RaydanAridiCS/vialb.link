@@ -7,7 +7,11 @@ import { auth, type Session } from "./auth";
 
 /** Current session, de-duplicated per request. */
 export const getSession = cache(async (): Promise<Session | null> => {
-  return auth.api.getSession({ headers: await headers() });
+  try {
+    return await auth.api.getSession({ headers: await headers() });
+  } catch {
+    return null;
+  }
 });
 
 export function actorFromSession(session: Session): Extract<Actor, { kind: "user" }> {
