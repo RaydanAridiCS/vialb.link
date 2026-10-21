@@ -135,8 +135,8 @@ export default async function DemoPage({ searchParams }: PageProps<"/demo">) {
               Your links deserve this report.
             </h2>
             <p className="text-muted-foreground">
-              Create an account, or run your own copy with Docker. Every link gets the full report from its
-              first click.
+              Create a free account in seconds. Every link you create gets instant analytics, custom QR codes,
+              and privacy protection from its first click.
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
@@ -144,7 +144,7 @@ export default async function DemoPage({ searchParams }: PageProps<"/demo">) {
               <Link href="/sign-up">Create a free account</Link>
             </Button>
             <Button size="lg" variant="outline" asChild>
-              <Link href="/#self-host">Self-host it</Link>
+              <Link href="/#features">Explore all features</Link>
             </Button>
           </div>
         </div>

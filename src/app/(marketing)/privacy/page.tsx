@@ -84,8 +84,7 @@ export default async function PrivacyPage() {
               your sign-in sessions, including the IP address and user agent of the device that signed in;
             </li>
             <li>your two-factor authentication settings, if you turn that on;</li>
-            <li>the links you create, their settings and their click statistics;</li>
-            <li>the API keys you create. The full key is shown to you only once.</li>
+            <li>the links you create, their settings and their click statistics.</li>
           </ul>
         </>
       ),

@@ -34,7 +34,7 @@ export default async function TermsPage() {
       body: (
         <ul>
           <li>Use an email address you control and keep your password private.</li>
-          <li>You are responsible for what happens under your account and with your API keys.</li>
+          <li>You are responsible for what happens under your account.</li>
           <li>You can delete your account at any time from Settings.</li>
         </ul>
       ),

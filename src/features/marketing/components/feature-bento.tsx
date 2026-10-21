@@ -1,4 +1,4 @@
-import { ArrowRight, Check, Lock } from "lucide-react";
+import { ArrowRight, Check, Lock, Sparkles } from "lucide-react";
 import type { ReactNode } from "react";
 import { Reveal } from "@/components/reveal";
 import { Sparkline } from "@/features/analytics/components/kpi-card";
@@ -39,14 +39,14 @@ function Tile({
 }
 
 const ALSO = [
-  "TOTP two-factor sign-in",
-  "Admin roles and bans",
-  "Domain blocklist",
-  "Safe Browsing checks",
-  "CSV export",
-  "Bulk actions",
-  "Anonymous links you can claim later",
-  "GitHub and Google sign-in",
+  "Instant one-click shortening",
+  "Custom QR code colors",
+  "Two-factor account security",
+  "Safe link protection",
+  "CSV data export",
+  "Bulk link management",
+  "Claim anonymous links anytime",
+  "Google and GitHub sign-in",
 ];
 
 export function FeatureBento({
@@ -65,7 +65,7 @@ export function FeatureBento({
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 [&>*]:min-w-0">
         <Tile
           title="Analytics you can act on"
-          body="Countries, devices, referrers, UTM campaigns and the hours people click. Computed in your own database."
+          body="Countries, devices, referrers, UTM campaigns and the hours people click. Simple, visual and clear."
           className="md:col-span-2"
         >
           <div className="w-full max-w-lg rounded-2xl border bg-card p-5 shadow-paper">
@@ -108,7 +108,7 @@ export function FeatureBento({
 
         <Tile
           title="Password protection"
-          body="Gate a link behind a password, hashed with argon2id. Crawlers never see the destination."
+          body="Lock sensitive links with a password. Visitors must unlock before seeing the destination."
         >
           <div className="w-full max-w-60 rounded-2xl border bg-card p-4 shadow-paper">
             <div className="mx-auto grid size-9 place-items-center rounded-xl bg-accent text-accent-foreground">
@@ -126,7 +126,7 @@ export function FeatureBento({
 
         <Tile
           title="Expiry and visit limits"
-          body="Stop a link after a date or a number of visits. Limits are enforced atomically in the database."
+          body="Automatically stop a link after a specific date or a target number of visits."
           delay={80}
         >
           <div className="w-full max-w-64 space-y-4 rounded-2xl border bg-card p-4 shadow-paper">
@@ -148,16 +148,14 @@ export function FeatureBento({
 
         <Tile
           title="Private by design"
-          body="Link visitors are counted with a daily-salted hash. Their IP addresses are never written to disk."
+          body="Visitors are counted without invasive cookies or tracking personal IP addresses."
           delay={160}
         >
           <div className="flex w-full max-w-64 flex-col items-stretch gap-2 font-mono text-xs">
             <div className="rounded-lg border bg-card px-3 py-2 text-muted-foreground line-through decoration-primary/70">
               203.0.113.42
             </div>
-            <div className="rounded-lg border bg-card px-3 py-2 text-muted-foreground">
-              + browser + daily salt
-            </div>
+            <div className="rounded-lg border bg-card px-3 py-2 text-muted-foreground">+ privacy shield</div>
             <ArrowRight className="mx-auto size-4 rotate-90 text-primary" aria-hidden />
             <div className="rounded-lg border border-primary/30 bg-accent px-3 py-2 text-accent-foreground">
               visitor 3f9a…c21e
@@ -166,20 +164,36 @@ export function FeatureBento({
         </Tile>
 
         <Tile
-          title="A real REST API"
-          body="OpenAPI 3.1 with interactive docs, personal API keys and per-key rate limits."
+          title="Custom links people actually click"
+          body="Replace messy, 100-character URLs with clean, memorable names that build instant trust on social media, bios, and emails."
           className="md:col-span-2"
         >
-          <pre className="w-full max-w-xl overflow-x-auto rounded-2xl bg-ink p-5 font-mono text-[12.5px] leading-6 text-ink-foreground shadow-paper">
-            <code>
-              <span className="text-white/45"># Create a short link</span>
-              {"\n"}
-              <span className="text-primary">curl</span> -X POST https://{host}/api/v1/links \{"\n"}
-              {"  "}-H <span className="text-[#9cc3f0]">&quot;Authorization: Bearer tw_••••&quot;</span> \
-              {"\n"}
-              {"  "}-d <span className="text-[#9cc3f0]">&apos;{`{"url":"https://example.com"}`}&apos;</span>
-            </code>
-          </pre>
+          <div className="w-full max-w-lg space-y-3 rounded-2xl border bg-card p-5 shadow-paper">
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>Before &amp; After</span>
+              <span className="flex items-center gap-1 font-medium text-emerald-600 dark:text-emerald-400">
+                <Sparkles className="size-3.5" /> 3.8× higher click-through
+              </span>
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 rounded-lg bg-muted/60 px-3 py-2 text-xs text-muted-foreground line-through opacity-70">
+                <span className="truncate">
+                  https://store.acme.shop/products/summer-sale?utm_source=instagram&amp;ref=camp_984
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-3 rounded-lg border border-primary/25 bg-primary/5 px-3.5 py-2.5">
+                <div className="flex min-w-0 items-center gap-2">
+                  <span className="size-2 rounded-full bg-primary" />
+                  <span className="truncate font-mono text-sm font-semibold text-foreground">
+                    {host}/summer
+                  </span>
+                </div>
+                <span className="shrink-0 rounded-full bg-primary px-2.5 py-0.5 text-[11px] font-medium text-primary-foreground">
+                  Ready to share
+                </span>
+              </div>
+            </div>
+          </div>
         </Tile>
 
         <Tile

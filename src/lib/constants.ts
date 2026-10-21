@@ -3,7 +3,7 @@
  * project is trivial to rename or white-label.
  */
 export const APP_NAME = "Vialb";
-export const APP_TAGLINE = "Open-source, self-hostable URL shortener with privacy-friendly analytics.";
+export const APP_TAGLINE = "The simple, privacy-friendly open-source link shortener for everyone.";
 export const GITHUB_REPO = "RaydanAridiCS/vialb.link";
 export const GITHUB_URL = `https://github.com/${GITHUB_REPO}`;
 export const DOCKER_IMAGE = `ghcr.io/${GITHUB_REPO.toLowerCase()}`;

@@ -1,4 +1,4 @@
-import { ArrowRight, BookOpen } from "lucide-react";
+import { ArrowRight, QrCode, ShieldCheck, Sparkles } from "lucide-react";
 import { headers } from "next/headers";
 import Link from "next/link";
 import type { CSSProperties, ReactNode } from "react";
@@ -13,13 +13,17 @@ import { QuickShorten } from "@/features/links/components/quick-shorten";
 import { AnalyticsPreview } from "@/features/marketing/components/analytics-preview";
 import { FeatureBento } from "@/features/marketing/components/feature-bento";
 import { HowItWorks } from "@/features/marketing/components/how-it-works";
-import { Terminal } from "@/features/marketing/components/terminal";
 import { APP_NAME, GITHUB_URL } from "@/lib/constants";
 import { env } from "@/lib/env";
 import { getSession } from "@/server/auth/session";
 import { getContainer } from "@/server/container";
 
-const FACTS = ["MIT licensed", "Visitor IPs never stored", "OpenAPI 3.1", "One docker compose up"];
+const FACTS = [
+  "100% Free & Open Source",
+  "No Ads or Invasive Tracking",
+  "Custom QR Codes & Social Cards",
+  "Instant One-Click Links",
+];
 
 const delay = (ms: number) => ({ "--rise-delay": `${ms}ms` }) as CSSProperties;
 
@@ -64,7 +68,7 @@ export default async function HomePage() {
             rel="noreferrer"
             className="animate-rise inline-flex items-center gap-2 rounded-full border bg-card px-3.5 py-1.5 text-xs text-muted-foreground shadow-xs transition-colors hover:text-foreground"
           >
-            <GithubIcon className="size-3.5" /> Open source and self-hostable
+            <GithubIcon className="size-3.5" /> 100% Free &amp; Open Source
             <ArrowRight className="size-3" aria-hidden />
           </a>
           <h1
@@ -77,8 +81,8 @@ export default async function HomePage() {
             className="animate-rise mt-6 max-w-xl text-lg text-balance text-muted-foreground"
             style={delay(160)}
           >
-            {APP_NAME} shortens links, makes QR codes and shows you who clicked, from where and when. All on a
-            server you control.
+            {APP_NAME} shortens links, creates custom QR codes, and gives you clear visitor insights in
+            seconds. Simple, fast, and completely open source.
           </p>
           <div className="animate-rise mt-9 flex w-full justify-center" style={delay(240)}>
             <QuickShorten
@@ -96,10 +100,10 @@ export default async function HomePage() {
               Try the live demo <ArrowRight className="size-4" aria-hidden />
             </Link>
             <a
-              href="#self-host"
+              href="#use-cases"
               className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground"
             >
-              Run it on your server
+              Who it&apos;s for
             </a>
           </div>
 
@@ -152,7 +156,7 @@ export default async function HomePage() {
           <SectionHeading
             id="features-title"
             title="Everything a link needs"
-            body="The features of a paid link platform, in one small app you can read, change and host yourself."
+            body="The features of a premium link platform, completely free, beautifully designed, and 100% open source."
           />
           <FeatureBento
             series={launch.timeseries.map((p) => p.clicks)}
@@ -204,26 +208,30 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Self-host */}
-      <section id="self-host" className="bg-ink text-ink-foreground" aria-labelledby="selfhost-title">
+      {/* Who it's for */}
+      <section id="use-cases" className="bg-ink text-ink-foreground" aria-labelledby="usecases-title">
         <div className="relative mx-auto grid max-w-6xl items-center gap-12 overflow-hidden px-4 py-24 sm:px-6 sm:py-32 lg:grid-cols-2 [&>*]:min-w-0">
           <div
             aria-hidden
             className="pointer-events-none absolute -top-40 -right-40 size-[32rem] rounded-full bg-primary/25 blur-[120px]"
           />
           <Reveal className="relative space-y-6">
-            <h2 id="selfhost-title" className="font-display text-3xl leading-[1.08] sm:text-5xl">
-              Your links. Your server. <em className="text-primary">Your data.</em>
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-primary">
+              <Sparkles className="size-3.5" /> Built for Everyone
+            </div>
+            <h2 id="usecases-title" className="font-display text-3xl leading-[1.08] sm:text-5xl">
+              Simple for everyone. <em className="text-primary">Powerful</em> when you need it.
             </h2>
             <p className="max-w-md text-lg text-white/65">
-              One Docker Compose file starts the app and Postgres, with Redis as an option. Back it up like
-              any other database and move it whenever you want.
+              Whether you are a creator sharing your bio link, a restaurant printing QR menus, or a business
+              running campaigns — {APP_NAME} gives you clean links and instant insights without complexity.
             </p>
             <div className="flex flex-wrap gap-3">
               <Button size="lg" asChild>
-                <a href={`${GITHUB_URL}/blob/main/docs/self-hosting.md`}>
-                  <BookOpen className="size-4" aria-hidden /> Self-hosting guide
-                </a>
+                <Link href={session ? "/dashboard" : "/sign-up"}>
+                  {session ? "Open dashboard" : "Get started free"}{" "}
+                  <ArrowRight className="size-4" aria-hidden />
+                </Link>
               </Button>
               <Button
                 size="lg"
@@ -231,19 +239,52 @@ export default async function HomePage() {
                 asChild
                 className="text-white/80 ring-1 ring-white/15 hover:bg-white/10 hover:text-white"
               >
-                <Link href="/docs/api">Explore the API</Link>
+                <a href={GITHUB_URL} target="_blank" rel="noreferrer">
+                  <GithubIcon className="mr-2 inline size-4" /> Star on GitHub
+                </a>
               </Button>
             </div>
           </Reveal>
-          <Reveal delay={120} className="relative">
-            <Terminal
-              lines={[
-                `git clone ${GITHUB_URL}.git && cd vialb.link`,
-                "cp .env.example .env",
-                "# set SITE_URL and BETTER_AUTH_SECRET in .env",
-                "docker compose up -d",
-              ]}
-            />
+          <Reveal delay={120} className="relative space-y-3.5">
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-sm transition-transform duration-300 hover:translate-x-1">
+              <div className="flex items-center gap-3">
+                <div className="grid size-9 place-items-center rounded-xl bg-primary/20 text-primary">
+                  <Sparkles className="size-4" />
+                </div>
+                <div>
+                  <h3 className="font-medium text-white">Creators &amp; Social Bios</h3>
+                  <p className="text-xs text-white/60">
+                    One clean, memorable link for Instagram, TikTok, and YouTube.
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-sm transition-transform duration-300 hover:translate-x-1">
+              <div className="flex items-center gap-3">
+                <div className="grid size-9 place-items-center rounded-xl bg-primary/20 text-primary">
+                  <QrCode className="size-4" />
+                </div>
+                <div>
+                  <h3 className="font-medium text-white">Cafes, Restaurants &amp; Events</h3>
+                  <p className="text-xs text-white/60">
+                    Generate high-res QR codes for tables and flyers. Change the destination link anytime.
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-sm transition-transform duration-300 hover:translate-x-1">
+              <div className="flex items-center gap-3">
+                <div className="grid size-9 place-items-center rounded-xl bg-primary/20 text-primary">
+                  <ShieldCheck className="size-4" />
+                </div>
+                <div>
+                  <h3 className="font-medium text-white">Private &amp; Expiring Links</h3>
+                  <p className="text-xs text-white/60">
+                    Protect links with passwords, set expiry dates or visit caps for exclusive drops.
+                  </p>
+                </div>
+              </div>
+            </div>
           </Reveal>
         </div>
       </section>
@@ -259,7 +300,7 @@ export default async function HomePage() {
             Make your next link <em className="text-primary">count</em>.
           </h2>
           <p className="mt-5 max-w-lg text-lg text-muted-foreground">
-            Free and open source under the MIT license.
+            Free forever and open source under the MIT license.
           </p>
           <div className="mt-9 flex flex-wrap justify-center gap-3">
             <Button size="lg" variant="ink" asChild>

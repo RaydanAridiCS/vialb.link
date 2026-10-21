@@ -155,7 +155,7 @@ export function renderVerificationEmail({
           <tr>
             <td style="padding: 20px 36px; background-color: #fafaf9; border-top: 1px solid #e7e5e0; text-align: center;">
               <p style="margin: 0; font-size: 12px; color: #94a3b8;">
-                ${escapedApp} &bull; Open-source, self-hostable URL management<br>
+                ${escapedApp} &bull; The simple, privacy-friendly open-source link shortener<br>
                 <a href="${escapedSiteUrl}" style="color: #64748b; text-decoration: underline;">${escapedSiteUrl}</a>
               </p>
             </td>
@@ -291,7 +291,7 @@ export function renderPasswordResetEmail({
           <tr>
             <td style="padding: 20px 36px; background-color: #fafaf9; border-top: 1px solid #e7e5e0; text-align: center;">
               <p style="margin: 0; font-size: 12px; color: #94a3b8;">
-                ${escapedApp} &bull; Open-source, self-hostable URL management<br>
+                ${escapedApp} &bull; The simple, privacy-friendly open-source link shortener<br>
                 <a href="${escapedSiteUrl}" style="color: #64748b; text-decoration: underline;">${escapedSiteUrl}</a>
               </p>
             </td>

@@ -4,14 +4,13 @@
 
 # Vialb
 
-**An open-source, self-hostable URL shortener with privacy-friendly analytics.**
+**A modern, open-source URL shortener with privacy-friendly analytics and custom QR codes.**
 
 [![CI](https://github.com/RaydanAridiCS/vialb.link/actions/workflows/ci.yml/badge.svg)](https://github.com/RaydanAridiCS/vialb.link/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/RaydanAridiCS/vialb.link/actions/workflows/codeql.yml/badge.svg)](https://github.com/RaydanAridiCS/vialb.link/actions/workflows/codeql.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Docker image](https://img.shields.io/badge/ghcr.io-raydanaridics%2Fvialb.link-2496ED?logo=docker&logoColor=white)](https://github.com/RaydanAridiCS/vialb.link/pkgs/container/vialb.link)
 
-[Quick start](#quick-start) · [Features](#features) · [API](#api) · [Self-hosting guide](docs/self-hosting.md) · [Architecture](docs/architecture.md) · [Contributing](CONTRIBUTING.md)
+[Features](#features) · [Local development](#local-development) · [Architecture](docs/architecture.md) · [Contributing](CONTRIBUTING.md)
 
 </div>
 

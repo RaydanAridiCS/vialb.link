@@ -26,8 +26,7 @@ export function Logo({ className }: { className?: string }) {
 const NAV_LINKS: SiteNavLink[] = [
   { href: "/demo", label: "Live demo" },
   { href: "/#features", label: "Features" },
-  { href: "/#self-host", label: "Self-host" },
-  { href: "/docs/api", label: "API docs" },
+  { href: "/#use-cases", label: "Who it's for" },
 ];
 
 export async function SiteHeader() {
@@ -93,22 +92,23 @@ const FOOTER_COLUMNS: { title: string; links: SiteNavLink[] }[] = [
     links: [
       { href: "/demo", label: "Live demo" },
       { href: "/#features", label: "Features" },
+      { href: "/#use-cases", label: "Who it's for" },
       { href: "/sign-up", label: "Create an account" },
     ],
   },
   {
-    title: "Developers",
+    title: "Highlights",
     links: [
-      { href: "/docs/api", label: "API reference" },
-      { href: "/api/v1/openapi.json", label: "OpenAPI spec" },
-      { href: `${GITHUB_URL}/blob/main/docs/self-hosting.md`, label: "Self-hosting guide", external: true },
+      { href: "/demo?scenario=menu", label: "Restaurant QR demo" },
+      { href: "/demo?scenario=launch", label: "Campaign analytics" },
+      { href: "/demo?scenario=portfolio", label: "Creator bio demo" },
     ],
   },
   {
-    title: "Project",
+    title: "Open Source",
     links: [
-      { href: GITHUB_URL, label: "Source code", external: true },
-      { href: `${GITHUB_URL}/issues`, label: "Report an issue", external: true },
+      { href: GITHUB_URL, label: "GitHub repository", external: true },
+      { href: `${GITHUB_URL}/issues`, label: "Request a feature", external: true },
       { href: "/terms", label: "Terms of use" },
       { href: "/privacy", label: "Privacy policy" },
     ],
@@ -122,7 +122,7 @@ export function SiteFooter() {
         <div className="space-y-3">
           <Logo />
           <p className="max-w-xs text-sm text-muted-foreground">
-            Short links and honest analytics on a server you control. Free and open source.
+            Short links, custom QR codes and honest analytics. 100% free and open source.
           </p>
         </div>
         {FOOTER_COLUMNS.map((column) => (

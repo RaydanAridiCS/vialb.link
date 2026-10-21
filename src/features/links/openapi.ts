@@ -149,6 +149,6 @@ export function buildOpenApiDocument(siteUrl: string) {
       license: { name: "MIT", url: `${GITHUB_URL}/blob/main/LICENSE` },
     },
     servers: [{ url: siteUrl }],
-    externalDocs: { url: GITHUB_URL, description: "Source code & self-hosting guide" },
+    externalDocs: { url: GITHUB_URL, description: "Source code & repository" },
   });
 }
