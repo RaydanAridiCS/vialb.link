@@ -2,14 +2,17 @@ import { z } from "zod";
 import { LIMITS } from "@/lib/constants";
 import type { CreateLinkCommand, UpdateLinkCommand } from "@/server/services/link.service";
 import { QR_ECC_LEVELS, QR_FRAME_TEXT_MAX, QR_FRAMES } from "@/lib/qr-options";
+import { ROUTING_PLATFORMS } from "@/lib/routing";
 import {
   customCodeSchema,
   destinationUrlSchema,
+  cardDesignSchema,
   hexColorSchema,
   httpsUrlSchema,
   qrEccSchema,
   qrFrameSchema,
   qrFrameTextSchema,
+  routingRulesSchema,
   tagSchema,
 } from "./schemas";
 
@@ -36,6 +39,25 @@ export const apiCreateLinkSchema = z
       description: "Labels for grouping links; stored lowercase",
       example: ["promo", "client-work"],
     }),
+    routingRules: routingRulesSchema.optional().meta({
+      description:
+        "Smart routing: rules are checked in order and the first match replaces `url`. Each rule needs a `platform` (ios, android, desktop), `countries` (ISO codes), or both.",
+      example: [{ platform: "ios", url: "https://apps.apple.com/app/id1" }],
+    }),
+    cardDesign: cardDesignSchema
+      .nullable()
+      .optional()
+      .meta({
+        description:
+          "Designed social preview card (1200x630): a template (plain, gradient, split), a palette, a headline and an optional subtitle. Used as the link's preview image unless `ogImageUrl` is set.",
+        example: {
+          template: "gradient",
+          palette: "forest",
+          headline: "Spring sale",
+          subline: "",
+          showHost: true,
+        },
+      }),
     expiresAt: z.iso
       .datetime({ offset: true })
       .nullable()
@@ -63,6 +85,13 @@ export const apiUpdateLinkSchema = z
     url: destinationUrlSchema.optional(),
     title: z.string().trim().max(LIMITS.titleMax).nullable().optional(),
     tags: tags.optional().meta({ description: "Replaces all tags; omit to keep them" }),
+    routingRules: routingRulesSchema
+      .optional()
+      .meta({ description: "Replaces all routing rules; send [] to remove them, omit to keep them" }),
+    cardDesign: cardDesignSchema
+      .nullable()
+      .optional()
+      .meta({ description: "null removes the card; omit to keep it" }),
     expiresAt: z.iso
       .datetime({ offset: true })
       .nullable()
@@ -107,6 +136,14 @@ export const linkSchema = z
     destinationUrl: z.url(),
     title: z.string().nullable(),
     tags: z.array(z.string()),
+    routingRules: z.array(
+      z.object({
+        platform: z.enum(ROUTING_PLATFORMS).optional(),
+        countries: z.array(z.string()).optional(),
+        url: z.string(),
+      }),
+    ),
+    cardDesign: cardDesignSchema.nullable(),
     hasPassword: z.boolean(),
     expiresAt: z.string().nullable(),
     maxClicks: z.number().int().nullable(),
@@ -172,6 +209,8 @@ export function toCreateCommand(input: z.output<typeof apiCreateLinkSchema>): Cr
     customCode: input.code,
     title: input.title ?? null,
     tags: input.tags,
+    routingRules: input.routingRules,
+    cardDesign: input.cardDesign,
     expiration: input.expiresAt
       ? { preset: "custom", customAt: new Date(input.expiresAt) }
       : { preset: "never" },
@@ -193,6 +232,8 @@ export function toUpdateCommand(input: z.output<typeof apiUpdateLinkSchema>): Up
     destinationUrl: input.url,
     title: input.title,
     tags: input.tags,
+    routingRules: input.routingRules,
+    cardDesign: input.cardDesign,
     expiration:
       input.expiresAt === undefined
         ? undefined

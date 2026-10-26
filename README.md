@@ -34,6 +34,9 @@
 - 🏷️ **Tags**: label links (`promo`, `client-work`) and filter the dashboard by tag, also via the API
 - 🎯 **UTM builder**: add `utm_*` campaign parameters to a destination with presets and a live preview
 - 📥 **CSV import**: bring hundreds of links over from Bitly, TinyURL or a spreadsheet with column detection, a preview, per-row errors and a downloadable error file ([details](docs/import-and-qr.md#csv-import))
+- 🧑‍🎤 **Link-in-bio pages**: a public page at `/@handle` with your picture, bio, social icons and buttons; every button click is counted like a link ([details](docs/link-in-bio.md))
+- 🧭 **Smart routing**: one link, different destinations by device (iPhone, Android, desktop) and country, with analytics on which rule fired ([details](docs/smart-routing.md))
+- 🖼️ **Social card studio**: design the preview image for shared links without uploading anything, and see mock-ups for WhatsApp, iMessage, Slack and X ([details](docs/social-cards.md))
 - 🔑 **REST API**: API keys, per-key rate limits, OpenAPI 3.1 + interactive docs
 - 👥 **Accounts**: email/password, optional GitHub & Google, TOTP 2FA with backup codes, data export, account deletion
 - 🛡️ **Admin**: instance settings, user roles and bans, every link on the instance, stats

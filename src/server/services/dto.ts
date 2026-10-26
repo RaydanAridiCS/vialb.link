@@ -1,4 +1,6 @@
 import type { QrEcc, QrFrame } from "@/lib/qr-options";
+import type { RoutingRule } from "@/lib/routing";
+import { cardVersion, type CardDesign } from "@/lib/social-card";
 import type { ApiKey, Link } from "@/server/domain/types";
 
 export type LinkStatus = "active" | "expired" | "limit_reached" | "disabled";
@@ -11,6 +13,8 @@ export interface LinkDto {
   destinationUrl: string;
   title: string | null;
   tags: string[];
+  routingRules: RoutingRule[];
+  cardDesign: CardDesign | null;
   hasPassword: boolean;
   expiresAt: string | null;
   maxClicks: number | null;
@@ -41,6 +45,12 @@ export function shortUrlFor(siteUrl: string, code: string): string {
   return `${siteUrl}/${encodeURIComponent(code)}`;
 }
 
+/** Public URL of a link's designed social card; `?v=` changes with the design so caches refresh. */
+export function cardUrlFor(siteUrl: string, link: Pick<Link, "code" | "cardDesign">): string {
+  const version = link.cardDesign ? `?v=${cardVersion(link.cardDesign)}` : "";
+  return `${shortUrlFor(siteUrl, link.code)}/card${version}`;
+}
+
 export function toLinkDto(link: Link, siteUrl: string, now: Date): LinkDto {
   return {
     id: link.id,
@@ -49,6 +59,8 @@ export function toLinkDto(link: Link, siteUrl: string, now: Date): LinkDto {
     destinationUrl: link.destinationUrl,
     title: link.title,
     tags: link.tags,
+    routingRules: link.routingRules,
+    cardDesign: link.cardDesign,
     hasPassword: link.passwordHash !== null,
     expiresAt: link.expiresAt?.toISOString() ?? null,
     maxClicks: link.maxClicks,

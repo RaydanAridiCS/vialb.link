@@ -14,6 +14,9 @@ export const env = createEnv({
   server: {
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
     DATABASE_URL: z.url(),
+    DATABASE_POOL_MAX: z.coerce.number().int().min(1).max(200).default(10),
+    // Prepared statements break PgBouncer in transaction pooling mode.
+    DATABASE_PREPARE: bool(true),
     SITE_URL: z.url().transform((value) => value.replace(/\/+$/, "")),
 
     BETTER_AUTH_SECRET: z.string().min(32, "BETTER_AUTH_SECRET must be at least 32 characters"),
@@ -59,6 +62,7 @@ export const env = createEnv({
     TURNSTILE_SITE_KEY: optionalString,
     TURNSTILE_SECRET_KEY: optionalString,
     SAFE_BROWSING_API_KEY: optionalString,
+    SENTRY_DSN: z.url().optional(),
 
     LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).default("info"),
   },

@@ -30,6 +30,7 @@ const DIMENSION_FIELDS: Record<AnalyticsDimension, keyof NewClick> = {
   utm_medium: "utmMedium",
   utm_campaign: "utmCampaign",
   language: "language",
+  routed_by: "routedBy",
 };
 
 export class InMemoryClickRepository implements IClickRepository {

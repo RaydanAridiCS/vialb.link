@@ -5,7 +5,7 @@ import { env } from "@/lib/env";
 export const dynamic = "force-dynamic";
 
 /**
- * Marketing pages are indexable; everything else (short links live at the
+ * Marketing pages and bio pages (`/@handle`) are indexable; everything else (short links live at the
  * root, so they're blocked by default and re-allowed for "/" only) is not.
  */
 export default function robots(): MetadataRoute.Robots {
@@ -13,7 +13,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: [
       {
         userAgent: "*",
-        allow: ["/$", "/docs/api$", "/sign-in$", "/sign-up$"],
+        allow: ["/$", "/docs/api$", "/sign-in$", "/sign-up$", "/@"],
         disallow: ["/"],
       },
     ],

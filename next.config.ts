@@ -16,6 +16,12 @@ const nextConfig: NextConfig = {
     "pino-pretty",
     "sharp",
   ],
+  // A folder named `@x` is a parallel-route slot in the App Router, so bio pages
+  // (`/@handle`) are served by `/u/[handle]` through a rewrite. The proxy (CSP
+  // nonce) runs first and sees the original path.
+  async rewrites() {
+    return { beforeFiles: [{ source: "/@:handle", destination: "/u/:handle" }] };
+  },
   turbopack: {
     rules: {
       "*.css": {

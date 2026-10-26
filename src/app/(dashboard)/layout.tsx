@@ -8,6 +8,7 @@ export default async function DashboardLayout({ children }: LayoutProps<"/">) {
   const items = [
     { href: "/dashboard", label: "Overview", exact: true },
     { href: "/dashboard/links", label: "Links" },
+    { href: "/dashboard/bio", label: "Bio page" },
     { href: "/dashboard/settings", label: "Settings" },
     ...(isAdmin ? [{ href: "/admin", label: "Admin" }] : []),
   ];

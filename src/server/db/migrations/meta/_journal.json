@@ -22,6 +22,27 @@
       "when": 1793006556311,
       "tag": "0002_qr_options",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1793017471154,
+      "tag": "0003_link_in_bio",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793018873406,
+      "tag": "0004_smart_routing",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793019713224,
+      "tag": "0005_social_cards",
+      "breakpoints": true
     }
   ]
 }

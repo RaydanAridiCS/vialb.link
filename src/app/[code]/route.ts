@@ -14,13 +14,13 @@ export async function GET(request: NextRequest, { params }: RouteContext<"/[code
   const { redirect, analytics } = getContainer();
   const userAgent = request.headers.get("user-agent");
   const searchParams = request.nextUrl.searchParams;
-  const decision = await redirect.resolve({ code, userAgent, searchParams });
+  const ip = clientIpFrom(request.headers);
+  const decision = await redirect.resolve({ code, userAgent, searchParams, ip, headers: request.headers });
 
   const noStore = { "Cache-Control": "private, no-store" };
-  const scheduleClick = (linkId: string) => {
-    const ip = clientIpFrom(request.headers);
+  const scheduleClick = (linkId: string, routedBy: string | null = null) => {
     const headers = new Headers(request.headers);
-    after(() => analytics.recordClick({ linkId, ip, headers, searchParams }));
+    after(() => analytics.recordClick({ linkId, ip, headers, searchParams, routedBy }));
   };
 
   switch (decision.kind) {
@@ -55,7 +55,7 @@ export async function GET(request: NextRequest, { params }: RouteContext<"/[code
         },
       });
     case "redirect":
-      scheduleClick(decision.linkId);
+      scheduleClick(decision.linkId, decision.routedBy);
       return new Response(null, {
         status: env.REDIRECT_STATUS,
         headers: { ...noStore, Location: decision.destination, "Referrer-Policy": env.REFERRER_POLICY },

@@ -30,6 +30,10 @@ These were consciously left out of the first release or only partially done:
 - Tags on links, tag filter in the dashboard, `tags` in the REST API
 - CSV bulk import from the dashboard
 - QR customizer: error correction levels, badge frame, SVG and high-res PNG downloads
+- Link-in-bio pages (`/@handle`)
+- Smart device and geo routing
+- Social card studio (designed preview cards and app mock-ups)
+- Launch hardening: pool settings, startup config warnings, Redis fail-open, Sentry (opt-in), encrypted backups
 
 ## Next
 
@@ -38,7 +42,11 @@ These were consciously left out of the first release or only partially done:
 - Centre logo on QR codes (needs a safe upload and storage story; error correction `H` is already the default)
 - Filter links by tag in `GET /api/v1/links`
 - Webhooks on click thresholds, expiry, limit reached
-- Link-in-bio / "preview before redirect" interstitial option
+- "Preview before redirect" interstitial option
+- Bio pages: REST API, page-view counts, uploaded pictures (with the QR centre logo and image-upload story below), a sitemap, admin moderation tools
+- Smart routing: more conditions (language, time), A/B and percentage splits, CSV import columns
+- Social cards: uploaded images, free colours and logos, a designed preview image for bio pages
+- Sentry in the browser (needs a build-time public DSN that fits the prebuilt image), Turnstile on sign-up and sign-in
 - Custom 404 / gone page branding per instance
 
 ## Later

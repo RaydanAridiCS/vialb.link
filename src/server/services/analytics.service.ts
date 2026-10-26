@@ -62,6 +62,8 @@ export interface ClickRecordInput {
   ip: string | null;
   headers: Headers;
   searchParams: URLSearchParams;
+  /** The smart-routing rule that picked the destination, if the link has rules. */
+  routedBy?: string | null;
 }
 
 export interface AnalyticsServiceDeps {
@@ -84,6 +86,7 @@ const DIMENSIONS: AnalyticsDimension[] = [
   "utm_medium",
   "utm_campaign",
   "language",
+  "routed_by",
 ];
 
 export class AnalyticsService {
@@ -127,6 +130,7 @@ export class AnalyticsService {
         utmContent: utm.utm_content,
         language: primaryLanguage(input.headers.get("accept-language")),
         isBot: ua.isBot,
+        routedBy: input.routedBy ?? null,
       });
     } catch (error) {
       this.deps.logger.warn({ err: error, linkId: input.linkId }, "Failed to record click");

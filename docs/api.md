@@ -107,6 +107,19 @@ Colour pairs that no scanner can read (contrast ratio below 2) are rejected with
 `400 VALIDATION_ERROR`; the QR endpoints reject unknown `ecc` or `frame` values the same way.
 `size` (PNG only) is clamped to 128-2048. See [CSV import and QR codes](import-and-qr.md).
 
+Smart routing and social cards are part of the link too, and returned on every link:
+
+- `routingRules`: up to 10 ordered rules, each with a `platform` (`ios`, `android`, `desktop`), `countries`
+  (ISO codes) or both, and a `url`. The first matching rule replaces `url` for that visitor. On `PATCH`,
+  omit the field to keep the rules, send an array to replace them, `[]` to remove them.
+  See [Smart routing](smart-routing.md).
+- `cardDesign`: `{ template, palette, headline, subline, showHost }` for a designed 1200×630 preview image
+  served at `/{code}/card`, or `null`. On `PATCH`, omit to keep, `null` to remove.
+  See [Social card studio](social-cards.md).
+
+Invalid rules or card designs answer `400 VALIDATION_ERROR`. Rule targets are checked like `url`
+(blocklist, Safe Browsing), and a message such as `Rule 2: ...` names the rule.
+
 Tags are lowercase labels (up to 10 per link, 30 characters each: letters, numbers,
 `-` or `_`). `#Promo` and `Client Work` are stored as `promo` and `client-work`.
 `PATCH` with `tags` replaces all tags (`[]` clears them); omit the field to keep them.

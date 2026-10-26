@@ -5,6 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import type { AnalyticsRange } from "@/lib/constants";
 import { CountryCode } from "@/components/country-code";
 import { countryName, formatDateTime, formatNumber, formatRelative } from "@/lib/format";
+import { describeRoute } from "@/lib/routing";
 import { cn } from "@/lib/utils";
 import type { LinkAnalytics } from "@/server/services/analytics.service";
 import { deriveInsights, type Insight } from "../insights";
@@ -114,6 +115,11 @@ export function AnalyticsView({
   const topCountry = d.country.find((c) => c.value !== "Unknown");
   // The KPI strip already names the top country.
   const insights = deriveInsights(data).filter((i) => i.id !== "country");
+  // Clicks on links with smart routing, by the rule that decided where they went.
+  const routes = d.routed_by
+    .filter((item) => item.value !== "Unknown")
+    .map((item) => ({ ...item, value: describeRoute(item.value, countryName) }));
+  const routedTotal = routes.reduce((sum, item) => sum + item.clicks, 0);
   const utm = {
     source: d.utm_source.filter((i) => i.value !== "Unknown"),
     medium: d.utm_medium.filter((i) => i.value !== "Unknown"),
@@ -280,6 +286,12 @@ export function AnalyticsView({
           </AnalyticsCard>
         </Tabs>
       </div>
+
+      {routes.length > 0 ? (
+        <AnalyticsCard title="Smart routing" description="Where visitors were sent by this link's rules">
+          <BarList items={routes} total={routedTotal} />
+        </AnalyticsCard>
+      ) : null}
 
       <AnalyticsCard title="When people click" description="Weekday and hour, UTC. Darker means more clicks.">
         <Heatmap cells={data.heatmap} />

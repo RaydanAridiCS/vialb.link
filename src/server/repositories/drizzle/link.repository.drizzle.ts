@@ -60,6 +60,14 @@ export class DrizzleLinkRepository implements ILinkRepository {
     return row ?? null;
   }
 
+  async findManyByIds(ids: readonly string[]): Promise<Link[]> {
+    if (ids.length === 0) return [];
+    return this.db
+      .select()
+      .from(links)
+      .where(and(inArray(links.id, [...ids]), isNull(links.deletedAt)));
+  }
+
   async findByCode(code: string): Promise<Link | null> {
     const [row] = await this.db
       .select()
@@ -85,6 +93,7 @@ export class DrizzleLinkRepository implements ILinkRepository {
   async list(query: LinkListQuery): Promise<Page<Link>> {
     const conditions: (SQL | undefined)[] = [isNull(links.deletedAt)];
     if (query.userId !== undefined) conditions.push(eq(links.userId, query.userId));
+    if (query.kind !== "any") conditions.push(eq(links.kind, query.kind ?? "link"));
 
     const search = query.search?.trim();
     if (search) {
@@ -163,7 +172,12 @@ export class DrizzleLinkRepository implements ILinkRepository {
       .select()
       .from(links)
       .where(
-        and(eq(links.userId, userId), isNull(links.deletedAt), cursor ? lt(links.id, cursor) : undefined),
+        and(
+          eq(links.userId, userId),
+          eq(links.kind, "link"),
+          isNull(links.deletedAt),
+          cursor ? lt(links.id, cursor) : undefined,
+        ),
       )
       .orderBy(desc(links.id))
       .limit(limit + 1);
@@ -261,7 +275,7 @@ export class DrizzleLinkRepository implements ILinkRepository {
       this.db
         .select({ total: count() })
         .from(links)
-        .where(and(owner, isNull(links.deletedAt))),
+        .where(and(owner, eq(links.kind, "link"), isNull(links.deletedAt))),
       this.db
         .select({ total: count() })
         .from(clicks)

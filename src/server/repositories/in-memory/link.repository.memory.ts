@@ -24,11 +24,14 @@ export class InMemoryLinkRepository implements ILinkRepository {
     const at = input.createdAt ?? this.now();
     const link: Link = {
       id: uuidv7(),
+      kind: input.kind ?? "link",
       code: input.code,
       destinationUrl: input.destinationUrl,
       userId: input.userId ?? null,
       title: input.title ?? null,
       tags: input.tags ?? [],
+      routingRules: input.routingRules ?? [],
+      cardDesign: input.cardDesign ?? null,
       passwordHash: input.passwordHash ?? null,
       expiresAt: input.expiresAt ?? null,
       maxClicks: input.maxClicks ?? null,
@@ -57,6 +60,11 @@ export class InMemoryLinkRepository implements ILinkRepository {
     return row && !row.deletedAt ? { ...row } : null;
   }
 
+  async findManyByIds(ids: readonly string[]): Promise<Link[]> {
+    const wanted = new Set(ids);
+    return [...this.rows.values()].filter((l) => wanted.has(l.id) && !l.deletedAt).map((l) => ({ ...l }));
+  }
+
   async findByCode(code: string): Promise<Link | null> {
     for (const row of this.rows.values()) {
       if (row.code === code && !row.deletedAt) return { ...row };
@@ -80,6 +88,7 @@ export class InMemoryLinkRepository implements ILinkRepository {
 
     let items = [...this.rows.values()].filter((l) => !l.deletedAt);
     if (query.userId !== undefined) items = items.filter((l) => l.userId === query.userId);
+    if (query.kind !== "any") items = items.filter((l) => l.kind === (query.kind ?? "link"));
     if (search) {
       items = items.filter((l) =>
         [l.code, l.title ?? "", l.destinationUrl].some((v) => v.toLowerCase().includes(search)),
@@ -137,7 +146,7 @@ export class InMemoryLinkRepository implements ILinkRepository {
 
   async listByCursor(userId: string, cursor: string | null, limit: number): Promise<CursorPage<Link>> {
     const rows = [...this.rows.values()]
-      .filter((l) => l.userId === userId && !l.deletedAt && (!cursor || l.id < cursor))
+      .filter((l) => l.userId === userId && l.kind === "link" && !l.deletedAt && (!cursor || l.id < cursor))
       .sort((a, b) => (a.id < b.id ? 1 : -1));
     const items = rows.slice(0, limit);
     return { items, nextCursor: rows.length > limit ? (items.at(-1)?.id ?? null) : null };
@@ -210,7 +219,7 @@ export class InMemoryLinkRepository implements ILinkRepository {
 
   async overview(userId: string | undefined): Promise<UserOverviewStats> {
     const owned = [...this.rows.values()].filter(
-      (l) => !l.deletedAt && (userId === undefined || l.userId === userId),
+      (l) => !l.deletedAt && l.kind === "link" && (userId === undefined || l.userId === userId),
     );
     return { totalLinks: owned.length, clicks7d: 0, clicks30d: 0, topLinks: [], daily: [] };
   }

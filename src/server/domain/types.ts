@@ -3,6 +3,10 @@
  * routes never see Drizzle row types.
  */
 
+import type { SocialLink } from "@/lib/bio";
+import type { PaletteKey } from "@/lib/palettes";
+import type { CardDesign } from "@/lib/social-card";
+import type { RoutingRule } from "@/lib/routing";
 import type { QrEcc, QrFrame } from "@/lib/qr-options";
 
 export type Role = "user" | "admin";
@@ -12,13 +16,21 @@ export type Actor =
   | { kind: "anonymous"; ip: string | null }
   | { kind: "system" };
 
+/** `bio_button` links are created by a bio page and hidden from the normal links list. */
+export type LinkKind = "link" | "bio_button";
+
 export interface Link {
   id: string;
+  kind: LinkKind;
   code: string;
   destinationUrl: string;
   userId: string | null;
   title: string | null;
   tags: string[];
+  /** Ordered smart-routing rules; the first match replaces `destinationUrl`. */
+  routingRules: RoutingRule[];
+  /** Designed social preview card; `null` when the link has none. */
+  cardDesign: CardDesign | null;
   passwordHash: string | null;
   expiresAt: Date | null;
   maxClicks: number | null;
@@ -43,9 +55,12 @@ export type NewLink = Pick<Link, "code" | "destinationUrl"> &
   Partial<
     Pick<
       Link,
+      | "kind"
       | "userId"
       | "title"
       | "tags"
+      | "routingRules"
+      | "cardDesign"
       | "passwordHash"
       | "expiresAt"
       | "maxClicks"
@@ -71,6 +86,8 @@ export type LinkPatch = Partial<
     | "destinationUrl"
     | "title"
     | "tags"
+    | "routingRules"
+    | "cardDesign"
     | "passwordHash"
     | "expiresAt"
     | "maxClicks"
@@ -97,6 +114,8 @@ export interface LinkListQuery {
   search?: string;
   /** Only links carrying this (normalized) tag. */
   tag?: string;
+  /** Defaults to `link`: bio page buttons are hidden unless `any` is asked for (admin review). */
+  kind?: LinkKind | "any";
   status?: LinkStatusFilter;
   sort?: LinkSort;
   page: number;
@@ -139,6 +158,8 @@ export interface NewClick {
   utmContent: string | null;
   language: string | null;
   isBot: boolean;
+  /** Which smart-routing rule sent the visitor (`default`, `ios`, `country:FR`…). `null` for links without rules. */
+  routedBy?: string | null;
 }
 
 export interface Click extends NewClick {
@@ -191,7 +212,8 @@ export type AnalyticsDimension =
   | "utm_source"
   | "utm_medium"
   | "utm_campaign"
-  | "language";
+  | "language"
+  | "routed_by";
 
 export interface UserOverviewStats {
   totalLinks: number;
@@ -240,3 +262,34 @@ export interface UserSummary {
   role: string | null;
   banned: boolean | null;
 }
+
+export interface BioProfile {
+  userId: string;
+  /** Lowercase, unique. Served at `/@handle`. */
+  handle: string;
+  displayName: string | null;
+  bio: string | null;
+  avatarUrl: string | null;
+  theme: PaletteKey;
+  socials: SocialLink[];
+  showBadge: boolean;
+  isPublished: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export type NewBioProfile = Omit<BioProfile, "createdAt" | "updatedAt">;
+
+export interface BioButton {
+  id: string;
+  userId: string;
+  /** The hidden `links` row this button redirects through, so clicks are counted like any link. */
+  linkId: string;
+  label: string;
+  position: number;
+  isVisible: boolean;
+  createdAt: Date;
+}
+
+/** The repository appends the button after the user's last one. */
+export type NewBioButton = Pick<BioButton, "userId" | "linkId" | "label">;

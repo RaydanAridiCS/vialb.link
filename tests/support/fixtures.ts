@@ -7,6 +7,7 @@ import type { CodeGenerator } from "@/server/ports/code-generator";
 import type { GeoResolver } from "@/server/ports/geo-resolver";
 import type { PasswordHasher } from "@/server/ports/password-hasher";
 import type { UrlSafetyChecker } from "@/server/ports/url-safety-checker";
+import { InMemoryBioRepository } from "@/server/repositories/in-memory/bio.repository.memory";
 import { InMemoryLinkRepository } from "@/server/repositories/in-memory/link.repository.memory";
 import {
   InMemoryApiKeyRepository,
@@ -17,6 +18,8 @@ import {
 import { AbuseService } from "@/server/services/abuse.service";
 import { AdminService } from "@/server/services/admin.service";
 import { AnalyticsService } from "@/server/services/analytics.service";
+import { BioService } from "@/server/services/bio.service";
+import { CardService } from "@/server/services/card.service";
 import { ApiKeyService } from "@/server/services/api-key.service";
 import { LinkService } from "@/server/services/link.service";
 import { QrService } from "@/server/services/qr.service";
@@ -81,6 +84,7 @@ export function buildFixture(options: FixtureOptions = {}) {
   const clock = new FakeClock();
   const linkRepo = new InMemoryLinkRepository(() => clock.now());
   const clickRepo = new InMemoryClickRepository();
+  const bioRepo = new InMemoryBioRepository(() => clock.now());
   const settingsRepo = new InMemorySettingsRepository();
   const userRepo = new InMemoryUserRepository();
   const apiKeyRepo = new InMemoryApiKeyRepository();
@@ -122,6 +126,7 @@ export function buildFixture(options: FixtureOptions = {}) {
     siteName: "Vialb",
     siteUrl: SITE_URL,
     forwardQueryParams: options.forwardQueryParams ?? true,
+    geo: options.geo,
   });
   const analytics = new AnalyticsService({
     clicks: clickRepo,
@@ -135,6 +140,7 @@ export function buildFixture(options: FixtureOptions = {}) {
     clock,
     linkRepo,
     clickRepo,
+    bioRepo,
     settingsRepo,
     userRepo,
     apiKeyRepo,
@@ -146,6 +152,16 @@ export function buildFixture(options: FixtureOptions = {}) {
     links,
     redirect,
     analytics,
+    bio: new BioService({
+      bio: bioRepo,
+      links,
+      linkRepo,
+      users: userRepo,
+      abuse,
+      clock,
+      siteUrl: SITE_URL,
+    }),
+    card: new CardService({ linkRepo, siteUrl: SITE_URL, clock }),
     qr: new QrService({ links, linkRepo, siteUrl: SITE_URL }),
     apiKeys: new ApiKeyService({ apiKeys: apiKeyRepo, users: userRepo, clock }),
     admin: new AdminService({ users: userRepo, links: linkRepo, clicks: clickRepo, clock }),

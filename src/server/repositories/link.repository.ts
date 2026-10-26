@@ -15,6 +15,8 @@ export interface ILinkRepository {
   /** Inserts a link. Throws `UniqueViolationError` when the code is taken (incl. soft-deleted). */
   create(input: NewLink): Promise<Link>;
   findById(id: string): Promise<Link | null>;
+  /** Active (not soft-deleted) links with these ids, in no particular order. */
+  findManyByIds(ids: readonly string[]): Promise<Link[]>;
   /** Active (not soft-deleted) link by exact, case-sensitive code. */
   findByCode(code: string): Promise<Link | null>;
   /** Holders of the given codes, soft-deleted links included (their codes stay reserved). */
@@ -22,6 +24,7 @@ export interface ILinkRepository {
   list(query: LinkListQuery): Promise<Page<Link>>;
   /** Distinct tags across a user's non-deleted links, sorted alphabetically. `undefined` = every user (admin). */
   listTags(userId: string | undefined): Promise<string[]>;
+  /** Bio page buttons (kind `bio_button`) are excluded from lists unless the query asks for `any`. */
   listByCursor(userId: string, cursor: string | null, limit: number): Promise<CursorPage<Link>>;
   /** Every non-deleted link owned by a user (data export). */
   listAllByUser(userId: string): Promise<Link[]>;

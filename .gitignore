@@ -47,3 +47,7 @@ npm-debug.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local backups (docker compose --profile backup)
+/backups
+*.dump.age

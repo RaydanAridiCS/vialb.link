@@ -15,6 +15,9 @@ Booleans accept `true/false`, `1/0`, `yes/no`, `on/off`.
 | `DATABASE_URL`            | — (required) | PostgreSQL connection string.                                                                                                |
 | `BETTER_AUTH_SECRET`      | — (required) | ≥ 32 random characters (`openssl rand -base64 32`). Signs sessions and peppers creator-IP hashes.                            |
 | `BETTER_AUTH_URL`         | `SITE_URL`   | Only needed if auth is served from a different origin.                                                                       |
+| `DATABASE_POOL_MAX`       | `10`         | Connections per app process. Total is replicas × this value, so keep it below Postgres' `max_connections`.                   |
+| `DATABASE_PREPARE`        | `true`       | Prepared statements. Set `false` behind PgBouncer in transaction pooling mode.                                               |
+| `SENTRY_DSN`              | —            | Enables server-side error reporting to Sentry or GlitchTip. See [Error monitoring](self-hosting.md#error-monitoring).        |
 | `LOG_LEVEL`               | `info`       | `fatal`, `error`, `warn`, `info`, `debug`, `trace`, `silent`. JSON logs in production, pretty logs in development.           |
 | `NEXT_TELEMETRY_DISABLED` | —            | Set to `1` to opt out of Next.js' anonymous telemetry.                                                                       |
 
@@ -65,7 +68,8 @@ never stored.
 | `GEOLITE2_DB_PATH`        | —       | Path to a MaxMind GeoLite2 City (or Country) `.mmdb` file, used when headers don't provide a country.                                                   |
 
 Without either, location is "Unknown". Vialb never calls a third-party
-geolocation API.
+geolocation API. The same sources decide **country rules in [smart routing](smart-routing.md)**: with
+neither configured, those rules are skipped and visitors go to the link's normal destination.
 
 ## Scaling & anti-abuse
 
@@ -74,6 +78,27 @@ geolocation API.
 | `REDIS_URL`                                   | —       | Shared rate limiting across replicas (`redis://host:6379`). Without it, limits are per process.           |
 | `TURNSTILE_SITE_KEY` / `TURNSTILE_SECRET_KEY` | —       | Cloudflare Turnstile on anonymous link creation.                                                          |
 | `SAFE_BROWSING_API_KEY`                       | —       | Google Safe Browsing lookup when a link is created or its destination changes (fails open on API errors). |
+
+At startup in production the server logs a warning for each weakness it can detect:
+no `REDIS_URL`, no `SAFE_BROWSING_API_KEY`, no `SENTRY_DSN`, a non-https `SITE_URL`,
+`TRUST_PROXY=false`, a half-configured Turnstile, or anonymous links without Turnstile
+(see [`startup-checks.ts`](../src/server/startup-checks.ts)). If Redis is configured but
+unreachable, rate limiting fails open (requests are allowed and the error is logged).
+
+## Backups (sidecar)
+
+Used by the `backup` compose profile and `scripts/backup/backup.sh`, not by the app itself.
+See [Backups](self-hosting.md#backups).
+
+| Variable                                      | Default  | Description                                                                |
+| --------------------------------------------- | -------- | -------------------------------------------------------------------------- |
+| `BACKUP_AGE_RECIPIENT`                        | required | `age` public key the dumps are encrypted to.                               |
+| `BACKUP_S3_BUCKET`                            | —        | Upload here. Empty keeps files in `BACKUP_HOST_DIR` (default `./backups`). |
+| `BACKUP_S3_ENDPOINT`                          | —        | S3-compatible endpoint, e.g. Cloudflare R2.                                |
+| `BACKUP_S3_PREFIX`                            | `vialb`  | Key prefix inside the bucket.                                              |
+| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | —        | Credentials for the bucket.                                                |
+| `BACKUP_RETENTION_DAYS`                       | `30`     | Delete backups older than this. `0` keeps everything.                      |
+| `BACKUP_INTERVAL_HOURS`                       | `24`     | Time between backups in the sidecar container.                             |
 
 ## Docker Compose helpers
 

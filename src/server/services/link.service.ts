@@ -35,6 +35,8 @@ import {
   type QrEcc,
   type QrFrame,
 } from "@/lib/qr-options";
+import { isRoutingPlatform, normalizeCountries, routingProblem, type RoutingRule } from "@/lib/routing";
+import { parseCardDesign, type CardDesign } from "@/lib/social-card";
 import { isValidTag, normalizeTag, normalizeTags } from "@/lib/tags";
 import { earliest, resolveExpiresAt } from "@/server/lib/expiry";
 import { randomToken, sha256Hex } from "@/server/lib/hashing";
@@ -57,6 +59,8 @@ export interface CreateLinkCommand {
   customCode?: string;
   title?: string | null;
   tags?: string[];
+  routingRules?: RoutingRule[];
+  cardDesign?: CardDesign | null;
   expiration?: ExpirationInput;
   maxClicks?: number | null;
   password?: string | null;
@@ -75,6 +79,10 @@ export interface UpdateLinkCommand {
   title?: string | null;
   /** `undefined` keeps the current tags; an array replaces them. */
   tags?: string[];
+  /** `undefined` keeps the current routing rules; an array (even empty) replaces them. */
+  routingRules?: RoutingRule[];
+  /** `undefined` keeps the current card, `null` removes it. */
+  cardDesign?: CardDesign | null;
   /** `undefined` keeps the current expiration. */
   expiration?: ExpirationInput;
   maxClicks?: number | null;
@@ -189,6 +197,21 @@ export class LinkService {
   }
 
   /**
+   * Creates the hidden link behind a bio page button. Same destination checks, code rules and
+   * defaults as `create`, but exempt from the per-user creation limit: the bio service enforces its
+   * own button limits, and a page of ten buttons must not eat the budget for ordinary links.
+   */
+  async createManaged(
+    actor: Actor,
+    cmd: Pick<CreateLinkCommand, "destinationUrl" | "title">,
+  ): Promise<LinkDto> {
+    const user = requireUser(actor);
+    const { base } = await this.buildLink(actor, cmd, null, { ip: null });
+    const link = await this.insertGenerated({ ...base, userId: user.userId, kind: "bio_button" });
+    return this.dto(link);
+  }
+
+  /**
    * Everything a new link needs except its code. Shared by `create` and `importLinks`, so imported
    * links get exactly the same destination checks, tag rules and defaults as links made in the form.
    * `assertDestination` lets a caller reuse verdicts (imports check each distinct URL once).
@@ -212,6 +235,8 @@ export class LinkService {
       userId: actor.kind === "user" ? actor.userId : null,
       title: cmd.title?.trim() || null,
       tags: this.cleanTags(cmd.tags),
+      routingRules: await this.cleanRouting(cmd.routingRules, [], assertDestination),
+      cardDesign: this.cleanCard(cmd.cardDesign),
       passwordHash: cmd.password ? await this.deps.hasher.hash(cmd.password) : null,
       expiresAt,
       maxClicks: cmd.maxClicks ?? null,
@@ -386,6 +411,56 @@ export class LinkService {
     return tags;
   }
 
+  /** Validates a card design from any caller (form, API) and returns the stored form; `null`/`undefined` mean none. */
+  private cleanCard(raw: CardDesign | null | undefined): CardDesign | null {
+    if (raw === null || raw === undefined) return null;
+    const result = parseCardDesign(raw);
+    if (!result.ok) throw new ValidationError(result.error, { field: "cardDesign" });
+    return result.design;
+  }
+
+  /**
+   * Normalizes smart-routing rules and checks every target like a primary destination (scheme,
+   * blocklist, own host, Safe Browsing), so routing cannot be used to dodge those checks. On edits,
+   * only targets that are new are checked again.
+   */
+  private async cleanRouting(
+    raw: readonly RoutingRule[] | undefined,
+    existing: readonly RoutingRule[],
+    assertDestination: (url: string) => Promise<void> = (url) =>
+      this.deps.abuse.assertDestinationAllowed(url),
+  ): Promise<RoutingRule[]> {
+    const rules: RoutingRule[] = (raw ?? []).map((rule) => {
+      if (rule.platform !== undefined && !isRoutingPlatform(rule.platform)) {
+        throw new ValidationError("Unknown device in a routing rule", { field: "routingRules" });
+      }
+      const countries = normalizeCountries(rule.countries ?? []);
+      return {
+        ...(rule.platform === undefined ? {} : { platform: rule.platform }),
+        ...(countries.length > 0 ? { countries } : {}),
+        url: rule.url.trim(),
+      };
+    });
+    const problem = routingProblem(rules);
+    if (problem) throw new ValidationError(problem, { field: "routingRules" });
+
+    const checked = new Set(existing.map((rule) => rule.url));
+    for (const [index, rule] of rules.entries()) {
+      if (checked.has(rule.url)) continue;
+      checked.add(rule.url);
+      try {
+        await assertDestination(rule.url);
+      } catch (error) {
+        // Say which rule, so the form can show the message next to it.
+        if (error instanceof ValidationError) {
+          throw new ValidationError(`Rule ${index + 1}: ${error.message}`, { field: "routingRules" });
+        }
+        throw error;
+      }
+    }
+    return rules;
+  }
+
   /**
    * QR options for a new or edited link. Creates fill gaps from `fallback`; edits (`partial`) only
    * return what the command sets. Colours must be scannable together, checked against the saved
@@ -457,6 +532,10 @@ export class LinkService {
     }
     if (cmd.title !== undefined) patch.title = cmd.title?.trim() || null;
     if (cmd.tags !== undefined) patch.tags = this.cleanTags(cmd.tags);
+    if (cmd.cardDesign !== undefined) patch.cardDesign = this.cleanCard(cmd.cardDesign);
+    if (cmd.routingRules !== undefined) {
+      patch.routingRules = await this.cleanRouting(cmd.routingRules, link.routingRules);
+    }
     if (cmd.expiration !== undefined) {
       patch.expiresAt = resolveExpiresAt(cmd.expiration.preset, cmd.expiration.customAt, now);
     }
@@ -511,6 +590,7 @@ export class LinkService {
     const all = input.scope === "all" && isAdmin(actor);
     const page = await this.deps.links.list({
       userId: all ? undefined : user.userId,
+      kind: all ? "any" : "link",
       search: input.search,
       tag: input.tag ? normalizeTag(input.tag) : undefined,
       status: input.status ?? "all",

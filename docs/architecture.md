@@ -9,7 +9,7 @@ database or a framework.
 flowchart LR
   subgraph Next.js app
     direction LR
-    R["Routes<br/>pages · route handlers · server actions"] --> S["Services<br/>link · redirect · analytics · qr · api-key · abuse · settings"]
+    R["Routes<br/>pages · route handlers · server actions"] --> S["Services<br/>link · redirect · analytics · qr · card · bio · api-key · abuse · settings"]
     S --> I["Repository interfaces<br/>ILinkRepository · IClickRepository · …"]
     S --> P["Ports<br/>Clock · CodeGenerator · PasswordHasher · GeoResolver · RateLimiter · Mailer · UrlSafetyChecker · CaptchaVerifier"]
     I --> D["Drizzle repositories"]
@@ -80,8 +80,11 @@ flowchart TD
   F -- yes --> PW["307 → /p/code"]
   F -- no --> H{"atomic consume:<br/>UPDATE … WHERE click_count < max_clicks RETURNING"}
   H -- 0 rows --> G3["302 → /gone/code?reason=limit"]
-  H -- ok --> RD["302/307 → destination (+ forwarded query)<br/>Cache-Control: private, no-store"]
-  RD -. after() .-> CL[record click]
+  H -- ok --> R{"smart routing<br/>rule matches device/country?"}
+  R -- yes --> RD["302/307 → that rule's URL (+ forwarded query)<br/>Cache-Control: private, no-store"]
+  R -- no --> RD2["302/307 → the link's URL (+ forwarded query)<br/>Cache-Control: private, no-store"]
+  RD -. after() .-> CL["record click (+ which rule)"]
+  RD2 -. after() .-> CL
 ```
 
 - Short links never use 301/308: browsers would cache them and expiry,
@@ -99,12 +102,18 @@ erDiagram
   user ||--o{ session : has
   user ||--o{ account : has
   user ||--o| two_factor : has
+  user ||--o| bio_profiles : "has one page"
+  user ||--o{ bio_buttons : owns
+  links ||--o| bio_buttons : "behind"
   links ||--o{ clicks : records
   links {
     uuid id PK "uuidv7"
     text code UK "case-sensitive"
     text destination_url
+    text kind "link or bio_button (hidden from lists)"
     text_array tags "normalized labels, GIN indexed"
+    jsonb routing_rules "ordered smart-routing rules, [] by default"
+    jsonb card_design "social card: template, palette, text; null = none"
     text qr_ecc "L M Q H, default M for old rows"
     text qr_frame "none or badge"
     text qr_frame_text "badge label, null = Scan me"
@@ -125,6 +134,22 @@ erDiagram
     text referrer_host
     text utm_source
     bool is_bot
+    text routed_by "which routing rule fired; null = no rules"
+  }
+  bio_profiles {
+    text user_id PK "one page per user"
+    text handle UK "lowercase, served at /@handle"
+    text theme "fixed palette key"
+    jsonb socials "validated platform + url pairs"
+    bool is_published
+  }
+  bio_buttons {
+    uuid id PK
+    text user_id FK
+    uuid link_id FK,UK "the hidden link behind the button"
+    text label
+    int position
+    bool is_visible
   }
 ```
 
@@ -136,6 +161,16 @@ QR design (`qr_fg_color`, `qr_bg_color`, `qr_ecc`, `qr_frame`, `qr_frame_text`) 
 too, as plain typed columns. QR images themselves are never stored: `QrService` draws them on
 demand with the shared composer in `src/lib/qr-svg.ts`. See
 [CSV import and QR codes](import-and-qr.md) for the import flow and the QR options.
+
+Smart routing rules and the social card design are plain `jsonb` columns on `links`: they are read together
+with the link on the redirect path and always edited as a whole, so a join table would only add queries.
+Rules are matched by pure code in `src/lib/routing.ts`; the redirect service looks the visitor's country up
+(locally, never over the network) only when a rule has countries. See [Smart routing](smart-routing.md)
+and [Social card studio](social-cards.md).
+
+Bio pages (`/@handle`) are one `bio_profiles` row per user plus ordered `bio_buttons`. Each button owns a
+hidden `links` row (`kind = 'bio_button'`), which is why clicks, limits and analytics need no special
+casing; `kind` only keeps those rows out of the normal lists. See [Link-in-bio pages](link-in-bio.md).
 
 Plus `instance_settings` (single row of admin overrides on top of env
 defaults), `daily_salts` (one random salt per UTC day) and Better Auth's tables.

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { charLimit } from "@/lib/char-limit";
 import {
   ACCESS_LIMIT_PRESETS,
   CUSTOM_CODE_PATTERN,
@@ -10,6 +11,9 @@ import {
   RESERVED_CODES,
 } from "@/lib/constants";
 import { DEFAULT_QR_ECC, isScannable, QR_ECC_LEVELS, QR_FRAME_TEXT_MAX, QR_FRAMES } from "@/lib/qr-options";
+import { PALETTE_KEYS } from "@/lib/palettes";
+import { COUNTRY_PATTERN, normalizeCountries, ROUTING_PLATFORMS, routingIssue } from "@/lib/routing";
+import { CARD_HEADLINE_MAX, CARD_SUBLINE_MAX, CARD_TEMPLATES } from "@/lib/social-card";
 import { isValidTag, normalizeTag } from "@/lib/tags";
 
 /**
@@ -82,6 +86,58 @@ export const tagSchema = z.string().refine((value) => isValidTag(normalizeTag(va
 
 const tagsSchema = z.array(tagSchema).max(LIMITS.tagsPerLinkMax, `At most ${LIMITS.tagsPerLinkMax} tags`);
 
+/** One smart-routing rule: a device, countries, or both, and where to send matching visitors. */
+export const routingRuleSchema = z.object({
+  platform: z.enum(ROUTING_PLATFORMS).optional(),
+  countries: z
+    .array(
+      z
+        .string()
+        .trim()
+        .refine(
+          (value) => COUNTRY_PATTERN.test(value.toUpperCase()),
+          "Use two-letter country codes such as US or FR",
+        ),
+    )
+    .max(LIMITS.routingCountriesMax, `At most ${LIMITS.routingCountriesMax} countries per rule`)
+    .optional(),
+  url: destinationUrlSchema,
+});
+
+export const routingRulesSchema = z
+  .array(routingRuleSchema)
+  .max(LIMITS.routingRulesMax, `At most ${LIMITS.routingRulesMax} rules`)
+  .superRefine((rules, ctx) => {
+    const issue = routingIssue(
+      rules.map((rule) => ({ ...rule, countries: normalizeCountries(rule.countries ?? []) })),
+    );
+    // react-hook-form lets an error on the whole array hide the errors of its items, so a problem with
+    // one rule is attached to that rule's device field, next to (not instead of) a bad URL.
+    if (issue) {
+      ctx.addIssue({
+        code: "custom",
+        message: issue.message,
+        path: issue.index === null ? [] : [issue.index, "platform"],
+      });
+    }
+  });
+
+/** The social card studio's design: a template, a palette and two lines of text. */
+export const cardDesignSchema = z.object({
+  template: z.enum(CARD_TEMPLATES),
+  palette: z.enum(PALETTE_KEYS),
+  headline: z
+    .string()
+    .trim()
+    .min(1, "Add a headline for the card")
+    .refine(...charLimit(CARD_HEADLINE_MAX, `The headline can be at most ${CARD_HEADLINE_MAX} characters`)),
+  subline: z
+    .string()
+    .trim()
+    .refine(...charLimit(CARD_SUBLINE_MAX, `The subtitle can be at most ${CARD_SUBLINE_MAX} characters`)),
+  showHost: z.boolean(),
+});
+
 const optionalText = (max: number) => z.string().trim().max(max, `At most ${max} characters`).optional();
 
 const dateString = z
@@ -98,6 +154,8 @@ const linkFieldsShape = {
   destinationUrl: destinationUrlSchema,
   title: optionalText(LIMITS.titleMax),
   tags: tagsSchema,
+  routingRules: routingRulesSchema.optional(),
+  cardDesign: cardDesignSchema.nullable().optional(),
   expiresAt: dateString.optional().or(z.literal("")),
   accessLimit: z.enum(ACCESS_LIMIT_PRESETS),
   maxClicks: z.string().optional(),
@@ -193,6 +251,8 @@ export const DEFAULT_LINK_FORM: CreateLinkFormValues = {
   customCode: "",
   title: "",
   tags: [],
+  routingRules: [],
+  cardDesign: null,
   expiration: "never",
   expiresAt: "",
   accessLimit: "unlimited",

@@ -1,26 +1,33 @@
 import { RATE_LIMITS } from "@/lib/constants";
+import { needsGeo, pickRoute } from "@/lib/routing";
+import { CARD_HEIGHT, CARD_WIDTH } from "@/lib/social-card";
+import type { Link } from "@/server/domain/types";
 import { GoneError, NotFoundError, RateLimitedError, ValidationError } from "@/server/errors";
 import { isExpired } from "@/server/lib/expiry";
 import { renderPreviewHtml } from "@/server/lib/html";
 import { forwardQuery } from "@/server/lib/query";
-import { isAnyBot } from "@/server/lib/user-agent";
+import { detectPlatform, isAnyBot } from "@/server/lib/user-agent";
+import type { GeoResolver } from "@/server/ports/geo-resolver";
 import type { Clock } from "@/server/ports/clock";
 import type { PasswordHasher } from "@/server/ports/password-hasher";
 import type { RateLimiter } from "@/server/ports/rate-limiter";
 import type { ILinkRepository } from "@/server/repositories/link.repository";
-import { shortUrlFor } from "./dto";
+import { cardUrlFor, shortUrlFor } from "./dto";
 
 export type RedirectDecision =
   | { kind: "not_found" }
   | { kind: "gone"; reason: "disabled" | "expired" | "limit" }
   | { kind: "preview"; linkId: string; html: string }
   | { kind: "password" }
-  | { kind: "redirect"; linkId: string; destination: string };
+  | { kind: "redirect"; linkId: string; destination: string; routedBy: string | null };
 
 export interface RedirectRequest {
   code: string;
   userAgent: string | null;
   searchParams: URLSearchParams;
+  /** Client IP and request headers, only used to find the visitor's country for routing rules. */
+  ip?: string | null;
+  headers?: Headers;
 }
 
 export interface UnlockRequest {
@@ -28,6 +35,8 @@ export interface UnlockRequest {
   password: string;
   ip: string | null;
   searchParams?: URLSearchParams;
+  userAgent?: string | null;
+  headers?: Headers;
 }
 
 export interface RedirectServiceDeps {
@@ -38,6 +47,8 @@ export interface RedirectServiceDeps {
   siteName: string;
   siteUrl: string;
   forwardQueryParams: boolean;
+  /** Needed only for country routing rules; without it those rules never match. */
+  geo?: GeoResolver;
 }
 
 /**
@@ -67,7 +78,11 @@ export class RedirectService {
           shortUrl: shortUrlFor(this.deps.siteUrl, link.code),
           title: link.ogTitle ?? link.title ?? fallbackTitle,
           description: link.ogDescription,
-          imageUrl: link.ogImageUrl,
+          // An image link set by the owner wins; otherwise the designed card, which we serve ourselves.
+          imageUrl: link.ogImageUrl ?? (link.cardDesign ? cardUrlFor(this.deps.siteUrl, link) : null),
+          ...(link.ogImageUrl === null && link.cardDesign
+            ? { imageWidth: CARD_WIDTH, imageHeight: CARD_HEIGHT, imageAlt: link.cardDesign.headline }
+            : {}),
           // Never leak the destination of a protected link to anyone, bots included.
           destinationUrl: isProtected ? null : link.destinationUrl,
         }),
@@ -76,15 +91,48 @@ export class RedirectService {
 
     if (link.passwordHash !== null) return { kind: "password" };
 
-    const destination = await this.deps.links.consumeAccess(link.id);
-    if (destination === null) return { kind: "gone", reason: "limit" };
+    const consumed = await this.deps.links.consumeAccess(link.id);
+    if (consumed === null) return { kind: "gone", reason: "limit" };
+    const { destination, routedBy } = await this.route(link, consumed, {
+      userAgent: request.userAgent,
+      ip: request.ip ?? null,
+      headers: request.headers,
+    });
     return {
       kind: "redirect",
       linkId: link.id,
       destination: this.deps.forwardQueryParams
         ? forwardQuery(destination, request.searchParams)
         : destination,
+      routedBy,
     };
+  }
+
+  /**
+   * Smart routing: the first rule matching the visitor's device and country replaces the normal
+   * destination. Links without rules skip this entirely, and the country lookup (local, no network)
+   * only runs when some rule asks for one. Anything unknown simply falls through to the default.
+   */
+  private async route(
+    link: Link,
+    defaultDestination: string,
+    visitor: { userAgent: string | null; ip: string | null; headers?: Headers },
+  ): Promise<{ destination: string; routedBy: string | null }> {
+    if (link.routingRules.length === 0) return { destination: defaultDestination, routedBy: null };
+
+    let country: string | null = null;
+    if (needsGeo(link.routingRules) && this.deps.geo) {
+      try {
+        country = (await this.deps.geo.resolve({ ip: visitor.ip, headers: visitor.headers ?? new Headers() }))
+          .country;
+      } catch {
+        // A failing lookup must never break the redirect.
+      }
+    }
+    const match = pickRoute(link.routingRules, { platform: detectPlatform(visitor.userAgent), country });
+    return match
+      ? { destination: match.rule.url, routedBy: match.label }
+      : { destination: defaultDestination, routedBy: "default" };
   }
 
   /** Side-effect-free check used for HEAD requests (link checkers must not consume access). */
@@ -101,7 +149,9 @@ export class RedirectService {
   }
 
   /** Password page submit. Generic errors only; rate limited per (IP, code) and per code. */
-  async unlock(request: UnlockRequest): Promise<{ linkId: string; destination: string }> {
+  async unlock(
+    request: UnlockRequest,
+  ): Promise<{ linkId: string; destination: string; routedBy: string | null }> {
     await this.limit(`pw:ip:${request.ip ?? "unknown"}:${request.code}`, RATE_LIMITS.passwordPerIpCode);
     await this.limit(`pw:code:${request.code}`, RATE_LIMITS.passwordPerCode);
 
@@ -120,14 +170,20 @@ export class RedirectService {
       await this.deps.links.update(link.id, { passwordHash: await this.deps.hasher.hash(request.password) });
     }
 
-    const destination = await this.deps.links.consumeAccess(link.id);
-    if (destination === null) throw new GoneError("limit");
+    const consumed = await this.deps.links.consumeAccess(link.id);
+    if (consumed === null) throw new GoneError("limit");
+    const { destination, routedBy } = await this.route(link, consumed, {
+      userAgent: request.userAgent ?? null,
+      ip: request.ip,
+      headers: request.headers,
+    });
     return {
       linkId: link.id,
       destination:
         this.deps.forwardQueryParams && request.searchParams
           ? forwardQuery(destination, request.searchParams)
           : destination,
+      routedBy,
     };
   }
 

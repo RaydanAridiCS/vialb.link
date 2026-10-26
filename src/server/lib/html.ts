@@ -19,6 +19,10 @@ export interface PreviewMeta {
   title: string;
   description: string | null;
   imageUrl: string | null;
+  /** Pixel size of the image when we know it (our own cards), so previews can reserve space. */
+  imageWidth?: number;
+  imageHeight?: number;
+  imageAlt?: string | null;
   /** Only set for unprotected links. */
   destinationUrl: string | null;
 }
@@ -45,6 +49,14 @@ export function renderPreviewHtml(meta: PreviewMeta): string {
     tags.push(["property", "og:image", meta.imageUrl]);
     tags.push(["name", "twitter:image", meta.imageUrl]);
     tags.push(["name", "twitter:card", "summary_large_image"]);
+    if (meta.imageWidth && meta.imageHeight) {
+      tags.push(["property", "og:image:width", String(meta.imageWidth)]);
+      tags.push(["property", "og:image:height", String(meta.imageHeight)]);
+    }
+    if (meta.imageAlt) {
+      tags.push(["property", "og:image:alt", meta.imageAlt]);
+      tags.push(["name", "twitter:image:alt", meta.imageAlt]);
+    }
   } else {
     tags.push(["name", "twitter:card", "summary"]);
   }

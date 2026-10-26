@@ -24,16 +24,20 @@ export const unlockLinkAction = publicActionClient
     const searchParams = new URLSearchParams(parsedInput.query ?? "");
     let destination: string;
     try {
+      const requestHeaders = new Headers(await headers());
       const result = await redirects.unlock({
         code: parsedInput.code,
         password: parsedInput.password,
         ip: ctx.ip,
         searchParams,
+        userAgent: requestHeaders.get("user-agent"),
+        headers: requestHeaders,
       });
       destination = result.destination;
-      const requestHeaders = new Headers(await headers());
-      const linkId = result.linkId;
-      after(() => analytics.recordClick({ linkId, ip: ctx.ip, headers: requestHeaders, searchParams }));
+      const { linkId, routedBy } = result;
+      after(() =>
+        analytics.recordClick({ linkId, ip: ctx.ip, headers: requestHeaders, searchParams, routedBy }),
+      );
     } catch (error) {
       if (error instanceof GoneError) {
         redirect(`/gone/${encodeURIComponent(parsedInput.code)}?reason=${error.reason}`);

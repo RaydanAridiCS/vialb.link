@@ -133,3 +133,65 @@ describe("helpers", () => {
     });
   });
 });
+
+describe("link form: routing rules and card design", () => {
+  const valid = { ...DEFAULT_LINK_FORM, destinationUrl: "https://example.com" };
+
+  it("defaults to neither", () => {
+    expect(DEFAULT_LINK_FORM.routingRules).toEqual([]);
+    expect(DEFAULT_LINK_FORM.cardDesign).toBeNull();
+    expect(createLinkSchema.safeParse(valid).success).toBe(true);
+  });
+
+  it("accepts rules typed with lower-case countries and a complete design", () => {
+    const result = createLinkSchema.safeParse({
+      ...valid,
+      routingRules: [{ platform: "ios", countries: ["fr", " de"], url: "https://apps.apple.com/app/id1" }],
+      cardDesign: { template: "split", palette: "plum", headline: "Hello", subline: "", showHost: false },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("puts a problem with a rule on that rule's device field, next to a bad URL", () => {
+    const result = createLinkSchema.safeParse({
+      ...valid,
+      routingRules: [{ url: "javascript:alert(1)" }],
+    });
+    expect(result.success).toBe(false);
+    const paths = result.error?.issues.map((issue) => issue.path.join(".")) ?? [];
+    expect(paths).toEqual(expect.arrayContaining(["routingRules.0.url", "routingRules.0.platform"]));
+  });
+
+  it("explains an empty headline", () => {
+    const result = createLinkSchema.safeParse({
+      ...valid,
+      cardDesign: { template: "plain", palette: "ink", headline: "  ", subline: "", showHost: true },
+    });
+    expect(result.error?.issues[0]?.message).toBe("Add a headline for the card");
+  });
+
+  it("is the same in the edit form", () => {
+    const base = {
+      ...DEFAULT_LINK_FORM,
+      id: crypto.randomUUID(),
+      expiration: "keep",
+      passwordAction: "keep",
+      isEnabled: true,
+    };
+    expect(
+      updateLinkSchema.safeParse({
+        ...base,
+        destinationUrl: "https://e.com",
+        routingRules: [],
+        cardDesign: null,
+      }).success,
+    ).toBe(true);
+    expect(
+      updateLinkSchema.safeParse({
+        ...base,
+        destinationUrl: "https://e.com",
+        routingRules: [{ countries: ["us"], url: "ftp://nope" }],
+      }).success,
+    ).toBe(false);
+  });
+});

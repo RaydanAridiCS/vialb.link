@@ -42,6 +42,8 @@ export default defineConfig({
       SITE_URL: BASE_URL,
       BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET ?? "e2e-secret-e2e-secret-e2e-secret-e2e-secret",
       ALLOW_ANONYMOUS_LINKS: "false",
+      // Lets the routing specs pick a country with a cf-ipcountry header.
+      TRUST_PROXY_GEO_HEADERS: "true",
       ALLOW_SIGNUPS: "true",
       LOG_LEVEL: "warn",
       NEXT_TELEMETRY_DISABLED: "1",

@@ -27,6 +27,7 @@ const DIMENSION_COLUMNS = {
   utm_medium: clicks.utmMedium,
   utm_campaign: clicks.utmCampaign,
   language: clicks.language,
+  routed_by: clicks.routedBy,
 } as const satisfies Record<AnalyticsDimension, unknown>;
 
 function rangeWhere(filter: ClickFilter, withBotFilter = true): SQL | undefined {

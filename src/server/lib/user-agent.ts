@@ -1,6 +1,7 @@
 import { isbot } from "isbot";
 import { UAParser } from "ua-parser-js";
 import { PREVIEW_BOT_PATTERNS } from "@/lib/constants";
+import type { RoutingPlatform } from "@/lib/routing";
 import type { DeviceType } from "@/server/domain/types";
 
 export interface ParsedUserAgent {
@@ -54,6 +55,18 @@ export function parseUserAgent(userAgent: string | null): ParsedUserAgent {
     deviceType,
     isBot: bot,
   };
+}
+
+/**
+ * The platform smart routing sees: iOS, Android, or a desktop OS. `null` for bots, consoles, TVs and
+ * anything unrecognised. iPadOS 13+ Safari sends a Mac User-Agent, so those iPads read as desktop.
+ */
+export function detectPlatform(userAgent: string | null): RoutingPlatform | null {
+  if (!userAgent || isAnyBot(userAgent)) return null;
+  const { os, device } = UAParser(userAgent);
+  if (os.name === "iOS") return "ios";
+  if (os.name === "Android") return "android";
+  return os.name && device.type === undefined ? "desktop" : null;
 }
 
 /** Primary language tag from Accept-Language, e.g. "en-US,en;q=0.9" → "en-US". */

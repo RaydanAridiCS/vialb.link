@@ -1,4 +1,5 @@
 import type { Redis } from "ioredis";
+import { logger } from "@/lib/logger";
 import type { RateLimiter, RateLimitResult } from "@/server/ports/rate-limiter";
 
 /**
@@ -44,20 +45,30 @@ local ttl = redis.call('PTTL', KEYS[1])
 return { current, ttl }
 `;
 
-/** Fixed-window limiter in Redis (atomic INCR + PEXPIRE via Lua). */
+/**
+ * Fixed-window limiter in Redis (atomic INCR + PEXPIRE via Lua). It fails
+ * open: if Redis is unreachable the request is allowed and the error logged,
+ * so a Redis outage degrades abuse protection instead of breaking sign-up,
+ * password unlock and the API.
+ */
 export class RedisRateLimiter implements RateLimiter {
   constructor(
-    private readonly redis: Redis,
+    private readonly redis: Pick<Redis, "eval">,
     private readonly prefix = "vialb:rl:",
   ) {}
 
   async consume(key: string, limit: number, windowMs: number): Promise<RateLimitResult> {
-    const [count, ttl] = (await this.redis.eval(
-      REDIS_SCRIPT,
-      1,
-      `${this.prefix}${key}`,
-      String(windowMs),
-    )) as [number, number];
+    let count: number;
+    let ttl: number;
+    try {
+      [count, ttl] = (await this.redis.eval(REDIS_SCRIPT, 1, `${this.prefix}${key}`, String(windowMs))) as [
+        number,
+        number,
+      ];
+    } catch (error) {
+      logger.error({ err: error }, "Rate limiter unavailable, allowing request");
+      return { allowed: true, limit, remaining: limit, resetAt: Date.now() + windowMs };
+    }
     return {
       allowed: count <= limit,
       limit,

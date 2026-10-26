@@ -36,6 +36,8 @@ interface DemoClick {
   utmCampaign: string | null;
   language: string;
   isBot: boolean;
+  /** Demo links have no routing rules. */
+  routedBy: string | null;
 }
 
 function poisson(lambda: number, random: () => number): number {
@@ -99,6 +101,7 @@ export function generateDemoClicks(scenarioId: ScenarioId, now: Date): DemoClick
         utmCampaign: visit.utm?.campaign ?? null,
         language: visit.language,
         isBot: visit.isBot,
+        routedBy: null,
       });
     }
   }
@@ -116,6 +119,7 @@ const DIMENSION_FIELDS: Record<AnalyticsDimension, keyof DemoClick> = {
   utm_medium: "utmMedium",
   utm_campaign: "utmCampaign",
   language: "language",
+  routed_by: "routedBy",
 };
 
 function summarize(clicks: DemoClick[], includeBots: boolean) {

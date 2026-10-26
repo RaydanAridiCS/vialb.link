@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ChevronDown, CornerDownRight, Loader2 } from "lucide-react";
+import { CornerDownRight, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useAction } from "next-safe-action/hooks";
 import { useForm, useWatch, type Resolver } from "react-hook-form";
@@ -21,7 +21,6 @@ import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
 import {
   ACCESS_LIMIT_PRESET_LABELS,
   ACCESS_LIMIT_PRESETS,
@@ -35,20 +34,26 @@ import {
 } from "@/lib/constants";
 import { formatDateTime } from "@/lib/format";
 import { DEFAULT_QR_ECC, type QrEcc, type QrFrame } from "@/lib/qr-options";
+import type { RoutingRule } from "@/lib/routing";
+import type { CardDesign } from "@/lib/social-card";
 import type { LinkDto } from "@/server/services/dto";
 import { createLinkAction, updateLinkAction } from "../actions";
 import { createLinkSchema, updateLinkSchema } from "../schemas";
 import { QrControls } from "./qr-controls";
 import { QrPreview } from "./qr-preview";
+import { RoutingRules } from "./routing-rules";
+import { SocialCardStudio } from "./social-card-studio";
 import { TagsInput } from "./tags-input";
 import { UtmBuilder } from "./utm-builder";
 
-interface LinkFormValues {
+export interface LinkFormValues {
   id: string;
   destinationUrl: string;
   customCode: string;
   title: string;
   tags: string[];
+  routingRules: RoutingRule[];
+  cardDesign: CardDesign | null;
   expiration: ExpirationPreset | "keep";
   expiresAt: string;
   accessLimit: AccessLimitPreset;
@@ -80,6 +85,37 @@ function toIso(local: string): string | undefined {
   return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
 }
 
+interface MessageNode {
+  message?: string;
+}
+type RoutingFieldErrors = MessageNode & {
+  root?: MessageNode;
+  [index: number]:
+    | {
+        platform?: MessageNode;
+        url?: MessageNode;
+        countries?: MessageNode & { [index: number]: MessageNode | undefined };
+      }
+    | undefined;
+};
+
+/** Flattens react-hook-form's nested errors for the routing editor: one message per rule, plus one for the set. */
+function routingErrorMessages(errors: unknown): { rows: (string | undefined)[]; root?: string } {
+  const e = errors as RoutingFieldErrors | undefined;
+  if (!e) return { rows: [] };
+  const rows: (string | undefined)[] = [];
+  for (let i = 0; i < LIMITS.routingRulesMax; i++) {
+    const rule = e[i];
+    const messages = [
+      rule?.platform?.message,
+      rule?.countries?.message ?? rule?.countries?.[0]?.message,
+      rule?.url?.message,
+    ].filter(Boolean);
+    rows[i] = messages.length > 0 ? messages.join(" ") : undefined;
+  }
+  return { rows, root: e.message ?? e.root?.message };
+}
+
 function defaultsFor(link?: LinkDto): LinkFormValues {
   const presetLimit = link?.maxClicks == null ? "unlimited" : String(link.maxClicks);
   const isPreset =
@@ -90,6 +126,8 @@ function defaultsFor(link?: LinkDto): LinkFormValues {
     customCode: "",
     title: link?.title ?? "",
     tags: link?.tags ?? [],
+    routingRules: link?.routingRules ?? [],
+    cardDesign: link?.cardDesign ?? null,
     expiration: link ? "keep" : "never",
     expiresAt: toLocalInput(link?.expiresAt ?? null),
     accessLimit: (isPreset ? presetLimit : "custom") as AccessLimitPreset,
@@ -157,7 +195,9 @@ export function LinkForm({
 
   const onError = ({ error }: { error: { serverError?: string } }) => {
     toast.error(error.serverError ?? "Please check the form for errors");
-    if (error.serverError?.toLowerCase().includes("code"))
+    if (error.serverError && /^Rule \d+:/.test(error.serverError))
+      form.setError("routingRules", { message: error.serverError });
+    else if (error.serverError?.toLowerCase().includes("code"))
       form.setError("customCode", { message: error.serverError });
     else if (error.serverError) form.setError("destinationUrl", { message: error.serverError });
   };
@@ -185,6 +225,8 @@ export function LinkForm({
       destinationUrl: values.destinationUrl,
       title: values.title,
       tags: values.tags,
+      routingRules: values.routingRules,
+      cardDesign: values.cardDesign,
       expiresAt: values.expiration === "custom" ? toIso(values.expiresAt) : undefined,
       accessLimit: values.accessLimit,
       maxClicks: values.maxClicks,
@@ -500,57 +542,24 @@ export function LinkForm({
             }
           />
 
-          <details className="group rounded-2xl border bg-card shadow-paper">
-            <summary className="flex cursor-pointer list-none items-center justify-between rounded-2xl px-6 py-5 font-display text-xl outline-none focus-visible:ring-4 focus-visible:ring-ring/25">
-              Link preview (Open Graph)
-              <ChevronDown className="size-4 transition-transform group-open:rotate-180" aria-hidden />
-            </summary>
-            <div className="space-y-4 px-6 pb-6">
-              <p className="text-sm text-muted-foreground">
-                Controls the card shown when the link is shared in Slack, Discord, X or WhatsApp.
-              </p>
-              <FormField
-                control={form.control}
-                name="ogTitle"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Preview title</FormLabel>
-                    <FormControl>
-                      <Input maxLength={LIMITS.ogTitleMax} {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="ogDescription"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Preview description</FormLabel>
-                    <FormControl>
-                      <Textarea rows={3} maxLength={LIMITS.ogDescriptionMax} {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="ogImageUrl"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Preview image URL</FormLabel>
-                    <FormControl>
-                      <Input type="url" placeholder="https://…/cover.png" {...field} />
-                    </FormControl>
-                    <FormDescription>Must be an https:// URL (1200×630 recommended).</FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-          </details>
+          <FormField
+            control={form.control}
+            name="routingRules"
+            render={({ field }) => {
+              const { rows, root } = routingErrorMessages(form.formState.errors.routingRules);
+              return (
+                <RoutingRules
+                  initial={field.value}
+                  onChange={field.onChange}
+                  destinationUrl={destinationUrl}
+                  errors={rows}
+                  error={root}
+                />
+              );
+            }}
+          />
+
+          <SocialCardStudio form={form} siteUrl={siteUrl} link={link} />
         </div>
 
         <div className="space-y-4 lg:sticky lg:top-24 lg:self-start">

@@ -6,6 +6,13 @@ import { NextResponse, type NextRequest } from "next/server";
  * variables are validated at startup by src/lib/env.ts.
  */
 export function proxy(request: NextRequest) {
+  // Bio pages live at /@handle (rewritten to /u/handle, see next.config.ts). Send the
+  // internal path and the percent-encoded form to the canonical URL.
+  const handle =
+    /^\/u\/([A-Za-z0-9_]{1,50})\/?$/.exec(request.nextUrl.pathname)?.[1] ??
+    /^\/%40([A-Za-z0-9_]{1,50})\/?$/.exec(request.nextUrl.pathname)?.[1];
+  if (handle) return NextResponse.redirect(new URL(`/@${handle}`, process.env.SITE_URL ?? request.url), 308);
+
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
   const isDev = process.env.NODE_ENV === "development";
   const siteUrl = process.env.SITE_URL ?? "";

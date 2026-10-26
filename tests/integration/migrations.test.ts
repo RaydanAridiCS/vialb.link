@@ -117,4 +117,47 @@ describe("migrations", () => {
     await check.end();
     expect(row).toEqual({ qr_ecc: "M", qr_frame: "none", qr_frame_text: null, qr_fg_color: "#000000" });
   });
+
+  it("mark links from before link-in-bio as ordinary links and create the bio tables", async () => {
+    const url = await freshDatabase();
+    await applyAll(url, truncatedFolder(3));
+    expect(await columnsOfLinks(url)).not.toContain("kind");
+
+    const sql = postgres(url, { max: 1, onnotice: () => {} });
+    await sql`insert into links (id, code, destination_url) values (gen_random_uuid(), 'before-bio', 'https://old.example')`;
+    await sql.end();
+
+    await applyAll(url);
+
+    const check = postgres(url, { max: 1, onnotice: () => {} });
+    const [row] = await check<{ kind: string }[]>`select kind from links where code = 'before-bio'`;
+    const tables = await check<{ table_name: string }[]>`
+      select table_name from information_schema.tables
+      where table_name in ('bio_profiles', 'bio_buttons') order by table_name`;
+    await check.end();
+    expect(row).toEqual({ kind: "link" });
+    expect(tables.map((t) => t.table_name)).toEqual(["bio_buttons", "bio_profiles"]);
+  });
+
+  it("give links and clicks from before smart routing no rules and no routing label", async () => {
+    const url = await freshDatabase();
+    await applyAll(url, truncatedFolder(4));
+    expect(await columnsOfLinks(url)).not.toContain("routing_rules");
+
+    const sql = postgres(url, { max: 1, onnotice: () => {} });
+    await sql`insert into links (id, code, destination_url) values ('00000000-0000-4000-8000-000000000001', 'before-routing', 'https://old.example')`;
+    await sql`insert into clicks (link_id, visitor_hash) values ('00000000-0000-4000-8000-000000000001', 'v')`;
+    await sql.end();
+
+    await applyAll(url);
+
+    const check = postgres(url, { max: 1, onnotice: () => {} });
+    const [link] = await check<
+      { routing_rules: unknown }[]
+    >`select routing_rules from links where code = 'before-routing'`;
+    const [click] = await check<{ routed_by: string | null }[]>`select routed_by from clicks`;
+    await check.end();
+    expect(link).toEqual({ routing_rules: [] });
+    expect(click).toEqual({ routed_by: null });
+  });
 });

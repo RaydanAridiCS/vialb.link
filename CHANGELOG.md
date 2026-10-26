@@ -33,3 +33,12 @@ is maintained automatically by
 - REST API v1 with API keys, per-key rate limits, OpenAPI 3.1 document and Scalar reference
 - Docker image (standalone, non-root, health check, migrations on start), Compose stack, GHCR publishing
 - Legacy importer for links exported from the previous app; `/s/{code}` compatibility redirect
+- Link-in-bio pages at `/@handle`: picture, bio, six fixed palettes, social icons (host-checked), up to 30 reorderable buttons that are
+  real hidden links (clicks counted, kept out of the links list), draft/published, "Powered by" badge off-switch; migration `0003_link_in_bio`
+- Smart device and geo routing: ordered rules per link (iPhone / Android / desktop, countries, or both), a "try a visitor" box in the form,
+  a "Smart routing" card in analytics, `routingRules` on the REST API; migration `0004_smart_routing`
+- Social card studio: designed 1200×630 preview cards (three layouts, six palettes) served at `/{code}/card`, mock-ups for WhatsApp, iMessage,
+  Slack and X, `og:image` size and alt tags, `cardDesign` on the REST API; migration `0005_social_cards`
+- Production hardening: `DATABASE_POOL_MAX` / `DATABASE_PREPARE` (PgBouncer), Redis rate limiter that fails open, startup warnings for
+  risky configuration, optional server-side error reporting (`SENTRY_DSN`, with query strings, cookies and SQL parameters stripped),
+  encrypted daily backups to S3 / Cloudflare R2 (`backup` compose profile), and `no-store` on the legacy `/s/{code}` redirect

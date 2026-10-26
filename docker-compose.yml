@@ -3,6 +3,7 @@
 #   cp .env.example .env      # set SITE_URL and BETTER_AUTH_SECRET
 #   docker compose up -d      # → http://localhost:3000
 #   docker compose --profile redis up -d   # with Redis (shared rate limits)
+#   docker compose --profile backup up -d  # encrypted daily pg_dump (see docs/self-hosting.md)
 #
 # Uses the published image by default; `docker compose up --build` builds locally.
 services:
@@ -39,6 +40,20 @@ services:
     restart: unless-stopped
     profiles: ["redis"]
     command: ["redis-server", "--save", "", "--appendonly", "no"]
+
+  # Encrypted daily pg_dump to S3 / Cloudflare R2 or ./backups. See docs/self-hosting.md#backups.
+  backup:
+    build: ./scripts/backup
+    restart: unless-stopped
+    profiles: ["backup"]
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-vialb}:${POSTGRES_PASSWORD:-vialb}@postgres:5432/${POSTGRES_DB:-vialb}
+    volumes:
+      - ${BACKUP_HOST_DIR:-./backups}:/backups
+    depends_on:
+      postgres:
+        condition: service_healthy
 
 volumes:
   vialb-db:

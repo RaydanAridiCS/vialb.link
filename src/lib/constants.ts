@@ -33,6 +33,8 @@ export const RESERVED_CODES: ReadonlySet<string> = new Set(
     "forgot-password",
     "reset-password",
     "two-factor",
+    "verify-email",
+    "u",
     "docs",
     "_next",
     "favicon.ico",
@@ -64,6 +66,28 @@ export const RESERVED_CODES: ReadonlySet<string> = new Set(
   ].map((c) => c.toLowerCase()),
 );
 
+/**
+ * Bio page handles (`/@handle`) share the short-code reserved list and add names that could pass
+ * for the service or its staff. Compared case-insensitively.
+ */
+export const BIO_RESERVED_HANDLES: ReadonlySet<string> = new Set([
+  ...RESERVED_CODES,
+  APP_NAME.toLowerCase(),
+  "vialb",
+  "support",
+  "help",
+  "staff",
+  "team",
+  "root",
+  "official",
+  "security",
+  "abuse",
+  "contact",
+  "billing",
+  "null",
+  "undefined",
+]);
+
 export const LIMITS = {
   urlMaxLength: 2048,
   titleMax: 100,
@@ -85,6 +109,17 @@ export const LIMITS = {
   importMaxRows: 1000,
   importBatchSize: 50,
   importPreviewRows: 100,
+  /** Link-in-bio pages. */
+  bioHandleMin: 3,
+  bioHandleMax: 30,
+  bioDisplayNameMax: 60,
+  bioTextMax: 160,
+  bioButtonsMax: 30,
+  bioButtonLabelMax: 50,
+  bioSocialsMax: 10,
+  /** Smart routing: rules per link and countries per rule. */
+  routingRulesMax: 10,
+  routingCountriesMax: 50,
 } as const;
 
 export const EXPIRATION_PRESETS = [
@@ -165,6 +200,10 @@ export const RATE_LIMITS = {
   createLinkAnon: { limit: 10, windowMs: 60 * 60 * 1000 },
   /** One token per import batch (`LIMITS.importBatchSize` rows): 100 batches is about 5 full-size files an hour. */
   importBatches: { limit: 100, windowMs: 60 * 60 * 1000 },
+  /** Claiming or changing a bio handle. */
+  bioHandle: { limit: 5, windowMs: 24 * 60 * 60 * 1000 },
+  /** Bio buttons are links underneath (each one is checked against the blocklist and Safe Browsing). */
+  bioButtons: { limit: 60, windowMs: 60 * 60 * 1000 },
   passwordPerIpCode: { limit: 10, windowMs: 15 * 60 * 1000 },
   passwordPerCode: { limit: 100, windowMs: 15 * 60 * 1000 },
   apiKey: { limit: 120, windowMs: 60 * 1000 },

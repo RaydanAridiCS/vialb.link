@@ -1,0 +1,1 @@
+ALTER TABLE "links" ADD COLUMN "card_design" jsonb;

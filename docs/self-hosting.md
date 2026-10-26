@@ -78,7 +78,15 @@ server {
 Use `TRUSTED_PROXY_HOPS=2` (Cloudflare + your proxy) and, if you want geo data
 without GeoLite2, `TRUST_PROXY_GEO_HEADERS=true` (Cloudflare adds
 `cf-ipcountry`; city headers require the "Add visitor location headers"
-Managed Transform).
+Managed Transform). If Cloudflare talks to the app directly (no proxy of your
+own in between), use `TRUSTED_PROXY_HOPS=1`. A wrong value puts every visitor
+into one rate-limit bucket.
+
+Turn the proxy ("orange cloud") on for DDoS protection, TLS and Brotli, and add
+a **Cache Rule: bypass cache** for the whole hostname. Short links answer
+`Cache-Control: private, no-store` so Cloudflare does not cache them by default,
+but the rule keeps it that way if someone later enables "Cache Everything".
+A cached redirect would skip click analytics, expiry and access limits.
 
 ## Coolify / Dokploy
 
@@ -116,16 +124,77 @@ license requires keeping the database up to date.
 
 ## Backups
 
-All data lives in PostgreSQL:
+All data lives in PostgreSQL. The optional `backup` compose profile runs a sidecar
+(`scripts/backup`) that makes an encrypted `pg_dump` every `BACKUP_INTERVAL_HOURS`
+(default 24), uploads it to S3 or Cloudflare R2 (or keeps it in `./backups`) and
+deletes copies older than `BACKUP_RETENTION_DAYS` (default 30).
+
+1. Create a key pair **on your own machine** and keep the private key off the server:
+
+   ```bash
+   age-keygen -o vialb-backup-key.txt   # prints "Public key: age1..."
+   ```
+
+2. Put the public key and the bucket in `.env`, then start the sidecar:
+
+   ```bash
+   BACKUP_AGE_RECIPIENT=age1...
+   BACKUP_S3_BUCKET=my-vialb-backups
+   BACKUP_S3_ENDPOINT=https://<account>.r2.cloudflarestorage.com   # R2 only
+   AWS_ACCESS_KEY_ID=...
+   AWS_SECRET_ACCESS_KEY=...
+   ```
+
+   ```bash
+   docker compose --profile backup up -d
+   docker compose logs backup        # "[backup] uploaded s3://…"
+   ```
+
+3. **Test a restore before you need one.** Download a file, then restore it into a
+   scratch database (existing objects in the target are dropped by `--clean`, so never
+   point it at live data by accident):
+
+   ```bash
+   docker compose exec postgres createdb -U vialb vialb_restore_test
+   docker compose run --rm --no-deps \
+     -v "$PWD/vialb-backup-key.txt:/key.txt:ro" -v "$PWD/restore:/restore:ro" \
+     -e BACKUP_AGE_IDENTITY=/key.txt backup \
+     restore.sh /restore/vialb-20260101T030000Z.dump.age \
+     postgres://vialb:vialb@postgres:5432/vialb_restore_test
+   ```
+
+Without the profile, a manual dump still works:
 
 ```bash
-# backup
 docker compose exec -T postgres pg_dump -U vialb -Fc vialb > vialb-$(date +%F).dump
-# restore into an empty database
 docker compose exec -T postgres pg_restore -U vialb -d vialb --clean --if-exists < vialb-2026-01-01.dump
 ```
 
-Schedule the backup with cron or your platform's backup feature and store copies off-site.
+The sidecar uses the same `scripts/backup/backup.sh` you can run from cron on any host that has
+`pg_dump`, `age` and the AWS CLI; see the header of the script for its variables.
+
+## Error monitoring
+
+Set `SENTRY_DSN` (a Sentry project or a self-hosted GlitchTip) and unexpected server
+errors (500s from pages, route handlers and server actions) are reported with a stack
+trace. Reporting is server-side only and privacy-first: query strings, cookies, headers,
+request bodies, user data and SQL parameters are stripped before anything leaves the
+instance. Without the variable nothing is loaded or sent.
+
+Browser-side errors are not collected (a client SDK needs a build-time public DSN, which
+does not fit the prebuilt image). The error page shows a digest that matches the server log.
+
+## Production checklist
+
+- [ ] `SITE_URL` is the public **https** URL.
+- [ ] `TRUST_PROXY=true` and `TRUSTED_PROXY_HOPS` match your proxy chain.
+- [ ] `REDIS_URL` is set if you run more than one replica.
+- [ ] `SAFE_BROWSING_API_KEY` is set (free key from Google Cloud).
+- [ ] Turnstile keys are set if anonymous link creation is on.
+- [ ] `SENTRY_DSN` is set.
+- [ ] The `backup` profile is running and you have restored a backup at least once.
+- [ ] Cloudflare proxy is on, with a bypass-cache rule (see above).
+- [ ] The startup log shows no `warn` lines from the configuration check.
 
 ## Upgrading
 
@@ -143,6 +212,12 @@ Vialb is stateless. To run several replicas:
 - set `REDIS_URL` so rate limits are shared,
 - point all replicas at the same Postgres,
 - put a load balancer in front (any algorithm; no sticky sessions needed).
+
+Each replica opens up to `DATABASE_POOL_MAX` (default 10) connections, so the total is
+`replicas × DATABASE_POOL_MAX` and must stay below Postgres' `max_connections` (100 by
+default). With many replicas, put PgBouncer in front of Postgres, raise `DATABASE_POOL_MAX`
+to about 20 and set `DATABASE_PREPARE=false`, because prepared statements do not survive
+PgBouncer's transaction pooling mode.
 
 ## Troubleshooting
 

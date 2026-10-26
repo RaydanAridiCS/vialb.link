@@ -4,6 +4,7 @@ import {
   boolean,
   index,
   integer,
+  jsonb,
   pgTable,
   text,
   timestamp,
@@ -11,6 +12,9 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import type { QrEcc, QrFrame } from "@/lib/qr-options";
+import type { RoutingRule } from "@/lib/routing";
+import type { CardDesign } from "@/lib/social-card";
+import type { LinkKind } from "@/server/domain/types";
 import { v7 as uuidv7 } from "uuid";
 import { user } from "./auth";
 
@@ -22,6 +26,8 @@ export const links = pgTable(
       .$defaultFn(() => uuidv7()),
     /** Case-sensitive. Soft-deleted rows keep their code reserved. */
     code: text("code").notNull(),
+    /** `bio_button` rows belong to a bio page and are hidden from the links list. */
+    kind: text("kind").$type<LinkKind>().notNull().default("link"),
     destinationUrl: text("destination_url").notNull(),
     userId: text("user_id").references(() => user.id, { onDelete: "cascade" }),
     title: text("title"),
@@ -30,6 +36,13 @@ export const links = pgTable(
       .array()
       .notNull()
       .default(sql`'{}'::text[]`),
+    /** Smart routing: ordered rules, first match wins. Empty means "always `destination_url`". */
+    routingRules: jsonb("routing_rules")
+      .$type<RoutingRule[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    /** Designed social preview card (template, palette, text); `null` when there is none. */
+    cardDesign: jsonb("card_design").$type<CardDesign>(),
     passwordHash: text("password_hash"),
     expiresAt: timestamp("expires_at", { withTimezone: true }),
     maxClicks: integer("max_clicks"),
@@ -93,6 +106,8 @@ export const clicks = pgTable(
     utmContent: text("utm_content"),
     language: text("language"),
     isBot: boolean("is_bot").notNull().default(false),
+    /** Which routing rule sent the visitor; `null` when the link has no rules. */
+    routedBy: text("routed_by"),
   },
   (t) => [
     index("clicks_link_occurred_idx").on(t.linkId, t.occurredAt),
