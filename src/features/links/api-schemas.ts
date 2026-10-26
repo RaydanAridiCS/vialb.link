@@ -1,7 +1,17 @@
 import { z } from "zod";
 import { LIMITS } from "@/lib/constants";
 import type { CreateLinkCommand, UpdateLinkCommand } from "@/server/services/link.service";
-import { customCodeSchema, destinationUrlSchema, hexColorSchema, httpsUrlSchema, tagSchema } from "./schemas";
+import { QR_ECC_LEVELS, QR_FRAME_TEXT_MAX, QR_FRAMES } from "@/lib/qr-options";
+import {
+  customCodeSchema,
+  destinationUrlSchema,
+  hexColorSchema,
+  httpsUrlSchema,
+  qrEccSchema,
+  qrFrameSchema,
+  qrFrameTextSchema,
+  tagSchema,
+} from "./schemas";
 
 /**
  * REST API v1 request/response schemas. Built from the same field validators
@@ -38,6 +48,13 @@ export const apiCreateLinkSchema = z
     ogImageUrl: httpsUrlSchema.optional(),
     qrFgColor: hexColorSchema.optional(),
     qrBgColor: hexColorSchema.optional(),
+    qrEcc: qrEccSchema.optional().meta({
+      description: "QR error correction level. New links default to H (densest, most robust).",
+    }),
+    qrFrame: qrFrameSchema.optional().meta({ description: "`badge` adds a label under the QR code" }),
+    qrFrameText: qrFrameTextSchema.optional().meta({
+      description: `Badge text, up to ${QR_FRAME_TEXT_MAX} characters (default "Scan me")`,
+    }),
   })
   .meta({ id: "CreateLinkRequest" });
 
@@ -59,6 +76,12 @@ export const apiUpdateLinkSchema = z
     ogImageUrl: httpsUrlSchema.nullable().optional(),
     qrFgColor: hexColorSchema.optional(),
     qrBgColor: hexColorSchema.optional(),
+    qrEcc: qrEccSchema.optional(),
+    qrFrame: qrFrameSchema.optional(),
+    qrFrameText: qrFrameTextSchema
+      .nullable()
+      .optional()
+      .meta({ description: "null resets to the default text" }),
   })
   .meta({ id: "UpdateLinkRequest" });
 
@@ -95,6 +118,9 @@ export const linkSchema = z
     ogImageUrl: z.string().nullable(),
     qrFgColor: z.string(),
     qrBgColor: z.string(),
+    qrEcc: z.enum(QR_ECC_LEVELS),
+    qrFrame: z.enum(QR_FRAMES),
+    qrFrameText: z.string().nullable(),
     ownerId: z.string().nullable(),
     createdAt: z.string(),
     updatedAt: z.string(),
@@ -156,6 +182,9 @@ export function toCreateCommand(input: z.output<typeof apiCreateLinkSchema>): Cr
     ogImageUrl: input.ogImageUrl ?? null,
     qrFgColor: input.qrFgColor,
     qrBgColor: input.qrBgColor,
+    qrEcc: input.qrEcc,
+    qrFrame: input.qrFrame,
+    qrFrameText: input.qrFrameText,
   };
 }
 
@@ -178,5 +207,8 @@ export function toUpdateCommand(input: z.output<typeof apiUpdateLinkSchema>): Up
     ogImageUrl: input.ogImageUrl,
     qrFgColor: input.qrFgColor,
     qrBgColor: input.qrBgColor,
+    qrEcc: input.qrEcc,
+    qrFrame: input.qrFrame,
+    qrFrameText: input.qrFrameText,
   };
 }

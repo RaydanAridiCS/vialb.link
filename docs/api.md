@@ -61,7 +61,7 @@ All errors share one shape:
 | `PATCH`  | `/api/v1/links/{id}`                   | Update a link (`null` clears optional fields; the code is immutable) |
 | `DELETE` | `/api/v1/links/{id}`                   | Delete (soft) a link; its code stays reserved                        |
 | `GET`    | `/api/v1/links/{id}/stats?from&to`     | Aggregated stats (humans only, default last 30 days)                 |
-| `GET`    | `/api/v1/links/{id}/qr.png` / `qr.svg` | QR code (`?fg=%23000000&bg=%23FFFFFF&size=512`)                      |
+| `GET`    | `/api/v1/links/{id}/qr.png` / `qr.svg` | QR code (`?fg=&bg=&size=512&ecc=H&frame=badge&frameText=Scan%20me`)  |
 
 ## Examples
 
@@ -94,9 +94,18 @@ curl -X PATCH "$TW/api/v1/links/<id>" \
 curl "$TW/api/v1/links/<id>/stats?from=2026-01-01T00:00:00Z&to=2026-02-01T00:00:00Z" \
   -H "Authorization: Bearer $KEY"
 
-# QR code
+# QR code (uses the design saved on the link; every parameter is an optional override)
 curl -o qr.png "$TW/api/v1/links/<id>/qr.png?size=1024" -H "Authorization: Bearer $KEY"
+curl -o qr.svg "$TW/api/v1/links/<id>/qr.svg?frame=badge&frameText=Scan%20to%20order&ecc=H"   -H "Authorization: Bearer $KEY"
 ```
+
+QR design is part of the link: `qrFgColor`, `qrBgColor`, `qrEcc` (`L`, `M`, `Q`, `H`), `qrFrame`
+(`none`, `badge`) and `qrFrameText` (up to 24 characters; `null` on `PATCH` resets to "Scan me").
+They are accepted by `POST`/`PATCH` and returned on every link. New links default to
+`qrEcc: "H"`, `qrFrame: "none"`; links created before these options existed keep `"M"`.
+Colour pairs that no scanner can read (contrast ratio below 2) are rejected with
+`400 VALIDATION_ERROR`; the QR endpoints reject unknown `ecc` or `frame` values the same way.
+`size` (PNG only) is clamped to 128-2048. See [CSV import and QR codes](import-and-qr.md).
 
 Tags are lowercase labels (up to 10 per link, 30 characters each: letters, numbers,
 `-` or `_`). `#Promo` and `Client Work` are stored as `promo` and `client-work`.

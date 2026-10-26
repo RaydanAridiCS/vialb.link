@@ -105,6 +105,9 @@ erDiagram
     text code UK "case-sensitive"
     text destination_url
     text_array tags "normalized labels, GIN indexed"
+    text qr_ecc "L M Q H, default M for old rows"
+    text qr_frame "none or badge"
+    text qr_frame_text "badge label, null = Scan me"
     text password_hash "argon2id (bcrypt legacy)"
     timestamptz expires_at
     int max_clicks
@@ -128,6 +131,11 @@ erDiagram
 Tags are a plain `text[]` on `links` (no join table): one owner, small lists, filtered
 with `tags @> ARRAY[tag]` through a GIN index. See
 [Organizing and tracking links](link-organization.md) for tags and the UTM builder.
+
+QR design (`qr_fg_color`, `qr_bg_color`, `qr_ecc`, `qr_frame`, `qr_frame_text`) lives on the link
+too, as plain typed columns. QR images themselves are never stored: `QrService` draws them on
+demand with the shared composer in `src/lib/qr-svg.ts`. See
+[CSV import and QR codes](import-and-qr.md) for the import flow and the QR options.
 
 Plus `instance_settings` (single row of admin overrides on top of env
 defaults), `daily_salts` (one random salt per UTC day) and Better Auth's tables.

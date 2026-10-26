@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { PageHeader } from "@/components/app-shell";
+import { ImportLinksSheet } from "@/features/links/components/import-links-sheet";
 import { LinksTable } from "@/features/links/components/links-table";
 import { linkListParamsSchema } from "@/features/links/schemas";
 import { requireSession } from "@/server/auth/session";
@@ -25,7 +26,11 @@ export default async function LinksPage({ searchParams }: PageProps<"/dashboard/
   ]);
   return (
     <>
-      <PageHeader title="Links" description="Search, filter and manage every short link you own." />
+      <PageHeader
+        title="Links"
+        description="Search, filter and manage every short link you own."
+        actions={<ImportLinksSheet />}
+      />
       <Suspense>
         <LinksTable
           links={result.items}

@@ -1,52 +1,56 @@
 "use client";
 
-import QRCode from "qrcode";
-import { useEffect, useState } from "react";
-import { Skeleton } from "@/components/ui/skeleton";
+import { useMemo } from "react";
+import { DEFAULT_QR_BG, DEFAULT_QR_FG, HEX_COLOR_PATTERN } from "@/lib/constants";
+import { normalizeFrameText, type QrEcc, type QrFrame } from "@/lib/qr-options";
+import { composeQrSvg } from "@/lib/qr-svg";
 import { cn } from "@/lib/utils";
 
-/** Client-side QR preview (live colour changes without a server round-trip). */
+/**
+ * Client-side QR preview, drawn by the same composer the server uses for SVG downloads and PNG
+ * rasterising, so what you see here is what you download. Invalid colours fall back to the defaults
+ * while the user is still typing them.
+ */
 export function QrPreview({
   value,
-  fg = "#000000",
-  bg = "#FFFFFF",
+  fg = DEFAULT_QR_FG,
+  bg = DEFAULT_QR_BG,
+  ecc = "M",
+  frame = "none",
+  frameText = null,
   size = 192,
   className,
 }: {
   value: string;
   fg?: string;
   bg?: string;
+  /** Defaults to `M`, what links had before QR options existed. */
+  ecc?: QrEcc;
+  frame?: QrFrame;
+  frameText?: string | null;
+  /** Rendered width in CSS pixels; a framed code is taller. */
   size?: number;
   className?: string;
 }) {
-  const [dataUrl, setDataUrl] = useState<string | null>(null);
+  const src = useMemo(() => {
+    const svg = composeQrSvg(value, {
+      fg: HEX_COLOR_PATTERN.test(fg) ? fg : DEFAULT_QR_FG,
+      bg: HEX_COLOR_PATTERN.test(bg) ? bg : DEFAULT_QR_BG,
+      ecc,
+      frame,
+      frameText: normalizeFrameText(frameText),
+    });
+    return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+  }, [value, fg, bg, ecc, frame, frameText]);
 
-  useEffect(() => {
-    let cancelled = false;
-    const valid = /^#[0-9A-Fa-f]{6}$/;
-    QRCode.toDataURL(value, {
-      width: size * 2,
-      margin: 2,
-      errorCorrectionLevel: "M",
-      color: { dark: valid.test(fg) ? fg : "#000000", light: valid.test(bg) ? bg : "#FFFFFF" },
-    })
-      .then((url) => !cancelled && setDataUrl(url))
-      .catch(() => !cancelled && setDataUrl(null));
-    return () => {
-      cancelled = true;
-    };
-  }, [value, fg, bg, size]);
-
-  if (!dataUrl)
-    return <Skeleton className={cn("rounded-md", className)} style={{ width: size, height: size }} />;
   return (
-    // eslint-disable-next-line @next/next/no-img-element -- data URL, no optimisation needed
+    // eslint-disable-next-line @next/next/no-img-element -- generated data URL, no optimisation needed
     <img
-      src={dataUrl}
+      src={src}
       width={size}
-      height={size}
       alt={`QR code for ${value}`}
-      className={cn("rounded-md border", className)}
+      className={cn("h-auto rounded-md border", className)}
+      style={{ width: size }}
       data-testid="qr-preview"
     />
   );

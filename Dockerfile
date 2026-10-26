@@ -35,7 +35,9 @@ ENV NODE_ENV=production \
     HOSTNAME=0.0.0.0 \
     MIGRATIONS_DIR=/app/migrations
 
-RUN addgroup -S -g 1001 nodejs && adduser -S -u 1001 -G nodejs vialb
+# QR codes with a frame are rasterised by sharp (librsvg), which needs a system font for the badge text.
+RUN apk add --no-cache fontconfig ttf-dejavu && \
+    addgroup -S -g 1001 nodejs && adduser -S -u 1001 -G nodejs vialb
 
 COPY --from=build --chown=vialb:nodejs /app/.next/standalone ./
 COPY --from=build --chown=vialb:nodejs /app/.next/static ./.next/static

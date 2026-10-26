@@ -28,11 +28,15 @@ These were consciously left out of the first release or only partially done:
 
 - Per-link UTM builder in the link form
 - Tags on links, tag filter in the dashboard, `tags` in the REST API
+- CSV bulk import from the dashboard
+- QR customizer: error correction levels, badge frame, SVG and high-res PNG downloads
 
 ## Next
 
 - Folders for links (tags and tag filtering shipped)
-- CSV bulk import from the dashboard
+- REST endpoint for bulk import (`POST /api/v1/links/import` or a batch create); the dashboard import is shipped
+- Centre logo on QR codes (needs a safe upload and storage story; error correction `H` is already the default)
+- Filter links by tag in `GET /api/v1/links`
 - Webhooks on click thresholds, expiry, limit reached
 - Link-in-bio / "preview before redirect" interstitial option
 - Custom 404 / gone page branding per instance

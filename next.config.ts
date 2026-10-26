@@ -8,7 +8,14 @@ const nextConfig: NextConfig = {
   // docs/architecture.md#rendering-model).
   cacheComponents: false,
   poweredByHeader: false,
-  serverExternalPackages: ["@node-rs/argon2", "@maxmind/geoip2-node", "ioredis", "pino", "pino-pretty"],
+  serverExternalPackages: [
+    "@node-rs/argon2",
+    "@maxmind/geoip2-node",
+    "ioredis",
+    "pino",
+    "pino-pretty",
+    "sharp",
+  ],
   turbopack: {
     rules: {
       "*.css": {

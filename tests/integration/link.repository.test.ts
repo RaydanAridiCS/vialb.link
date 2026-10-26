@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { UniqueViolationError } from "@/server/errors";
 import { DrizzleLinkRepository } from "@/server/repositories/drizzle/link.repository.drizzle";
@@ -135,6 +136,179 @@ describe("DrizzleLinkRepository", () => {
     const first = await repo.findByCode("t1");
     if (!first) throw new Error("expected link t1");
     expect((await repo.update(first.id, { tags: ["replaced"] }))?.tags).toEqual(["replaced"]);
+  });
+
+  describe("tag filtering", () => {
+    const url = "https://x.example";
+
+    it("matches whole tags only, never substrings", async () => {
+      const user = (await createUser(db)).id;
+      await repo.create({ code: "w1", destinationUrl: url, userId: user, tags: ["promo"] });
+      await repo.create({ code: "w2", destinationUrl: url, userId: user, tags: ["promotion", "pro"] });
+
+      const query = { page: 1, pageSize: 20, now, userId: user };
+      expect((await repo.list({ ...query, tag: "pro" })).items.map((l) => l.code)).toEqual(["w2"]);
+      expect((await repo.list({ ...query, tag: "promo" })).items.map((l) => l.code)).toEqual(["w1"]);
+    });
+
+    it("combines tag, search and status filters", async () => {
+      const user = (await createUser(db)).id;
+      await repo.create({
+        code: "spring-a",
+        destinationUrl: url,
+        userId: user,
+        title: "Spring sale",
+        tags: ["promo"],
+      });
+      await repo.create({
+        code: "spring-b",
+        destinationUrl: url,
+        userId: user,
+        title: "Spring menu",
+        tags: ["promo"],
+        isEnabled: false,
+      });
+      await repo.create({ code: "spring-c", destinationUrl: url, userId: user, tags: ["menus"] });
+      await repo.create({ code: "autumn", destinationUrl: url, userId: user, tags: ["promo"] });
+
+      const query = { page: 1, pageSize: 20, now, userId: user };
+      const codes = async (extra: object) =>
+        (await repo.list({ ...query, ...extra })).items.map((l) => l.code);
+
+      expect((await codes({ tag: "promo", search: "spring" })).sort()).toEqual(["spring-a", "spring-b"]);
+      expect(await codes({ tag: "promo", search: "spring", status: "active" })).toEqual(["spring-a"]);
+      expect(await codes({ tag: "promo", search: "spring", status: "disabled" })).toEqual(["spring-b"]);
+      expect(await codes({ tag: "menus", status: "disabled" })).toEqual([]);
+      const filtered = await repo.list({ ...query, tag: "promo", pageSize: 1 });
+      expect(filtered.total).toBe(3);
+      expect(filtered.items).toHaveLength(1);
+    });
+
+    it("never returns soft-deleted links and keeps their tags out of listTags", async () => {
+      const user = (await createUser(db)).id;
+      const gone = await repo.create({ code: "g1", destinationUrl: url, userId: user, tags: ["only-here"] });
+      await repo.create({ code: "g2", destinationUrl: url, userId: user, tags: ["kept"] });
+      await repo.softDelete([gone.id], now);
+
+      expect((await repo.list({ page: 1, pageSize: 20, now, userId: user, tag: "only-here" })).total).toBe(0);
+      expect(await repo.listTags(user)).toEqual(["kept"]);
+      expect(await repo.listTags(undefined)).toEqual(["kept"]);
+    });
+
+    it("lists across owners in admin scope, including anonymous links, and keeps users isolated otherwise", async () => {
+      const alice = (await createUser(db)).id;
+      const bob = (await createUser(db)).id;
+      await repo.create({ code: "a1", destinationUrl: url, userId: alice, tags: ["shared"] });
+      await repo.create({ code: "b1", destinationUrl: url, userId: bob, tags: ["shared"] });
+      await repo.create({ code: "n1", destinationUrl: url, tags: ["shared", "anon"] });
+
+      const all = { page: 1, pageSize: 20, now, tag: "shared" };
+      expect((await repo.list(all)).items.map((l) => l.code).sort()).toEqual(["a1", "b1", "n1"]);
+      expect((await repo.list({ ...all, userId: alice })).items.map((l) => l.code)).toEqual(["a1"]);
+      expect(await repo.listTags(undefined)).toEqual(["anon", "shared"]);
+      expect(await repo.listTags(bob)).toEqual(["shared"]);
+    });
+
+    it("has a GIN index on tags that the containment filter can use", async () => {
+      const [index] = await db.execute<{ indexdef: string }>(
+        sql`select indexdef from pg_indexes where tablename = 'links' and indexname = 'links_tags_idx'`,
+      );
+      expect(index?.indexdef).toMatch(/USING gin \(tags\)/i);
+
+      const plan = await db.transaction(async (tx) => {
+        // A near-empty table prefers a seq scan; forbid it to prove the index is applicable.
+        await tx.execute(sql`set local enable_seqscan = off`);
+        return tx.execute<{ "QUERY PLAN": string }>(
+          sql`explain select id from links where tags @> array['promo']::text[]`,
+        );
+      });
+      expect(plan.map((row) => row["QUERY PLAN"]).join("\n")).toContain("links_tags_idx");
+    });
+
+    it("defaults to an empty tag array and survives a null-free round trip", async () => {
+      const user = (await createUser(db)).id;
+      const created = await repo.create({ code: "e1", destinationUrl: url, userId: user });
+      expect(created.tags).toEqual([]);
+      const updated = await repo.update(created.id, { tags: [] });
+      expect(updated?.tags).toEqual([]);
+    });
+  });
+
+  describe("QR options", () => {
+    it("defaults to M, no frame and no badge text", async () => {
+      const link = await repo.create({ code: "qr-default", destinationUrl: "https://x.example" });
+      expect(link).toMatchObject({ qrEcc: "M", qrFrame: "none", qrFrameText: null });
+    });
+
+    it("stores and updates the design", async () => {
+      const link = await repo.create({
+        code: "qr-set",
+        destinationUrl: "https://x.example",
+        qrEcc: "H",
+        qrFrame: "badge",
+        qrFrameText: "Menu",
+      });
+      expect(await repo.findById(link.id)).toMatchObject({
+        qrEcc: "H",
+        qrFrame: "badge",
+        qrFrameText: "Menu",
+      });
+
+      const updated = await repo.update(link.id, { qrEcc: "L", qrFrame: "none", qrFrameText: null });
+      expect(updated).toMatchObject({ qrEcc: "L", qrFrame: "none", qrFrameText: null });
+    });
+  });
+
+  describe("import support", () => {
+    it("reports code holders case-sensitively, including soft-deleted links", async () => {
+      const alice = (await createUser(db)).id;
+      const live = await repo.create({ code: "Live1", destinationUrl: "https://a.example", userId: alice });
+      const dead = await repo.create({ code: "dead1", destinationUrl: "https://b.example", userId: alice });
+      await repo.softDelete([dead.id], now);
+
+      const holders = await repo.findCodeHolders(["Live1", "live1", "dead1", "nobody"]);
+
+      expect(holders.map((h) => h.code).sort()).toEqual(["Live1", "dead1"]);
+      expect(holders.find((h) => h.code === "Live1")).toMatchObject({
+        userId: alice,
+        destinationUrl: "https://a.example",
+        deletedAt: null,
+      });
+      expect(holders.find((h) => h.code === "dead1")?.deletedAt).toBeInstanceOf(Date);
+      expect(live.code).toBe("Live1");
+      expect(await repo.findCodeHolders([])).toEqual([]);
+    });
+
+    it("lets the unique constraint decide when many rows claim one code at once", async () => {
+      const user = (await createUser(db)).id;
+      const attempts = await Promise.allSettled(
+        Array.from({ length: 12 }, (_, i) =>
+          repo.create({ code: "race-me", destinationUrl: `https://x.example/${i}`, userId: user }),
+        ),
+      );
+
+      expect(attempts.filter((a) => a.status === "fulfilled")).toHaveLength(1);
+      const rejected = attempts.filter((a): a is PromiseRejectedResult => a.status === "rejected");
+      expect(rejected).toHaveLength(11);
+      for (const failure of rejected) expect(failure.reason).toBeInstanceOf(UniqueViolationError);
+    });
+
+    it("stores a full import-sized batch of tagged links", async () => {
+      const user = (await createUser(db)).id;
+      for (let i = 0; i < 50; i++) {
+        await repo.create({
+          code: `bulk-${i}`,
+          destinationUrl: `https://x.example/${i}`,
+          userId: user,
+          title: i % 2 === 0 ? `Title ${i}` : null,
+          tags: i % 5 === 0 ? ["imported", "five"] : ["imported"],
+        });
+      }
+
+      const page = await repo.list({ page: 1, pageSize: 100, now, userId: user, tag: "imported" });
+      expect(page.total).toBe(50);
+      expect((await repo.list({ page: 1, pageSize: 100, now, userId: user, tag: "five" })).total).toBe(10);
+    });
   });
 
   it("updates, enables/disables and soft-deletes", async () => {

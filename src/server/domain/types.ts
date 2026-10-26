@@ -3,6 +3,8 @@
  * routes never see Drizzle row types.
  */
 
+import type { QrEcc, QrFrame } from "@/lib/qr-options";
+
 export type Role = "user" | "admin";
 
 export type Actor =
@@ -28,6 +30,9 @@ export interface Link {
   ogImageUrl: string | null;
   qrFgColor: string;
   qrBgColor: string;
+  qrEcc: QrEcc;
+  qrFrame: QrFrame;
+  qrFrameText: string | null;
   createdIpHash: string | null;
   claimTokenHash: string | null;
   createdAt: Date;
@@ -51,6 +56,9 @@ export type NewLink = Pick<Link, "code" | "destinationUrl"> &
       | "ogImageUrl"
       | "qrFgColor"
       | "qrBgColor"
+      | "qrEcc"
+      | "qrFrame"
+      | "qrFrameText"
       | "createdIpHash"
       | "claimTokenHash"
       | "createdAt"
@@ -72,6 +80,9 @@ export type LinkPatch = Partial<
     | "ogImageUrl"
     | "qrFgColor"
     | "qrBgColor"
+    | "qrEcc"
+    | "qrFrame"
+    | "qrFrameText"
     | "userId"
     | "claimTokenHash"
   >

@@ -34,9 +34,11 @@ import {
   type ExpirationPreset,
 } from "@/lib/constants";
 import { formatDateTime } from "@/lib/format";
+import { DEFAULT_QR_ECC, type QrEcc, type QrFrame } from "@/lib/qr-options";
 import type { LinkDto } from "@/server/services/dto";
 import { createLinkAction, updateLinkAction } from "../actions";
 import { createLinkSchema, updateLinkSchema } from "../schemas";
+import { QrControls } from "./qr-controls";
 import { QrPreview } from "./qr-preview";
 import { TagsInput } from "./tags-input";
 import { UtmBuilder } from "./utm-builder";
@@ -59,6 +61,9 @@ interface LinkFormValues {
   ogImageUrl: string;
   qrFgColor: string;
   qrBgColor: string;
+  qrEcc: QrEcc;
+  qrFrame: QrFrame;
+  qrFrameText: string;
 }
 
 /** ISO → value for <input type="datetime-local"> in the browser's timezone. */
@@ -97,6 +102,9 @@ function defaultsFor(link?: LinkDto): LinkFormValues {
     ogImageUrl: link?.ogImageUrl ?? "",
     qrFgColor: link?.qrFgColor ?? DEFAULT_QR_FG,
     qrBgColor: link?.qrBgColor ?? DEFAULT_QR_BG,
+    qrEcc: link?.qrEcc ?? DEFAULT_QR_ECC,
+    qrFrame: link?.qrFrame ?? "none",
+    qrFrameText: link?.qrFrameText ?? "",
   };
 }
 
@@ -118,7 +126,19 @@ export function LinkForm({
     ) as unknown as Resolver<LinkFormValues>,
     defaultValues: defaultsFor(link),
   });
-  const [expiration, accessLimit, passwordAction, qrFg, qrBg, customCode, destinationUrl, title] = useWatch({
+  const [
+    expiration,
+    accessLimit,
+    passwordAction,
+    qrFg,
+    qrBg,
+    qrEcc,
+    qrFrame,
+    qrFrameText,
+    customCode,
+    destinationUrl,
+    title,
+  ] = useWatch({
     control: form.control,
     name: [
       "expiration",
@@ -126,6 +146,9 @@ export function LinkForm({
       "passwordAction",
       "qrFgColor",
       "qrBgColor",
+      "qrEcc",
+      "qrFrame",
+      "qrFrameText",
       "customCode",
       "destinationUrl",
       "title",
@@ -170,6 +193,9 @@ export function LinkForm({
       ogImageUrl: values.ogImageUrl,
       qrFgColor: values.qrFgColor,
       qrBgColor: values.qrBgColor,
+      qrEcc: values.qrEcc,
+      qrFrame: values.qrFrame,
+      qrFrameText: values.qrFrame === "badge" ? values.qrFrameText : "",
     };
     if (mode === "create") {
       create.execute({
@@ -542,41 +568,34 @@ export function LinkForm({
             </div>
             <CardHeader>
               <CardTitle>QR code</CardTitle>
-              <CardDescription>Default colors for downloads.</CardDescription>
+              <CardDescription>Design used for downloads.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex justify-center">
                 <div className="rounded-2xl border bg-white p-2 shadow-paper">
-                  <QrPreview value={previewUrl} fg={qrFg} bg={qrBg} size={168} />
+                  <QrPreview
+                    value={previewUrl}
+                    fg={qrFg}
+                    bg={qrBg}
+                    ecc={qrEcc}
+                    frame={qrFrame}
+                    frameText={qrFrameText}
+                    size={168}
+                  />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                {(["qrFgColor", "qrBgColor"] as const).map((name) => (
-                  <FormField
-                    key={name}
-                    control={form.control}
-                    name={name}
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{name === "qrFgColor" ? "Foreground" : "Background"}</FormLabel>
-                        <div className="flex gap-2">
-                          <input
-                            type="color"
-                            aria-label={`${name === "qrFgColor" ? "Foreground" : "Background"} colour picker`}
-                            value={/^#[0-9a-fA-F]{6}$/.test(field.value) ? field.value : "#000000"}
-                            onChange={(e) => field.onChange(e.target.value.toUpperCase())}
-                            className="h-9 w-10 cursor-pointer rounded-md border bg-transparent p-1"
-                          />
-                          <FormControl>
-                            <Input className="font-mono" maxLength={7} {...field} />
-                          </FormControl>
-                        </div>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                ))}
-              </div>
+              <QrControls
+                idPrefix="link-qr"
+                value={{ fg: qrFg, bg: qrBg, ecc: qrEcc, frame: qrFrame, frameText: qrFrameText ?? "" }}
+                onChange={(patch) => {
+                  const options = { shouldDirty: true, shouldValidate: true } as const;
+                  if (patch.fg !== undefined) form.setValue("qrFgColor", patch.fg, options);
+                  if (patch.bg !== undefined) form.setValue("qrBgColor", patch.bg, options);
+                  if (patch.ecc !== undefined) form.setValue("qrEcc", patch.ecc, options);
+                  if (patch.frame !== undefined) form.setValue("qrFrame", patch.frame, options);
+                  if (patch.frameText !== undefined) form.setValue("qrFrameText", patch.frameText, options);
+                }}
+              />
             </CardContent>
           </Card>
           <div className="flex gap-2">

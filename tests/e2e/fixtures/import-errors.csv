@@ -1,0 +1,8 @@
+url,title,custom_code,tags
+https://example.com/__P__/good,Good row,__P__-good,ok
+not a url,Broken URL,,
+ftp://example.com/file,Wrong scheme,,
+https://example.com/__P__/reserved,Reserved,dashboard,
+https://example.com/__P__/dup-a,First,__P__-dup,
+https://example.com/__P__/dup-b,Second,__P__-dup,
+https://example.com/__P__/badtag,Bad tag,,ok$bad

@@ -11,6 +11,7 @@ import {
   linkSchema,
   linkStatsSchema,
 } from "./api-schemas";
+import { qrEccSchema, qrFrameSchema, qrFrameTextSchema } from "./schemas";
 
 const json = <T extends z.ZodType>(schema: T, description: string) => ({
   description,
@@ -122,6 +123,11 @@ export function buildOpenApiDocument(siteUrl: string) {
         query: z.object({
           fg: z.string().optional().meta({ example: "#000000" }),
           bg: z.string().optional().meta({ example: "#FFFFFF" }),
+          ecc: qrEccSchema
+            .optional()
+            .meta({ description: "Error correction level; defaults to the link's setting" }),
+          frame: qrFrameSchema.optional().meta({ description: "`badge` adds a label under the code" }),
+          frameText: qrFrameTextSchema.optional().meta({ example: "Scan me" }),
           ...(format === "png" ? { size: z.coerce.number().int().min(128).max(2048).optional() } : {}),
         }),
       },

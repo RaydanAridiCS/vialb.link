@@ -36,8 +36,9 @@ docker-compose.dev.yml up -d` and use `localhost:5440` in `DATABASE_URL`.
 | `npm run lint` / `lint:fix`          | ESLint (flat config, `typescript-eslint` strict, Next core-web-vitals) |
 | `npm run typecheck`                  | `next typegen` + `tsc --noEmit`                                        |
 | `npm run format` / `format:check`    | Prettier (+ Tailwind class sorting)                                    |
-| `npm test`                           | All Vitest projects (unit + integration; needs Docker)                 |
-| `npm run test:unit`                  | Fast unit tests only (no Docker)                                       |
+| `npm test`                           | All Vitest projects (unit + components + integration; needs Docker)    |
+| `npm run test:unit`                  | Fast tests: node `unit` + jsdom `components` projects (no Docker)      |
+| `npm run test:components`            | React component tests only (jsdom, Testing Library)                    |
 | `npm run test:integration`           | Drizzle repositories against a throwaway Postgres (Testcontainers)     |
 | `npm run test:coverage`              | Unit + integration with coverage (≥ 80 % for `src/server`)             |
 | `npm run test:e2e`                   | Playwright against the production build (`npm run build` first)        |
@@ -57,7 +58,9 @@ E2E_DATABASE_URL=postgres://vialb:vialb@localhost:5432/vialb_e2e npm run test:e2
 
 The suite creates/migrates/wipes the `vialb_e2e` database and starts
 `next start` on port 3100. Set `E2E_REUSE_SERVER=1` to reuse a server you
-started yourself.
+started yourself. If another Postgres already uses port 5432 on your machine, point
+`E2E_DATABASE_URL` at your own dev database server (the suite only touches the `vialb_e2e` database).
+More on the test layers, fixtures and how to write a component test: [docs/testing.md](docs/testing.md).
 
 ## Project structure
 

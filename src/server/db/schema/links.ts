@@ -10,6 +10,7 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+import type { QrEcc, QrFrame } from "@/lib/qr-options";
 import { v7 as uuidv7 } from "uuid";
 import { user } from "./auth";
 
@@ -40,6 +41,11 @@ export const links = pgTable(
     ogImageUrl: text("og_image_url"),
     qrFgColor: text("qr_fg_color").notNull().default("#000000"),
     qrBgColor: text("qr_bg_color").notNull().default("#FFFFFF"),
+    /** Error correction level. Rows from before QR options existed keep "M", what they were drawn with. */
+    qrEcc: text("qr_ecc").$type<QrEcc>().notNull().default("M"),
+    qrFrame: text("qr_frame").$type<QrFrame>().notNull().default("none"),
+    /** Text on the badge frame; `null` means the default "Scan me". */
+    qrFrameText: text("qr_frame_text"),
     createdIpHash: text("created_ip_hash"),
     /** sha256 of the one-time claim token handed to anonymous creators. */
     claimTokenHash: text("claim_token_hash"),

@@ -9,6 +9,7 @@ import {
   LIMITS,
   RESERVED_CODES,
 } from "@/lib/constants";
+import { DEFAULT_QR_ECC, isScannable, QR_ECC_LEVELS, QR_FRAME_TEXT_MAX, QR_FRAMES } from "@/lib/qr-options";
 import { isValidTag, normalizeTag } from "@/lib/tags";
 
 /**
@@ -38,6 +39,29 @@ export const customCodeSchema = z
   .refine((value) => !RESERVED_CODES.has(value.toLowerCase()), "This code is reserved");
 
 export const hexColorSchema = z.string().regex(HEX_COLOR_PATTERN, "Use a hex color like #1A2B3C");
+
+export const qrEccSchema = z.enum(QR_ECC_LEVELS);
+export const qrFrameSchema = z.enum(QR_FRAMES);
+/** Empty means "use the default text". */
+export const qrFrameTextSchema = z
+  .string()
+  .trim()
+  .max(QR_FRAME_TEXT_MAX, `At most ${QR_FRAME_TEXT_MAX} characters`);
+
+/** Refuses colour pairs no scanner can read; softer problems are only warned about in the UI. */
+function refineQrColors(value: { qrFgColor: string; qrBgColor: string }, ctx: z.RefinementCtx) {
+  if (
+    HEX_COLOR_PATTERN.test(value.qrFgColor) &&
+    HEX_COLOR_PATTERN.test(value.qrBgColor) &&
+    !isScannable(value.qrFgColor, value.qrBgColor)
+  ) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["qrFgColor"],
+      message: "These colours are too similar to scan. Pick a darker foreground.",
+    });
+  }
+}
 
 export const httpsUrlSchema = z
   .string()
@@ -82,6 +106,9 @@ const linkFieldsShape = {
   ogImageUrl: httpsUrlSchema.optional().or(z.literal("")),
   qrFgColor: hexColorSchema,
   qrBgColor: hexColorSchema,
+  qrEcc: qrEccSchema,
+  qrFrame: qrFrameSchema,
+  qrFrameText: qrFrameTextSchema,
 };
 
 function refineLimits(
@@ -111,7 +138,10 @@ export const createLinkSchema = z
     password: passwordSchema.optional().or(z.literal("")),
     captchaToken: z.string().max(4096).optional(),
   })
-  .superRefine(refineLimits);
+  .superRefine((value, ctx) => {
+    refineLimits(value, ctx);
+    refineQrColors(value, ctx);
+  });
 
 export type CreateLinkFormValues = z.input<typeof createLinkSchema>;
 
@@ -128,6 +158,7 @@ export const updateLinkSchema = z
   })
   .superRefine((value, ctx) => {
     refineLimits(value, ctx);
+    refineQrColors(value, ctx);
     if (value.passwordAction === "set" && !passwordSchema.safeParse(value.password ?? "").success) {
       ctx.addIssue({
         code: "custom",
@@ -172,6 +203,9 @@ export const DEFAULT_LINK_FORM: CreateLinkFormValues = {
   ogImageUrl: "",
   qrFgColor: DEFAULT_QR_FG,
   qrBgColor: DEFAULT_QR_BG,
+  qrEcc: DEFAULT_QR_ECC,
+  qrFrame: "none",
+  qrFrameText: "",
 };
 
 /** Converts the access-limit preset fields into a concrete limit. */
@@ -186,8 +220,36 @@ export function emptyToNull(value: string | undefined | null): string | null {
   return trimmed ? trimmed : null;
 }
 
-export const qrColorsSchema = z.object({
-  id: z.uuid(),
-  qrFgColor: hexColorSchema,
-  qrBgColor: hexColorSchema,
+/**
+ * CSV import payloads. The client already validated these rows, but nothing here is trusted: the
+ * limits only bound the request size, and `LinkService.importLinks` applies the real rules per row
+ * so one bad row becomes a row error instead of failing the whole batch.
+ */
+const importRowShape = z.object({
+  row: z.number().int().min(1).max(10_000_000),
+  url: z.string().max(LIMITS.urlMaxLength * 2),
+  title: z.string().max(LIMITS.titleMax * 5),
+  code: z.string().max(200),
+  tags: z.array(z.string().max(200)).max(LIMITS.tagsPerLinkMax * 5),
 });
+
+export const importLinksSchema = z.object({
+  rows: z.array(importRowShape).min(1).max(LIMITS.importBatchSize),
+});
+
+export const checkImportCodesSchema = z.object({
+  items: z
+    .array(z.object({ code: z.string().min(1).max(200), url: z.string().max(LIMITS.urlMaxLength * 2) }))
+    .max(LIMITS.importMaxRows),
+});
+
+export const qrOptionsSchema = z
+  .object({
+    id: z.uuid(),
+    qrFgColor: hexColorSchema,
+    qrBgColor: hexColorSchema,
+    qrEcc: qrEccSchema,
+    qrFrame: qrFrameSchema,
+    qrFrameText: qrFrameTextSchema,
+  })
+  .superRefine(refineQrColors);

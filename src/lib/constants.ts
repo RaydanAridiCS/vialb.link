@@ -80,6 +80,11 @@ export const LIMITS = {
   pageSizeMax: 100,
   csvExportMaxRows: 1_000_000,
   blockedDomainsMax: 5000,
+  /** CSV import: file size, data rows per file, rows per server call, rows shown in the preview. */
+  importMaxBytes: 2 * 1024 * 1024,
+  importMaxRows: 1000,
+  importBatchSize: 50,
+  importPreviewRows: 100,
 } as const;
 
 export const EXPIRATION_PRESETS = [
@@ -158,6 +163,8 @@ export const PREVIEW_BOT_PATTERNS = [
 export const RATE_LIMITS = {
   createLinkUser: { limit: 60, windowMs: 60 * 60 * 1000 },
   createLinkAnon: { limit: 10, windowMs: 60 * 60 * 1000 },
+  /** One token per import batch (`LIMITS.importBatchSize` rows): 100 batches is about 5 full-size files an hour. */
+  importBatches: { limit: 100, windowMs: 60 * 60 * 1000 },
   passwordPerIpCode: { limit: 10, windowMs: 15 * 60 * 1000 },
   passwordPerCode: { limit: 100, windowMs: 15 * 60 * 1000 },
   apiKey: { limit: 120, windowMs: 60 * 1000 },

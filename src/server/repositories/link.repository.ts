@@ -8,12 +8,17 @@ import type {
   UserOverviewStats,
 } from "@/server/domain/types";
 
+/** Who holds a short code; enough to tell "mine, same destination" from "taken". */
+export type CodeHolder = Pick<Link, "code" | "userId" | "destinationUrl" | "deletedAt">;
+
 export interface ILinkRepository {
   /** Inserts a link. Throws `UniqueViolationError` when the code is taken (incl. soft-deleted). */
   create(input: NewLink): Promise<Link>;
   findById(id: string): Promise<Link | null>;
   /** Active (not soft-deleted) link by exact, case-sensitive code. */
   findByCode(code: string): Promise<Link | null>;
+  /** Holders of the given codes, soft-deleted links included (their codes stay reserved). */
+  findCodeHolders(codes: readonly string[]): Promise<CodeHolder[]>;
   list(query: LinkListQuery): Promise<Page<Link>>;
   /** Distinct tags across a user's non-deleted links, sorted alphabetically. `undefined` = every user (admin). */
   listTags(userId: string | undefined): Promise<string[]>;

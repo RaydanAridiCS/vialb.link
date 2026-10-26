@@ -9,7 +9,7 @@ import type {
   UserOverviewStats,
 } from "@/server/domain/types";
 import { UniqueViolationError } from "@/server/errors";
-import type { ILinkRepository } from "@/server/repositories/link.repository";
+import type { CodeHolder, ILinkRepository } from "@/server/repositories/link.repository";
 
 /** In-memory fake for unit tests. Mirrors the Drizzle semantics, not its performance. */
 export class InMemoryLinkRepository implements ILinkRepository {
@@ -40,6 +40,9 @@ export class InMemoryLinkRepository implements ILinkRepository {
       ogImageUrl: input.ogImageUrl ?? null,
       qrFgColor: input.qrFgColor ?? "#000000",
       qrBgColor: input.qrBgColor ?? "#FFFFFF",
+      qrEcc: input.qrEcc ?? "M",
+      qrFrame: input.qrFrame ?? "none",
+      qrFrameText: input.qrFrameText ?? null,
       createdIpHash: input.createdIpHash ?? null,
       claimTokenHash: input.claimTokenHash ?? null,
       createdAt: at,
@@ -59,6 +62,13 @@ export class InMemoryLinkRepository implements ILinkRepository {
       if (row.code === code && !row.deletedAt) return { ...row };
     }
     return null;
+  }
+
+  async findCodeHolders(codes: readonly string[]): Promise<CodeHolder[]> {
+    const wanted = new Set(codes);
+    return [...this.rows.values()]
+      .filter((row) => wanted.has(row.code))
+      .map(({ code, userId, destinationUrl, deletedAt }) => ({ code, userId, destinationUrl, deletedAt }));
   }
 
   async list(query: LinkListQuery): Promise<Page<Link>> {

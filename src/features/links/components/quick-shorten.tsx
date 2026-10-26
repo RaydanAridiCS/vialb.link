@@ -81,7 +81,11 @@ export function QuickShorten({
 
   async function downloadQr() {
     if (!created) return;
-    const dataUrl = await QRCode.toDataURL(created.link.shortUrl, { width: 1024, margin: 2 });
+    const dataUrl = await QRCode.toDataURL(created.link.shortUrl, {
+      width: 1024,
+      margin: 2,
+      errorCorrectionLevel: created.link.qrEcc,
+    });
     downloadDataUrl(dataUrl, `${created.link.code}-qr.png`);
   }
 
@@ -172,7 +176,7 @@ export function QuickShorten({
             </div>
             {showQr ? (
               <div className="flex flex-col items-center gap-3">
-                <QrPreview value={created.link.shortUrl} />
+                <QrPreview value={created.link.shortUrl} ecc={created.link.qrEcc} />
                 <Button variant="secondary" size="sm" onClick={downloadQr}>
                   Download PNG
                 </Button>

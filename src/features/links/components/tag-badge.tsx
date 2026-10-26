@@ -10,7 +10,12 @@ function hueFor(tag: string): number {
   return TAG_HUES[hash % TAG_HUES.length] ?? TAG_HUES[0];
 }
 
-export function TagBadge({ tag, className, ...props }: { tag: string } & React.ComponentProps<typeof Badge>) {
+export function TagBadge({
+  tag,
+  className,
+  children,
+  ...props
+}: { tag: string } & React.ComponentProps<typeof Badge>) {
   return (
     <Badge variant="secondary" className={cn("font-normal", className)} {...props}>
       <span
@@ -19,6 +24,7 @@ export function TagBadge({ tag, className, ...props }: { tag: string } & React.C
         style={{ backgroundColor: `oklch(0.65 0.14 ${hueFor(tag)})` }}
       />
       {tag}
+      {children}
     </Badge>
   );
 }

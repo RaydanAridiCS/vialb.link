@@ -3,6 +3,8 @@ import {
   CODE_MAX_ATTEMPTS_PER_LENGTH,
   CODE_MAX_LENGTH_GROWTH,
   CUSTOM_CODE_PATTERN,
+  DEFAULT_QR_BG,
+  DEFAULT_QR_FG,
   LIMITS,
   RATE_LIMITS,
   RESERVED_CODES,
@@ -17,7 +19,22 @@ import type {
   NewLink,
   Page,
 } from "@/server/domain/types";
-import { ConflictError, NotFoundError, UniqueViolationError, ValidationError } from "@/server/errors";
+import {
+  ConflictError,
+  DomainError,
+  NotFoundError,
+  UniqueViolationError,
+  ValidationError,
+} from "@/server/errors";
+import {
+  DEFAULT_QR_ECC,
+  isScannable,
+  normalizeFrameText,
+  QR_ECC_LEVELS,
+  QR_FRAMES,
+  type QrEcc,
+  type QrFrame,
+} from "@/lib/qr-options";
 import { isValidTag, normalizeTag, normalizeTags } from "@/lib/tags";
 import { earliest, resolveExpiresAt } from "@/server/lib/expiry";
 import { randomToken, sha256Hex } from "@/server/lib/hashing";
@@ -48,6 +65,9 @@ export interface CreateLinkCommand {
   ogImageUrl?: string | null;
   qrFgColor?: string;
   qrBgColor?: string;
+  qrEcc?: QrEcc;
+  qrFrame?: QrFrame;
+  qrFrameText?: string | null;
 }
 
 export interface UpdateLinkCommand {
@@ -66,6 +86,32 @@ export interface UpdateLinkCommand {
   ogImageUrl?: string | null;
   qrFgColor?: string;
   qrBgColor?: string;
+  qrEcc?: QrEcc;
+  qrFrame?: QrFrame;
+  qrFrameText?: string | null;
+}
+
+export interface ImportRowCommand {
+  /** Row number in the uploaded file, echoed back in the result. */
+  row: number;
+  destinationUrl: string;
+  customCode?: string;
+  title?: string | null;
+  tags?: string[];
+}
+
+export type ImportRowResult =
+  | { row: number; status: "created"; code: string }
+  | { row: number; status: "skipped"; code: string; reason: string }
+  | { row: number; status: "failed"; reason: string; field?: string };
+
+/** Domain errors carry a message meant for people; anything else is reported generically. */
+function importFailure(row: number, error: unknown): ImportRowResult {
+  if (error instanceof DomainError) {
+    const field = typeof error.details?.["field"] === "string" ? error.details["field"] : undefined;
+    return { row, status: "failed", reason: error.message, field };
+  }
+  return { row, status: "failed", reason: "Could not create this link" };
 }
 
 export interface RequestContext {
@@ -132,14 +178,33 @@ export class LinkService {
       await this.deps.abuse.enforceRateLimit(`create:user:${actor.userId}`, RATE_LIMITS.createLinkUser);
     }
 
-    const destinationUrl = cmd.destinationUrl.trim();
-    await this.deps.abuse.assertDestinationAllowed(destinationUrl);
-    this.assertOgImage(cmd.ogImageUrl);
-
     let expiresAt = resolveExpiresAt(cmd.expiration?.preset ?? "never", cmd.expiration?.customAt, now);
     if (anonymous) {
       expiresAt = earliest(expiresAt, new Date(now.getTime() + settings.anonLinkTtlHours * 3_600_000));
     }
+
+    const { base, claimToken } = await this.buildLink(actor, cmd, expiresAt, ctx);
+    const link = await this.insertWithCode(cmd.customCode, base);
+    return { link: this.dto(link), claimToken };
+  }
+
+  /**
+   * Everything a new link needs except its code. Shared by `create` and `importLinks`, so imported
+   * links get exactly the same destination checks, tag rules and defaults as links made in the form.
+   * `assertDestination` lets a caller reuse verdicts (imports check each distinct URL once).
+   */
+  private async buildLink(
+    actor: Actor,
+    cmd: CreateLinkCommand,
+    expiresAt: Date | null,
+    ctx: RequestContext,
+    assertDestination: (url: string) => Promise<void> = (url) =>
+      this.deps.abuse.assertDestinationAllowed(url),
+  ): Promise<{ base: Omit<NewLink, "code">; claimToken: string | null }> {
+    const anonymous = actor.kind === "anonymous";
+    const destinationUrl = cmd.destinationUrl.trim();
+    await assertDestination(destinationUrl);
+    this.assertOgImage(cmd.ogImageUrl);
 
     const claimToken = anonymous ? randomToken(24) : null;
     const base: Omit<NewLink, "code"> = {
@@ -153,16 +218,117 @@ export class LinkService {
       ogTitle: cmd.ogTitle?.trim() || null,
       ogDescription: cmd.ogDescription?.trim() || null,
       ogImageUrl: cmd.ogImageUrl?.trim() || null,
-      qrFgColor: cmd.qrFgColor ?? "#000000",
-      qrBgColor: cmd.qrBgColor ?? "#FFFFFF",
+      ...this.cleanQr(cmd, { qrFgColor: DEFAULT_QR_FG, qrBgColor: DEFAULT_QR_BG, qrEcc: DEFAULT_QR_ECC }),
       createdIpHash: anonymous && ctx.ip ? sha256Hex(`${this.deps.ipPepper}:${ctx.ip}`) : null,
       claimTokenHash: claimToken ? sha256Hex(claimToken) : null,
     };
+    return { base, claimToken };
+  }
 
-    const link = cmd.customCode
-      ? await this.insertCustom(cmd.customCode, base)
-      : await this.insertGenerated(base);
-    return { link: this.dto(link), claimToken };
+  private insertWithCode(customCode: string | undefined, base: Omit<NewLink, "code">): Promise<Link> {
+    return customCode ? this.insertCustom(customCode, base) : this.insertGenerated(base);
+  }
+
+  /**
+   * Creates up to `LIMITS.importBatchSize` links for the signed-in user. Rows are independent: a bad
+   * row never rolls back the others, and the database unique constraint still decides code
+   * collisions. Re-sending a row whose code already points at the same destination for the same user
+   * is reported as `skipped`, so fixing a file and importing it again is safe.
+   *
+   * Spends one `importBatches` token per call instead of one `createLinkUser` token per row.
+   */
+  async importLinks(actor: Actor, rows: readonly ImportRowCommand[]): Promise<ImportRowResult[]> {
+    const user = requireUser(actor);
+    if (rows.length === 0) throw new ValidationError("There are no rows to import");
+    if (rows.length > LIMITS.importBatchSize) {
+      throw new ValidationError(`At most ${LIMITS.importBatchSize} rows can be imported per request`);
+    }
+    if (user.role !== "admin") {
+      await this.deps.abuse.enforceRateLimit(`import:user:${user.userId}`, RATE_LIMITS.importBatches);
+    }
+
+    // One Safe Browsing / blocklist verdict per distinct URL in this batch.
+    const verdicts = new Map<string, Promise<void>>();
+    const assertDestination = (url: string) => {
+      let verdict = verdicts.get(url);
+      if (!verdict) {
+        verdict = this.deps.abuse.assertDestinationAllowed(url);
+        verdicts.set(url, verdict);
+      }
+      return verdict;
+    };
+
+    const results: ImportRowResult[] = [];
+    for (const row of rows) {
+      try {
+        results.push(await this.importRow(actor, user.userId, row, assertDestination));
+      } catch (error) {
+        results.push(importFailure(row.row, error));
+      }
+    }
+    return results;
+  }
+
+  private async importRow(
+    actor: Actor,
+    userId: string,
+    row: ImportRowCommand,
+    assertDestination: (url: string) => Promise<void>,
+  ): Promise<ImportRowResult> {
+    const destinationUrl = row.destinationUrl.trim();
+    if (destinationUrl.length > LIMITS.urlMaxLength) {
+      throw new ValidationError(`URLs can be at most ${LIMITS.urlMaxLength} characters`, { field: "url" });
+    }
+    if ((row.title ?? "").trim().length > LIMITS.titleMax) {
+      throw new ValidationError(`Title is longer than ${LIMITS.titleMax} characters`, { field: "title" });
+    }
+
+    const customCode = row.customCode?.trim() || undefined;
+    if (customCode) {
+      const existing = await this.deps.links.findByCode(customCode);
+      if (existing && existing.userId === userId && existing.destinationUrl === destinationUrl) {
+        return { row: row.row, status: "skipped", code: existing.code, reason: "Already imported" };
+      }
+    }
+
+    const { base } = await this.buildLink(
+      actor,
+      { destinationUrl, title: row.title, tags: row.tags },
+      null,
+      { ip: null },
+      assertDestination,
+    );
+    const link = await this.insertWithCode(customCode, base);
+    return { row: row.row, status: "created", code: link.code };
+  }
+
+  /**
+   * For the import preview: which of these codes are unavailable. `existing` codes already point at
+   * the same destination for this user (an import would skip them); `taken` ones belong to someone
+   * else or to a deleted link, whose code stays reserved.
+   */
+  async checkImportCodes(
+    actor: Actor,
+    items: readonly { code: string; destinationUrl: string }[],
+  ): Promise<{ taken: string[]; existing: string[] }> {
+    const user = requireUser(actor);
+    if (items.length > LIMITS.importMaxRows) {
+      throw new ValidationError(`At most ${LIMITS.importMaxRows} rows can be checked at once`);
+    }
+    const holders = await this.deps.links.findCodeHolders([...new Set(items.map((item) => item.code))]);
+    const holderOf = new Map(holders.map((holder) => [holder.code, holder]));
+    const taken = new Set<string>();
+    const existing = new Set<string>();
+    for (const { code, destinationUrl } of items) {
+      const holder = holderOf.get(code);
+      if (!holder) continue;
+      const mine =
+        holder.deletedAt === null &&
+        holder.userId === user.userId &&
+        holder.destinationUrl === destinationUrl.trim();
+      (mine ? existing : taken).add(code);
+    }
+    return { taken: [...taken], existing: [...existing] };
   }
 
   private async insertCustom(code: string, base: Omit<NewLink, "code">): Promise<Link> {
@@ -220,6 +386,41 @@ export class LinkService {
     return tags;
   }
 
+  /**
+   * QR options for a new or edited link. Creates fill gaps from `fallback`; edits (`partial`) only
+   * return what the command sets. Colours must be scannable together, checked against the saved
+   * colour when only one of them changes.
+   */
+  private cleanQr(
+    cmd: Pick<CreateLinkCommand, "qrFgColor" | "qrBgColor" | "qrEcc" | "qrFrame" | "qrFrameText">,
+    fallback: Pick<Link, "qrFgColor" | "qrBgColor"> & Partial<Pick<Link, "qrEcc">>,
+    partial = false,
+  ): Partial<Pick<Link, "qrFgColor" | "qrBgColor" | "qrEcc" | "qrFrame" | "qrFrameText">> {
+    if (cmd.qrEcc !== undefined && !QR_ECC_LEVELS.includes(cmd.qrEcc)) {
+      throw new ValidationError("Unknown QR error correction level", { field: "qrEcc" });
+    }
+    if (cmd.qrFrame !== undefined && !QR_FRAMES.includes(cmd.qrFrame)) {
+      throw new ValidationError("Unknown QR frame", { field: "qrFrame" });
+    }
+    const fg = cmd.qrFgColor ?? fallback.qrFgColor;
+    const bg = cmd.qrBgColor ?? fallback.qrBgColor;
+    if ((cmd.qrFgColor !== undefined || cmd.qrBgColor !== undefined || !partial) && !isScannable(fg, bg)) {
+      throw new ValidationError("QR colours are too similar to scan. Pick a darker foreground.", {
+        field: "qrFgColor",
+      });
+    }
+    const out: ReturnType<LinkService["cleanQr"]> = {};
+    if (!partial || cmd.qrFgColor !== undefined) out.qrFgColor = fg;
+    if (!partial || cmd.qrBgColor !== undefined) out.qrBgColor = bg;
+    if (cmd.qrEcc !== undefined) out.qrEcc = cmd.qrEcc;
+    else if (!partial) out.qrEcc = fallback.qrEcc ?? DEFAULT_QR_ECC;
+    if (cmd.qrFrame !== undefined) out.qrFrame = cmd.qrFrame;
+    else if (!partial) out.qrFrame = "none";
+    if (cmd.qrFrameText !== undefined) out.qrFrameText = normalizeFrameText(cmd.qrFrameText);
+    else if (!partial) out.qrFrameText = null;
+    return out;
+  }
+
   private assertOgImage(url: string | null | undefined) {
     if (!url) return;
     let parsed: URL;
@@ -270,8 +471,7 @@ export class LinkService {
       this.assertOgImage(cmd.ogImageUrl);
       patch.ogImageUrl = cmd.ogImageUrl?.trim() || null;
     }
-    if (cmd.qrFgColor !== undefined) patch.qrFgColor = cmd.qrFgColor;
-    if (cmd.qrBgColor !== undefined) patch.qrBgColor = cmd.qrBgColor;
+    Object.assign(patch, this.cleanQr(cmd, link, true));
 
     const updated = await this.deps.links.update(link.id, patch);
     if (!updated) throw new NotFoundError("Link not found");

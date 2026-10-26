@@ -1,3 +1,4 @@
+import type { QrEcc, QrFrame } from "@/lib/qr-options";
 import type { ApiKey, Link } from "@/server/domain/types";
 
 export type LinkStatus = "active" | "expired" | "limit_reached" | "disabled";
@@ -21,6 +22,9 @@ export interface LinkDto {
   ogImageUrl: string | null;
   qrFgColor: string;
   qrBgColor: string;
+  qrEcc: QrEcc;
+  qrFrame: QrFrame;
+  qrFrameText: string | null;
   ownerId: string | null;
   createdAt: string;
   updatedAt: string;
@@ -56,6 +60,9 @@ export function toLinkDto(link: Link, siteUrl: string, now: Date): LinkDto {
     ogImageUrl: link.ogImageUrl,
     qrFgColor: link.qrFgColor,
     qrBgColor: link.qrBgColor,
+    qrEcc: link.qrEcc,
+    qrFrame: link.qrFrame,
+    qrFrameText: link.qrFrameText,
     ownerId: link.userId,
     createdAt: link.createdAt.toISOString(),
     updatedAt: link.updatedAt.toISOString(),

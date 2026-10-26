@@ -39,8 +39,15 @@ the same tag always looks the same without storing anything.
 - **Admin → All links:** the same filter, across every user's tags.
 - **Bulk "Export CSV"** from the table includes a `tags` column (space separated).
 
-An invalid tag typed into the field (for example `bad;tag`) stays in the box and is not
-added; it is simply ignored on save.
+An invalid tag typed into the field (for example `bad;tag`) stays in the box, the field is
+marked invalid (`aria-invalid`) and a message explains why (`role="alert"`: letters, numbers,
+`-` and `_` only; too long; or the 10-tag limit). The message clears as soon as you edit the
+text. When several tags are pasted at once (`a,b,bad;one,c`), the valid ones are added in a
+single step; the first refused one stays in the box together with whatever came after it, so
+nothing you pasted is lost. Each chip has a **Remove tag** button.
+
+Tags also travel with [CSV imports](import-and-qr.md#csv-import) (a `tags` column) and with
+the table's CSV export, so an export can be imported again.
 
 ### REST API
 

@@ -27,6 +27,71 @@ describe("tag helpers", () => {
     expect(isValidTag("semi;colon")).toBe(false);
     expect(isValidTag("")).toBe(false);
   });
+
+  describe("properties", () => {
+    // Deterministic pseudo-random strings (mulberry32) so a failure is reproducible.
+    function* samples(count: number): Generator<string> {
+      const alphabet = ["a", "Z", "7", " ", "  ", "#", "-", "_", ";", "é", "İ", "日", "\t", " ", "😀"];
+      let seed = 0x9e3779b9;
+      const next = () => {
+        seed = (seed + 0x6d2b79f5) | 0;
+        let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+      for (let i = 0; i < count; i++) {
+        const length = Math.floor(next() * 12);
+        let text = "";
+        for (let j = 0; j < length; j++) text += alphabet[Math.floor(next() * alphabet.length)];
+        yield text;
+      }
+    }
+
+    it("normalizeTag is idempotent", () => {
+      for (const text of ["# #a", "##  #b c", " \t#x", "#", "  ", ...samples(500)]) {
+        const once = normalizeTag(text);
+        expect(normalizeTag(once), JSON.stringify(text)).toBe(once);
+      }
+    });
+
+    it("normalizeTags is idempotent, duplicate-free and never returns empty entries", () => {
+      const list = [...samples(40)];
+      const once = normalizeTags(list);
+      expect(normalizeTags(once)).toEqual(once);
+      expect(new Set(once).size).toBe(once.length);
+      expect(once).not.toContain("");
+    });
+
+    it("a normalized tag never contains whitespace or uppercase letters", () => {
+      for (const text of samples(500)) {
+        const tag = normalizeTag(text);
+        expect(tag, JSON.stringify(text)).not.toMatch(/\s/);
+        expect(tag).toBe(tag.toLowerCase());
+      }
+    });
+
+    it("strips repeated leading hashes and spaces", () => {
+      expect(normalizeTag("# #a")).toBe("a");
+      expect(normalizeTag("  ##  Big Sale ")).toBe("big-sale");
+    });
+
+    it("handles unicode: letters and digits from any script are valid", () => {
+      expect(normalizeTag("Été")).toBe("été");
+      expect(isValidTag("été")).toBe(true);
+      expect(isValidTag("日本語")).toBe(true);
+      expect(isValidTag("😀")).toBe(false);
+      expect(isValidTag("a😀")).toBe(false);
+    });
+
+    it("counts the length limit in UTF-16 code units of the normalized tag", () => {
+      expect(isValidTag("é".repeat(30))).toBe(true);
+      expect(isValidTag("é".repeat(31))).toBe(false);
+    });
+
+    it("keeps first-seen order when de-duplicating", () => {
+      expect(normalizeTags(["b", "A", "a", "B", "c"])).toEqual(["b", "a", "c"]);
+    });
+  });
 });
 
 describe("tag schemas", () => {
@@ -35,7 +100,13 @@ describe("tag schemas", () => {
     accessLimit: "unlimited",
     expiration: "never",
   } as const;
-  const colours = { qrFgColor: "#000000", qrBgColor: "#FFFFFF" };
+  const colours = {
+    qrFgColor: "#000000",
+    qrBgColor: "#FFFFFF",
+    qrEcc: "H",
+    qrFrame: "none",
+    qrFrameText: "",
+  } as const;
 
   it("accepts what people type in the form and rejects junk or too many", () => {
     expect(createLinkSchema.safeParse({ ...base, ...colours, tags: ["#Promo", "client work"] }).success).toBe(

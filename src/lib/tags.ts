@@ -5,7 +5,11 @@ export const TAG_PATTERN = /^[\p{L}\p{N}][\p{L}\p{N}_-]*$/u;
 
 /** `" #Client Work "` -> `"client-work"`. Returns `""` when nothing usable is left. */
 export function normalizeTag(raw: string): string {
-  return raw.trim().replace(/^#+/, "").trim().toLowerCase().replace(/\s+/g, "-");
+  return raw
+    .trim()
+    .replace(/^[#\s]+/, "")
+    .toLowerCase()
+    .replace(/\s+/g, "-");
 }
 
 export function isValidTag(tag: string): boolean {

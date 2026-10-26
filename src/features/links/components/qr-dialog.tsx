@@ -13,14 +13,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { HEX_COLOR_PATTERN } from "@/lib/constants";
+import { normalizeFrameText, qrWarnings } from "@/lib/qr-options";
 import type { LinkDto } from "@/server/services/dto";
-import { saveQrColorsAction } from "../actions";
+import { saveQrOptionsAction } from "../actions";
+import { QrControls, type QrControlValues } from "./qr-controls";
 import { QrPreview } from "./qr-preview";
 
-type QrLink = Pick<LinkDto, "id" | "code" | "shortUrl" | "qrFgColor" | "qrBgColor">;
+type QrLink = Pick<
+  LinkDto,
+  "id" | "code" | "shortUrl" | "qrFgColor" | "qrBgColor" | "qrEcc" | "qrFrame" | "qrFrameText"
+>;
 
 export function QrDialog({
   link,
@@ -33,7 +36,7 @@ export function QrDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-md">
         {link ? <QrDialogBody key={link.id} link={link} onDone={() => onOpenChange(false)} /> : null}
       </DialogContent>
     </Dialog>
@@ -41,19 +44,38 @@ export function QrDialog({
 }
 
 function QrDialogBody({ link, onDone }: { link: QrLink; onDone: () => void }) {
-  const [fg, setFg] = useState(link.qrFgColor);
-  const [bg, setBg] = useState(link.qrBgColor);
-  const valid = HEX_COLOR_PATTERN.test(fg) && HEX_COLOR_PATTERN.test(bg);
-  const save = useAction(saveQrColorsAction, {
+  const [design, setDesign] = useState<QrControlValues>({
+    fg: link.qrFgColor,
+    bg: link.qrBgColor,
+    ecc: link.qrEcc,
+    frame: link.qrFrame,
+    frameText: link.qrFrameText ?? "",
+  });
+  const valid = HEX_COLOR_PATTERN.test(design.fg) && HEX_COLOR_PATTERN.test(design.bg);
+  const blocked = !valid || qrWarnings(design.fg, design.bg).some((w) => w.severity === "block");
+  const save = useAction(saveQrOptionsAction, {
     onSuccess: () => {
-      toast.success("QR colours saved");
+      toast.success("QR design saved");
       onDone();
     },
-    onError: ({ error }) => toast.error(error.serverError ?? "Could not save colours"),
+    onError: ({ error }) => toast.error(error.serverError ?? "Could not save the QR design"),
   });
 
-  const href = (format: "png" | "svg") =>
-    `/api/app/links/${link.id}/qr?${new URLSearchParams({ format, fg, bg, size: "1024", download: "1" })}`;
+  /** The same options the preview uses, so a download matches what is on screen. */
+  const href = (format: "png" | "svg", size: number) => {
+    const params = new URLSearchParams({
+      format,
+      fg: design.fg,
+      bg: design.bg,
+      ecc: design.ecc,
+      frame: design.frame,
+      size: String(size),
+      download: "1",
+    });
+    const text = normalizeFrameText(design.frameText);
+    if (design.frame === "badge" && text) params.set("frameText", text);
+    return `/api/app/links/${link.id}/qr?${params}`;
+  };
 
   return (
     <>
@@ -64,61 +86,73 @@ function QrDialogBody({ link, onDone }: { link: QrLink; onDone: () => void }) {
       <div className="flex justify-center py-2">
         <QrPreview
           value={link.shortUrl}
-          fg={valid ? fg : link.qrFgColor}
-          bg={valid ? bg : link.qrBgColor}
+          fg={valid ? design.fg : link.qrFgColor}
+          bg={valid ? design.bg : link.qrBgColor}
+          ecc={design.ecc}
+          frame={design.frame}
+          frameText={design.frameText}
           size={220}
         />
       </div>
-      <div className="grid grid-cols-2 gap-3">
-        {(
-          [
-            ["Foreground", fg, setFg],
-            ["Background", bg, setBg],
-          ] as const
-        ).map(([label, value, set]) => (
-          <div key={label} className="space-y-1.5">
-            <Label htmlFor={`qr-${label}`}>{label}</Label>
-            <div className="flex gap-2">
-              <input
-                type="color"
-                aria-label={`${label} colour picker`}
-                value={HEX_COLOR_PATTERN.test(value) ? value : "#000000"}
-                onChange={(e) => set(e.target.value.toUpperCase())}
-                className="h-9 w-10 cursor-pointer rounded-md border bg-transparent p-1"
-              />
-              <Input
-                id={`qr-${label}`}
-                className="font-mono"
-                value={value}
-                maxLength={7}
-                onChange={(e) => set(e.target.value)}
-                aria-invalid={!HEX_COLOR_PATTERN.test(value)}
-              />
-            </div>
-          </div>
-        ))}
-      </div>
-      <DialogFooter className="gap-2 sm:justify-between">
+      <QrControls idPrefix="qr" value={design} onChange={(patch) => setDesign((c) => ({ ...c, ...patch }))} />
+      <DialogFooter className="gap-2 sm:flex-col sm:items-stretch">
+        <div className="flex flex-wrap justify-end gap-2">
+          <DownloadButton href={href("svg", 1024)} disabled={blocked} variant="outline">
+            SVG
+          </DownloadButton>
+          <DownloadButton href={href("png", 1024)} disabled={blocked} variant="outline">
+            PNG
+          </DownloadButton>
+          <DownloadButton href={href("png", 2048)} disabled={blocked}>
+            High-res PNG
+          </DownloadButton>
+        </div>
         <Button
           variant="ghost"
-          disabled={!valid || save.isPending}
-          onClick={() => save.execute({ id: link.id, qrFgColor: fg, qrBgColor: bg })}
+          className="self-start"
+          disabled={blocked || save.isPending}
+          onClick={() =>
+            save.execute({
+              id: link.id,
+              qrFgColor: design.fg,
+              qrBgColor: design.bg,
+              qrEcc: design.ecc,
+              qrFrame: design.frame,
+              qrFrameText: design.frame === "badge" ? design.frameText : "",
+            })
+          }
         >
           <Save className="size-4" /> Save as default
         </Button>
-        <div className="flex gap-2">
-          <Button variant="outline" asChild disabled={!valid}>
-            <a href={href("svg")} download>
-              <Download className="size-4" /> SVG
-            </a>
-          </Button>
-          <Button asChild disabled={!valid}>
-            <a href={href("png")} download>
-              <Download className="size-4" /> PNG
-            </a>
-          </Button>
-        </div>
       </DialogFooter>
     </>
+  );
+}
+
+/** A download link; while the design cannot be scanned it is a real disabled button, not a clickable anchor. */
+function DownloadButton({
+  href,
+  disabled,
+  variant,
+  children,
+}: {
+  href: string;
+  disabled: boolean;
+  variant?: "outline";
+  children: React.ReactNode;
+}) {
+  if (disabled) {
+    return (
+      <Button variant={variant} disabled>
+        <Download className="size-4" /> {children}
+      </Button>
+    );
+  }
+  return (
+    <Button variant={variant} asChild>
+      <a href={href} download>
+        <Download className="size-4" /> {children}
+      </a>
+    </Button>
   );
 }

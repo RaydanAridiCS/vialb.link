@@ -4,11 +4,13 @@ import { revalidatePath } from "next/cache";
 import { getContainer } from "@/server/container";
 import { authActionClient, publicActionClient } from "@/server/http/safe-action";
 import {
+  checkImportCodesSchema,
   claimSchema,
   createLinkSchema,
   emptyToNull,
+  importLinksSchema,
   linkIdsSchema,
-  qrColorsSchema,
+  qrOptionsSchema,
   quickCreateSchema,
   resolveMaxClicks,
   setEnabledSchema,
@@ -42,6 +44,9 @@ export const createLinkAction = authActionClient
         ogImageUrl: emptyToNull(input.ogImageUrl),
         qrFgColor: input.qrFgColor,
         qrBgColor: input.qrBgColor,
+        qrEcc: input.qrEcc,
+        qrFrame: input.qrFrame,
+        qrFrameText: emptyToNull(input.qrFrameText),
       },
       { ip: ctx.ip, captchaToken: input.captchaToken },
     );
@@ -91,6 +96,9 @@ export const updateLinkAction = authActionClient
       ogImageUrl: emptyToNull(input.ogImageUrl),
       qrFgColor: input.qrFgColor,
       qrBgColor: input.qrBgColor,
+      qrEcc: input.qrEcc,
+      qrFrame: input.qrFrame,
+      qrFrameText: emptyToNull(input.qrFrameText),
     });
     revalidateDashboard();
     return { link };
@@ -116,17 +124,49 @@ export const setLinksEnabledAction = authActionClient
     return { updated };
   });
 
-export const saveQrColorsAction = authActionClient
-  .metadata({ name: "save-qr-colors" })
-  .inputSchema(qrColorsSchema)
+export const saveQrOptionsAction = authActionClient
+  .metadata({ name: "save-qr-options" })
+  .inputSchema(qrOptionsSchema)
   .action(async ({ parsedInput, ctx }) => {
     const link = await getContainer().links.update(ctx.actor, parsedInput.id, {
       qrFgColor: parsedInput.qrFgColor,
       qrBgColor: parsedInput.qrBgColor,
+      qrEcc: parsedInput.qrEcc,
+      qrFrame: parsedInput.qrFrame,
+      qrFrameText: emptyToNull(parsedInput.qrFrameText),
     });
     revalidateDashboard();
     return { link };
   });
+
+/** One batch of a CSV import; the browser sends the file's rows in chunks of `LIMITS.importBatchSize`. */
+export const importLinksAction = authActionClient
+  .metadata({ name: "import-links" })
+  .inputSchema(importLinksSchema)
+  .action(async ({ parsedInput, ctx }) => {
+    const results = await getContainer().links.importLinks(
+      ctx.actor,
+      parsedInput.rows.map((row) => ({
+        row: row.row,
+        destinationUrl: row.url,
+        customCode: row.code || undefined,
+        title: emptyToNull(row.title),
+        tags: row.tags,
+      })),
+    );
+    if (results.some((result) => result.status === "created")) revalidateDashboard();
+    return { results };
+  });
+
+export const checkImportCodesAction = authActionClient
+  .metadata({ name: "check-import-codes" })
+  .inputSchema(checkImportCodesSchema)
+  .action(async ({ parsedInput, ctx }) =>
+    getContainer().links.checkImportCodes(
+      ctx.actor,
+      parsedInput.items.map((item) => ({ code: item.code, destinationUrl: item.url })),
+    ),
+  );
 
 export const claimLinksAction = authActionClient
   .metadata({ name: "claim-links" })

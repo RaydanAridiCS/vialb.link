@@ -29,10 +29,11 @@
 - 🔒 **Password protection**: argon2id, rate-limited unlock page; link-preview bots never see the destination
 - 🖼️ **Link previews**: custom Open Graph title, description and image for Slack, Discord, X, WhatsApp…
 - 📊 **Analytics without tracking**: clicks over time, weekday × hour heatmap, countries & cities, devices, browsers, OS, referrers, UTM campaigns, languages, bot filtering, CSV export. Raw IPs are never stored.
-- 🧾 **QR codes**: PNG/SVG on demand with your colours
+- 🧾 **QR codes**: PNG/SVG (and high-res PNG) on demand with your colours, error-correction level and an optional "Scan me" badge frame; warns about codes that will not scan ([details](docs/import-and-qr.md#qr-codes))
 - 🧰 **Dashboard**: search, filters, sorting, bulk disable/delete/export, edit everything except the code
 - 🏷️ **Tags**: label links (`promo`, `client-work`) and filter the dashboard by tag, also via the API
 - 🎯 **UTM builder**: add `utm_*` campaign parameters to a destination with presets and a live preview
+- 📥 **CSV import**: bring hundreds of links over from Bitly, TinyURL or a spreadsheet with column detection, a preview, per-row errors and a downloadable error file ([details](docs/import-and-qr.md#csv-import))
 - 🔑 **REST API**: API keys, per-key rate limits, OpenAPI 3.1 + interactive docs
 - 👥 **Accounts**: email/password, optional GitHub & Google, TOTP 2FA with backup codes, data export, account deletion
 - 🛡️ **Admin**: instance settings, user roles and bans, every link on the instance, stats

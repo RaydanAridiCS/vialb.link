@@ -20,6 +20,11 @@ is maintained automatically by
 - Link tags: normalized lowercase labels (max 10 per link), chip input in the link form, tag filter and pills in the
   links table (also in the admin view), `tags` on the REST API (create, update, response); migration `0001_link_tags`
 - UTM campaign builder in the link form: presets, live preview, applies `utm_*` parameters to the long URL
+- CSV bulk import from the dashboard: drag and drop, column detection (Bitly/TinyURL/Excel aliases), preview with per-row validation,
+  batched import with progress, summary with a downloadable error CSV, safe re-imports and its own rate-limit budget
+- QR customizer: error correction `L`/`M`/`Q`/`H` (new links default to `H`), "Scan me" badge frame with editable text, SVG, PNG and
+  high-res PNG downloads that match the live preview, contrast and inverted-colour warnings; `qrEcc`, `qrFrame`, `qrFrameText` on the REST API;
+  migration `0002_qr_options`
 - Dashboard: searchable/filterable links table, bulk disable/delete/CSV export, edit page, QR dialog (PNG/SVG, custom colours)
 - Accounts: email + password, optional GitHub/Google OAuth, TOTP 2FA with backup codes, password reset (SMTP), data export, account deletion
 - First user becomes admin; admin area with instance settings, user ban/role management and all links

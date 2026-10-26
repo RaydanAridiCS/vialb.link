@@ -43,6 +43,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { csvField } from "@/lib/csv";
+import { downloadText } from "@/lib/download";
 import { formatDate, formatNumber } from "@/lib/format";
 import type { LinkDto, LinkStatus } from "@/server/services/dto";
 import { deleteLinksAction, setLinksEnabledAction } from "../actions";
@@ -63,11 +65,6 @@ const STATUS_STYLES: Record<
 };
 
 function toCsv(rows: LinkDto[]): string {
-  const esc = (v: unknown) => {
-    let s = v === null || v === undefined ? "" : String(v);
-    if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
-    return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-  };
   const header = [
     "code",
     "short_url",
@@ -95,19 +92,10 @@ function toCsv(rows: LinkDto[]): string {
       r.hasPassword,
       r.createdAt,
     ]
-      .map(esc)
+      .map(csvField)
       .join(","),
   );
   return [header.join(","), ...lines].join("\r\n");
-}
-
-function downloadText(text: string, filename: string, type: string) {
-  const url = URL.createObjectURL(new Blob([text], { type }));
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
 }
 
 export interface LinksTableProps {

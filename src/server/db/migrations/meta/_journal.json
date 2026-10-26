@@ -15,6 +15,13 @@
       "when": 1793003725674,
       "tag": "0001_link_tags",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793006556311,
+      "tag": "0002_qr_options",
+      "breakpoints": true
     }
   ]
 }

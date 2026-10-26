@@ -29,7 +29,7 @@ import type {
   TimeseriesPoint,
   UserOverviewStats,
 } from "@/server/domain/types";
-import type { ILinkRepository } from "@/server/repositories/link.repository";
+import type { CodeHolder, ILinkRepository } from "@/server/repositories/link.repository";
 import { rethrowUniqueViolation } from "./pg-errors";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -67,6 +67,19 @@ export class DrizzleLinkRepository implements ILinkRepository {
       .where(and(eq(links.code, code), isNull(links.deletedAt)))
       .limit(1);
     return row ?? null;
+  }
+
+  async findCodeHolders(codes: readonly string[]): Promise<CodeHolder[]> {
+    if (codes.length === 0) return [];
+    return this.db
+      .select({
+        code: links.code,
+        userId: links.userId,
+        destinationUrl: links.destinationUrl,
+        deletedAt: links.deletedAt,
+      })
+      .from(links)
+      .where(inArray(links.code, [...codes]));
   }
 
   async list(query: LinkListQuery): Promise<Page<Link>> {
