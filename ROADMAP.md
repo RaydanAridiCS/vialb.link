@@ -24,13 +24,17 @@ These were consciously left out of the first release or only partially done:
 - **Resend email verification** from the UI when `REQUIRE_EMAIL_VERIFICATION=true`.
 - **Enforcing 2FA for admins** (instance setting).
 
+## Shipped since v0.1 planning
+
+- Per-link UTM builder in the link form
+- Tags on links, tag filter in the dashboard, `tags` in the REST API
+
 ## Next
 
 - Folders for links (tags and tag filtering shipped)
 - CSV bulk import from the dashboard
 - Webhooks on click thresholds, expiry, limit reached
 - Link-in-bio / "preview before redirect" interstitial option
-- Per-link UTM builder in the create form
 - Custom 404 / gone page branding per instance
 
 ## Later

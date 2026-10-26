@@ -17,6 +17,9 @@ is maintained automatically by
 - 302/307 redirects with `no-store`, UTM/query forwarding and click recording after the response
 - Privacy-friendly analytics: hashed visitor IDs with a daily salt, geo via CDN headers or GeoLite2, UA/bot parsing,
   SQL aggregations (zero-filled time series, weekday × hour heatmap, top countries/cities/devices/browsers/OS/referrers/UTM/languages), CSV export
+- Link tags: normalized lowercase labels (max 10 per link), chip input in the link form, tag filter and pills in the
+  links table (also in the admin view), `tags` on the REST API (create, update, response); migration `0001_link_tags`
+- UTM campaign builder in the link form: presets, live preview, applies `utm_*` parameters to the long URL
 - Dashboard: searchable/filterable links table, bulk disable/delete/CSV export, edit page, QR dialog (PNG/SVG, custom colours)
 - Accounts: email + password, optional GitHub/Google OAuth, TOTP 2FA with backup codes, password reset (SMTP), data export, account deletion
 - First user becomes admin; admin area with instance settings, user ban/role management and all links

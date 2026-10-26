@@ -31,6 +31,8 @@
 - 📊 **Analytics without tracking**: clicks over time, weekday × hour heatmap, countries & cities, devices, browsers, OS, referrers, UTM campaigns, languages, bot filtering, CSV export. Raw IPs are never stored.
 - 🧾 **QR codes**: PNG/SVG on demand with your colours
 - 🧰 **Dashboard**: search, filters, sorting, bulk disable/delete/export, edit everything except the code
+- 🏷️ **Tags**: label links (`promo`, `client-work`) and filter the dashboard by tag, also via the API
+- 🎯 **UTM builder**: add `utm_*` campaign parameters to a destination with presets and a live preview
 - 🔑 **REST API**: API keys, per-key rate limits, OpenAPI 3.1 + interactive docs
 - 👥 **Accounts**: email/password, optional GitHub & Google, TOTP 2FA with backup codes, data export, account deletion
 - 🛡️ **Admin**: instance settings, user roles and bans, every link on the instance, stats
@@ -110,7 +112,8 @@ curl -X POST https://go.example.com/api/v1/links \
 ```
 
 Interactive reference at `/docs/api`, OpenAPI document at `/api/v1/openapi.json`,
-and more examples in [docs/api.md](docs/api.md).
+and more examples in [docs/api.md](docs/api.md). Tags and the UTM builder are described in
+[docs/link-organization.md](docs/link-organization.md).
 
 ## Tech stack
 

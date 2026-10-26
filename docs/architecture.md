@@ -104,6 +104,7 @@ erDiagram
     uuid id PK "uuidv7"
     text code UK "case-sensitive"
     text destination_url
+    text_array tags "normalized labels, GIN indexed"
     text password_hash "argon2id (bcrypt legacy)"
     timestamptz expires_at
     int max_clicks
@@ -123,6 +124,10 @@ erDiagram
     bool is_bot
   }
 ```
+
+Tags are a plain `text[]` on `links` (no join table): one owner, small lists, filtered
+with `tags @> ARRAY[tag]` through a GIN index. See
+[Organizing and tracking links](link-organization.md) for tags and the UTM builder.
 
 Plus `instance_settings` (single row of admin overrides on top of env
 defaults), `daily_salts` (one random salt per UTC day) and Better Auth's tables.
