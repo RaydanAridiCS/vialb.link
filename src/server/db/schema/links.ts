@@ -24,6 +24,11 @@ export const links = pgTable(
     destinationUrl: text("destination_url").notNull(),
     userId: text("user_id").references(() => user.id, { onDelete: "cascade" }),
     title: text("title"),
+    /** Normalized (lowercase) labels used to group and filter links in the dashboard. */
+    tags: text("tags")
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
     passwordHash: text("password_hash"),
     expiresAt: timestamp("expires_at", { withTimezone: true }),
     maxClicks: integer("max_clicks"),
@@ -48,6 +53,7 @@ export const links = pgTable(
     uniqueIndex("links_code_unique").on(t.code),
     index("links_user_created_idx").on(t.userId, t.createdAt.desc()),
     index("links_expires_at_idx").on(t.expiresAt),
+    index("links_tags_idx").using("gin", t.tags),
     index("links_claim_token_idx")
       .on(t.claimTokenHash)
       .where(sql`${t.claimTokenHash} is not null`),

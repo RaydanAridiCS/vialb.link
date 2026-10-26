@@ -11,14 +11,19 @@ export const metadata: Metadata = { title: "All links" };
 export default async function AdminLinksPage({ searchParams }: PageProps<"/admin/links">) {
   const { actor } = await requireAdminSession();
   const params = linkListParamsSchema.parse(await searchParams);
-  const result = await getContainer().links.list(actor, {
-    scope: "all",
-    search: params.q,
-    status: params.status,
-    sort: params.sort,
-    page: params.page,
-    pageSize: params.pageSize ?? 25,
-  });
+  const { links } = getContainer();
+  const [result, tags] = await Promise.all([
+    links.list(actor, {
+      scope: "all",
+      search: params.q,
+      tag: params.tag,
+      status: params.status,
+      sort: params.sort,
+      page: params.page,
+      pageSize: params.pageSize ?? 25,
+    }),
+    links.listTags(actor, "all"),
+  ]);
   return (
     <>
       <PageHeader
@@ -31,6 +36,7 @@ export default async function AdminLinksPage({ searchParams }: PageProps<"/admin
           total={result.total}
           page={result.page}
           pageSize={result.pageSize}
+          tags={tags}
           admin
         />
       </Suspense>

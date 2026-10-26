@@ -67,6 +67,8 @@ export const RESERVED_CODES: ReadonlySet<string> = new Set(
 export const LIMITS = {
   urlMaxLength: 2048,
   titleMax: 100,
+  tagMaxLength: 30,
+  tagsPerLinkMax: 10,
   ogTitleMax: 70,
   ogDescriptionMax: 200,
   passwordMin: 4,

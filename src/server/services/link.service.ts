@@ -3,6 +3,7 @@ import {
   CODE_MAX_ATTEMPTS_PER_LENGTH,
   CODE_MAX_LENGTH_GROWTH,
   CUSTOM_CODE_PATTERN,
+  LIMITS,
   RATE_LIMITS,
   RESERVED_CODES,
   type ExpirationPreset,
@@ -17,6 +18,7 @@ import type {
   Page,
 } from "@/server/domain/types";
 import { ConflictError, NotFoundError, UniqueViolationError, ValidationError } from "@/server/errors";
+import { isValidTag, normalizeTag, normalizeTags } from "@/lib/tags";
 import { earliest, resolveExpiresAt } from "@/server/lib/expiry";
 import { randomToken, sha256Hex } from "@/server/lib/hashing";
 import type { Clock } from "@/server/ports/clock";
@@ -37,6 +39,7 @@ export interface CreateLinkCommand {
   destinationUrl: string;
   customCode?: string;
   title?: string | null;
+  tags?: string[];
   expiration?: ExpirationInput;
   maxClicks?: number | null;
   password?: string | null;
@@ -50,6 +53,8 @@ export interface CreateLinkCommand {
 export interface UpdateLinkCommand {
   destinationUrl?: string;
   title?: string | null;
+  /** `undefined` keeps the current tags; an array replaces them. */
+  tags?: string[];
   /** `undefined` keeps the current expiration. */
   expiration?: ExpirationInput;
   maxClicks?: number | null;
@@ -77,6 +82,7 @@ export interface CreatedLink {
 export interface ListLinksInput {
   scope?: "mine" | "all";
   search?: string;
+  tag?: string;
   status?: LinkStatusFilter;
   sort?: LinkSort;
   page?: number;
@@ -140,6 +146,7 @@ export class LinkService {
       destinationUrl,
       userId: actor.kind === "user" ? actor.userId : null,
       title: cmd.title?.trim() || null,
+      tags: this.cleanTags(cmd.tags),
       passwordHash: cmd.password ? await this.deps.hasher.hash(cmd.password) : null,
       expiresAt,
       maxClicks: cmd.maxClicks ?? null,
@@ -199,6 +206,20 @@ export class LinkService {
     throw new Error("Could not generate a unique short code");
   }
 
+  /** Normalizes and validates tags; the same rules apply to forms, the API and imports. */
+  private cleanTags(raw: readonly string[] | undefined): string[] {
+    const tags = normalizeTags(raw ?? []);
+    if (tags.length > LIMITS.tagsPerLinkMax) {
+      throw new ValidationError(`A link can have at most ${LIMITS.tagsPerLinkMax} tags`, { field: "tags" });
+    }
+    if (tags.some((tag) => !isValidTag(tag))) {
+      throw new ValidationError(`Tags are up to ${LIMITS.tagMaxLength} letters, numbers, - or _`, {
+        field: "tags",
+      });
+    }
+    return tags;
+  }
+
   private assertOgImage(url: string | null | undefined) {
     if (!url) return;
     let parsed: URL;
@@ -234,6 +255,7 @@ export class LinkService {
       patch.destinationUrl = destinationUrl;
     }
     if (cmd.title !== undefined) patch.title = cmd.title?.trim() || null;
+    if (cmd.tags !== undefined) patch.tags = this.cleanTags(cmd.tags);
     if (cmd.expiration !== undefined) {
       patch.expiresAt = resolveExpiresAt(cmd.expiration.preset, cmd.expiration.customAt, now);
     }
@@ -290,6 +312,7 @@ export class LinkService {
     const page = await this.deps.links.list({
       userId: all ? undefined : user.userId,
       search: input.search,
+      tag: input.tag ? normalizeTag(input.tag) : undefined,
       status: input.status ?? "all",
       sort: input.sort ?? "created_desc",
       page: Math.max(1, input.page ?? 1),
@@ -297,6 +320,12 @@ export class LinkService {
       now: this.deps.clock.now(),
     });
     return { ...page, items: page.items.map((l) => this.dto(l)) };
+  }
+
+  /** Tags in use, for the dashboard filter. Admins listing every link see every tag. */
+  async listTags(actor: Actor, scope: "mine" | "all" = "mine"): Promise<string[]> {
+    const user = requireUser(actor);
+    return this.deps.links.listTags(scope === "all" && isAdmin(actor) ? undefined : user.userId);
   }
 
   async listByCursor(

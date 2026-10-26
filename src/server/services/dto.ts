@@ -9,6 +9,7 @@ export interface LinkDto {
   shortUrl: string;
   destinationUrl: string;
   title: string | null;
+  tags: string[];
   hasPassword: boolean;
   expiresAt: string | null;
   maxClicks: number | null;
@@ -43,6 +44,7 @@ export function toLinkDto(link: Link, siteUrl: string, now: Date): LinkDto {
     shortUrl: shortUrlFor(siteUrl, link.code),
     destinationUrl: link.destinationUrl,
     title: link.title,
+    tags: link.tags,
     hasPassword: link.passwordHash !== null,
     expiresAt: link.expiresAt?.toISOString() ?? null,
     maxClicks: link.maxClicks,

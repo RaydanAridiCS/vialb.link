@@ -47,6 +47,7 @@ import { formatDate, formatNumber } from "@/lib/format";
 import type { LinkDto, LinkStatus } from "@/server/services/dto";
 import { deleteLinksAction, setLinksEnabledAction } from "../actions";
 import { QrDialog } from "./qr-dialog";
+import { TagBadge } from "./tag-badge";
 
 const features = tableFeatures({ rowSelectionFeature });
 const helper = createColumnHelper<typeof features, LinkDto>();
@@ -72,6 +73,7 @@ function toCsv(rows: LinkDto[]): string {
     "short_url",
     "destination_url",
     "title",
+    "tags",
     "status",
     "clicks",
     "max_clicks",
@@ -85,6 +87,7 @@ function toCsv(rows: LinkDto[]): string {
       r.shortUrl,
       r.destinationUrl,
       r.title,
+      r.tags.join(" "),
       r.status,
       r.clickCount,
       r.maxClicks,
@@ -112,10 +115,12 @@ export interface LinksTableProps {
   total: number;
   page: number;
   pageSize: number;
+  /** Every tag in use in the current scope, for the filter dropdown. */
+  tags?: string[];
   admin?: boolean;
 }
 
-export function LinksTable({ links, total, page, pageSize, admin = false }: LinksTableProps) {
+export function LinksTable({ links, total, page, pageSize, tags = [], admin = false }: LinksTableProps) {
   const router = useRouter();
   const [qrLink, setQrLink] = useState<LinkDto | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string[] | null>(null);
@@ -188,6 +193,7 @@ export function LinksTable({ links, total, page, pageSize, admin = false }: Link
                 <p className="truncate text-xs text-muted-foreground" title={link.destinationUrl}>
                   {link.destinationUrl}
                 </p>
+                {link.tags.length > 0 ? <TagList tags={link.tags} /> : null}
               </div>
             );
           },
@@ -286,7 +292,7 @@ export function LinksTable({ links, total, page, pageSize, admin = false }: Link
 
   return (
     <div className="space-y-4">
-      <Toolbar />
+      <Toolbar tags={tags} />
 
       {selected.length > 0 ? (
         <div
@@ -413,7 +419,7 @@ function useUrlParams() {
   return { searchParams, set, pending };
 }
 
-function Toolbar() {
+function Toolbar({ tags }: { tags: string[] }) {
   const { searchParams, set, pending } = useUrlParams();
   const [query, setQuery] = useState(searchParams.get("q") ?? "");
 
@@ -424,6 +430,10 @@ function Toolbar() {
     return () => clearTimeout(handle);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query]);
+
+  // Keep the active filter selectable even if no remaining link carries it.
+  const activeTag = searchParams.get("tag");
+  const tagOptions = activeTag && !tags.includes(activeTag) ? [...tags, activeTag] : tags;
 
   return (
     <div className="flex flex-col gap-2 sm:flex-row sm:items-center" aria-busy={pending}>
@@ -456,6 +466,24 @@ function Toolbar() {
           <SelectItem value="protected">Password protected</SelectItem>
         </SelectContent>
       </Select>
+      {tags.length > 0 || searchParams.has("tag") ? (
+        <Select
+          value={searchParams.get("tag") ?? "all"}
+          onValueChange={(v) => set({ tag: v === "all" ? null : v })}
+        >
+          <SelectTrigger className="w-full data-[size=default]:h-10 sm:w-44" aria-label="Filter by tag">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All tags</SelectItem>
+            {tagOptions.map((tag) => (
+              <SelectItem key={tag} value={tag}>
+                {tag}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      ) : null}
       <Select
         value={searchParams.get("sort") ?? "created_desc"}
         onValueChange={(v) => set({ sort: v === "created_desc" ? null : v })}
@@ -471,6 +499,32 @@ function Toolbar() {
         </SelectContent>
       </Select>
     </div>
+  );
+}
+
+/** Tag pills in a table row; clicking one filters the list by that tag. */
+function TagList({ tags }: { tags: string[] }) {
+  const { searchParams, set } = useUrlParams();
+  const active = searchParams.get("tag");
+  return (
+    <ul className="flex flex-wrap gap-1 pt-0.5" aria-label="Tags">
+      {tags.map((tag) => (
+        <li key={tag}>
+          <button
+            type="button"
+            aria-label={`Filter by tag ${tag}`}
+            aria-pressed={active === tag}
+            className="rounded-full outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            onClick={() => set({ tag: active === tag ? null : tag })}
+          >
+            <TagBadge
+              tag={tag}
+              className={active === tag ? "ring-1 ring-primary" : "hover:bg-secondary/70"}
+            />
+          </button>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -514,7 +568,7 @@ function Pagination({ total, page, pageSize }: { total: number; page: number; pa
 
 function EmptyState() {
   const searchParams = useSearchParams();
-  const filtered = searchParams.has("q") || searchParams.has("status");
+  const filtered = searchParams.has("q") || searchParams.has("status") || searchParams.has("tag");
   return (
     <div className="mx-auto flex max-w-sm flex-col items-center gap-3 text-muted-foreground">
       <span className="grid size-12 place-items-center rounded-2xl bg-accent text-accent-foreground">

@@ -1,6 +1,7 @@
 import "server-only";
 import {
   and,
+  arrayContains,
   asc,
   count,
   desc,
@@ -80,6 +81,8 @@ export class DrizzleLinkRepository implements ILinkRepository {
       );
     }
 
+    if (query.tag) conditions.push(arrayContains(links.tags, [query.tag]));
+
     const limitReached = and(isNotNull(links.maxClicks), sql`${links.clickCount} >= ${links.maxClicks}`);
     const expired = and(isNotNull(links.expiresAt), lte(links.expiresAt, query.now));
     switch (query.status) {
@@ -129,6 +132,16 @@ export class DrizzleLinkRepository implements ILinkRepository {
     ]);
 
     return { items, total: totals[0]?.total ?? 0, page: query.page, pageSize: query.pageSize };
+  }
+
+  async listTags(userId: string | undefined): Promise<string[]> {
+    const tag = sql<string>`unnest(${links.tags})`;
+    const rows = await this.db
+      .selectDistinct({ tag })
+      .from(links)
+      .where(and(isNull(links.deletedAt), userId === undefined ? undefined : eq(links.userId, userId)))
+      .orderBy(tag);
+    return rows.map((row) => row.tag);
   }
 
   async listByCursor(userId: string, cursor: string | null, limit: number): Promise<CursorPage<Link>> {

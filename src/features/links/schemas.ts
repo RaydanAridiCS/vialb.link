@@ -9,6 +9,7 @@ import {
   LIMITS,
   RESERVED_CODES,
 } from "@/lib/constants";
+import { isValidTag, normalizeTag } from "@/lib/tags";
 
 /**
  * Schemas shared by the client forms (react-hook-form), server actions and
@@ -50,6 +51,13 @@ export const httpsUrlSchema = z
     }
   }, "Must be an https:// URL (uploads/base64 are not supported)");
 
+/** Accepts what people type (`#Promo`, `client work`); the service stores the normalized form. */
+export const tagSchema = z.string().refine((value) => isValidTag(normalizeTag(value)), {
+  message: `Tags are up to ${LIMITS.tagMaxLength} letters, numbers, - or _`,
+});
+
+const tagsSchema = z.array(tagSchema).max(LIMITS.tagsPerLinkMax, `At most ${LIMITS.tagsPerLinkMax} tags`);
+
 const optionalText = (max: number) => z.string().trim().max(max, `At most ${max} characters`).optional();
 
 const dateString = z
@@ -65,6 +73,7 @@ const passwordSchema = z
 const linkFieldsShape = {
   destinationUrl: destinationUrlSchema,
   title: optionalText(LIMITS.titleMax),
+  tags: tagsSchema,
   expiresAt: dateString.optional().or(z.literal("")),
   accessLimit: z.enum(ACCESS_LIMIT_PRESETS),
   maxClicks: z.string().optional(),
@@ -141,6 +150,7 @@ export const claimSchema = z.object({ tokens: z.array(z.string().min(16).max(64)
 
 export const linkListParamsSchema = z.object({
   q: z.string().trim().max(200).optional().catch(undefined),
+  tag: z.string().trim().max(LIMITS.tagMaxLength).optional().catch(undefined),
   status: z.enum(["all", "active", "expired", "disabled", "protected"]).optional().catch(undefined),
   sort: z.enum(["created_desc", "created_asc", "clicks_desc", "clicks_asc"]).optional().catch(undefined),
   page: z.coerce.number().int().min(1).max(100000).optional().catch(undefined),
@@ -151,6 +161,7 @@ export const DEFAULT_LINK_FORM: CreateLinkFormValues = {
   destinationUrl: "",
   customCode: "",
   title: "",
+  tags: [],
   expiration: "never",
   expiresAt: "",
   accessLimit: "unlimited",

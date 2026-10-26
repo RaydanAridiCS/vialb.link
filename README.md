@@ -147,7 +147,7 @@ model and the security model are in [docs/architecture.md](docs/architecture.md)
 
 ## Roadmap
 
-See [ROADMAP.md](ROADMAP.md). Next up: tags, CSV import, webhooks and custom domains.
+See [ROADMAP.md](ROADMAP.md). Next up: CSV import, webhooks and custom domains.
 
 ## Contributing
 

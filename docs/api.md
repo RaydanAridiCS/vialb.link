@@ -76,6 +76,7 @@ curl -X POST "$TW/api/v1/links" \
         "url": "https://example.com/a/very/long/path",
         "code": "launch",
         "title": "Launch page",
+        "tags": ["promo", "client-work"],
         "expiresAt": "2026-12-31T23:59:59Z",
         "maxClicks": 1000,
         "password": "s3cret"
@@ -96,6 +97,11 @@ curl "$TW/api/v1/links/<id>/stats?from=2026-01-01T00:00:00Z&to=2026-02-01T00:00:
 # QR code
 curl -o qr.png "$TW/api/v1/links/<id>/qr.png?size=1024" -H "Authorization: Bearer $KEY"
 ```
+
+Tags are lowercase labels (up to 10 per link, 30 characters each: letters, numbers,
+`-` or `_`). `#Promo` and `Client Work` are stored as `promo` and `client-work`.
+`PATCH` with `tags` replaces all tags (`[]` clears them); omit the field to keep them.
+Filtering by tag is available in the dashboard (`/dashboard/links?tag=promo`).
 
 Creating a link for a destination you shortened before always creates a **new**
 link; there is no implicit de-duplication.

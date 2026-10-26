@@ -26,7 +26,7 @@ These were consciously left out of the first release or only partially done:
 
 ## Next
 
-- Tags / folders for links and filtering by tag
+- Folders for links (tags and tag filtering shipped)
 - CSV bulk import from the dashboard
 - Webhooks on click thresholds, expiry, limit reached
 - Link-in-bio / "preview before redirect" interstitial option

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { LIMITS } from "@/lib/constants";
 import type { CreateLinkCommand, UpdateLinkCommand } from "@/server/services/link.service";
-import { customCodeSchema, destinationUrlSchema, hexColorSchema, httpsUrlSchema } from "./schemas";
+import { customCodeSchema, destinationUrlSchema, hexColorSchema, httpsUrlSchema, tagSchema } from "./schemas";
 
 /**
  * REST API v1 request/response schemas. Built from the same field validators
@@ -9,6 +9,7 @@ import { customCodeSchema, destinationUrlSchema, hexColorSchema, httpsUrlSchema 
  */
 
 const password = z.string().min(LIMITS.passwordMin).max(LIMITS.passwordMax);
+const tags = z.array(tagSchema).max(LIMITS.tagsPerLinkMax);
 const maxClicks = z.int().min(LIMITS.maxClicksMin).max(LIMITS.maxClicksMax);
 
 export const apiCreateLinkSchema = z
@@ -21,6 +22,10 @@ export const apiCreateLinkSchema = z
       .optional()
       .meta({ description: "Custom short code (case-sensitive)", example: "launch-2026" }),
     title: z.string().trim().max(LIMITS.titleMax).optional(),
+    tags: tags.optional().meta({
+      description: "Labels for grouping links; stored lowercase",
+      example: ["promo", "client-work"],
+    }),
     expiresAt: z.iso
       .datetime({ offset: true })
       .nullable()
@@ -40,6 +45,7 @@ export const apiUpdateLinkSchema = z
   .object({
     url: destinationUrlSchema.optional(),
     title: z.string().trim().max(LIMITS.titleMax).nullable().optional(),
+    tags: tags.optional().meta({ description: "Replaces all tags; omit to keep them" }),
     expiresAt: z.iso
       .datetime({ offset: true })
       .nullable()
@@ -77,6 +83,7 @@ export const linkSchema = z
     shortUrl: z.url(),
     destinationUrl: z.url(),
     title: z.string().nullable(),
+    tags: z.array(z.string()),
     hasPassword: z.boolean(),
     expiresAt: z.string().nullable(),
     maxClicks: z.number().int().nullable(),
@@ -138,6 +145,7 @@ export function toCreateCommand(input: z.output<typeof apiCreateLinkSchema>): Cr
     destinationUrl: input.url,
     customCode: input.code,
     title: input.title ?? null,
+    tags: input.tags,
     expiration: input.expiresAt
       ? { preset: "custom", customAt: new Date(input.expiresAt) }
       : { preset: "never" },
@@ -155,6 +163,7 @@ export function toUpdateCommand(input: z.output<typeof apiUpdateLinkSchema>): Up
   return {
     destinationUrl: input.url,
     title: input.title,
+    tags: input.tags,
     expiration:
       input.expiresAt === undefined
         ? undefined

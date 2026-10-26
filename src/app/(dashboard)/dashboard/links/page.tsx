@@ -11,18 +11,29 @@ export const metadata: Metadata = { title: "Links" };
 export default async function LinksPage({ searchParams }: PageProps<"/dashboard/links">) {
   const { actor } = await requireSession();
   const params = linkListParamsSchema.parse(await searchParams);
-  const result = await getContainer().links.list(actor, {
-    search: params.q,
-    status: params.status,
-    sort: params.sort,
-    page: params.page,
-    pageSize: params.pageSize ?? 20,
-  });
+  const { links } = getContainer();
+  const [result, tags] = await Promise.all([
+    links.list(actor, {
+      search: params.q,
+      tag: params.tag,
+      status: params.status,
+      sort: params.sort,
+      page: params.page,
+      pageSize: params.pageSize ?? 20,
+    }),
+    links.listTags(actor),
+  ]);
   return (
     <>
       <PageHeader title="Links" description="Search, filter and manage every short link you own." />
       <Suspense>
-        <LinksTable links={result.items} total={result.total} page={result.page} pageSize={result.pageSize} />
+        <LinksTable
+          links={result.items}
+          total={result.total}
+          page={result.page}
+          pageSize={result.pageSize}
+          tags={tags}
+        />
       </Suspense>
     </>
   );

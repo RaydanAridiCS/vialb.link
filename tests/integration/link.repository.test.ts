@@ -103,6 +103,40 @@ describe("DrizzleLinkRepository", () => {
     expect(new Set(ids).size).toBe(5);
   });
 
+  it("stores tags, filters by tag and lists distinct tags per owner", async () => {
+    const alice = (await createUser(db)).id;
+    const bob = (await createUser(db)).id;
+    await repo.create({
+      code: "t1",
+      destinationUrl: "https://x.example",
+      userId: alice,
+      tags: ["promo", "menus"],
+    });
+    await repo.create({ code: "t2", destinationUrl: "https://x.example", userId: alice, tags: ["promo"] });
+    await repo.create({ code: "t3", destinationUrl: "https://x.example", userId: alice });
+    const gone = await repo.create({
+      code: "t4",
+      destinationUrl: "https://x.example",
+      userId: alice,
+      tags: ["deleted"],
+    });
+    await repo.create({ code: "t5", destinationUrl: "https://x.example", userId: bob, tags: ["bob-only"] });
+    await repo.softDelete([gone.id], now);
+
+    const query = { page: 1, pageSize: 20, now, userId: alice };
+    expect((await repo.list({ ...query, tag: "promo" })).total).toBe(2);
+    expect((await repo.list({ ...query, tag: "menus" })).items.map((l) => l.code)).toEqual(["t1"]);
+    expect((await repo.list({ ...query, tag: "bob-only" })).total).toBe(0);
+    expect((await repo.findByCode("t3"))?.tags).toEqual([]);
+
+    expect(await repo.listTags(alice)).toEqual(["menus", "promo"]);
+    expect(await repo.listTags(undefined)).toEqual(["bob-only", "menus", "promo"]);
+
+    const first = await repo.findByCode("t1");
+    if (!first) throw new Error("expected link t1");
+    expect((await repo.update(first.id, { tags: ["replaced"] }))?.tags).toEqual(["replaced"]);
+  });
+
   it("updates, enables/disables and soft-deletes", async () => {
     const link = await repo.create({ code: "upd", destinationUrl: "https://x.example" });
     const updated = await repo.update(link.id, { title: "New", maxClicks: 5 });

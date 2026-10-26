@@ -30,6 +30,7 @@ export const createLinkAction = authActionClient
         destinationUrl: input.destinationUrl,
         customCode: input.customCode || undefined,
         title: emptyToNull(input.title),
+        tags: input.tags,
         expiration: {
           preset: input.expiration,
           customAt: input.expiration === "custom" && input.expiresAt ? new Date(input.expiresAt) : null,
@@ -69,6 +70,7 @@ export const updateLinkAction = authActionClient
     const link = await getContainer().links.update(ctx.actor, input.id, {
       destinationUrl: input.destinationUrl,
       title: emptyToNull(input.title),
+      tags: input.tags,
       expiration:
         input.expiration === "keep"
           ? undefined

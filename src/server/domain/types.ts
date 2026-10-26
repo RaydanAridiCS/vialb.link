@@ -16,6 +16,7 @@ export interface Link {
   destinationUrl: string;
   userId: string | null;
   title: string | null;
+  tags: string[];
   passwordHash: string | null;
   expiresAt: Date | null;
   maxClicks: number | null;
@@ -39,6 +40,7 @@ export type NewLink = Pick<Link, "code" | "destinationUrl"> &
       Link,
       | "userId"
       | "title"
+      | "tags"
       | "passwordHash"
       | "expiresAt"
       | "maxClicks"
@@ -60,6 +62,7 @@ export type LinkPatch = Partial<
     Link,
     | "destinationUrl"
     | "title"
+    | "tags"
     | "passwordHash"
     | "expiresAt"
     | "maxClicks"
@@ -81,6 +84,8 @@ export interface LinkListQuery {
   /** Restrict to one owner. `undefined` = every link (admin only). */
   userId?: string;
   search?: string;
+  /** Only links carrying this (normalized) tag. */
+  tag?: string;
   status?: LinkStatusFilter;
   sort?: LinkSort;
   page: number;

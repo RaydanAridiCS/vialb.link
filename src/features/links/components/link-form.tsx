@@ -38,6 +38,7 @@ import type { LinkDto } from "@/server/services/dto";
 import { createLinkAction, updateLinkAction } from "../actions";
 import { createLinkSchema, updateLinkSchema } from "../schemas";
 import { QrPreview } from "./qr-preview";
+import { TagsInput } from "./tags-input";
 import { UtmBuilder } from "./utm-builder";
 
 interface LinkFormValues {
@@ -45,6 +46,7 @@ interface LinkFormValues {
   destinationUrl: string;
   customCode: string;
   title: string;
+  tags: string[];
   expiration: ExpirationPreset | "keep";
   expiresAt: string;
   accessLimit: AccessLimitPreset;
@@ -82,6 +84,7 @@ function defaultsFor(link?: LinkDto): LinkFormValues {
     destinationUrl: link?.destinationUrl ?? "",
     customCode: "",
     title: link?.title ?? "",
+    tags: link?.tags ?? [],
     expiration: link ? "keep" : "never",
     expiresAt: toLocalInput(link?.expiresAt ?? null),
     accessLimit: (isPreset ? presetLimit : "custom") as AccessLimitPreset,
@@ -97,7 +100,16 @@ function defaultsFor(link?: LinkDto): LinkFormValues {
   };
 }
 
-export function LinkForm({ link, siteUrl }: { link?: LinkDto; siteUrl: string }) {
+export function LinkForm({
+  link,
+  siteUrl,
+  tagSuggestions,
+}: {
+  link?: LinkDto;
+  siteUrl: string;
+  /** Tags the user already has, offered while typing. */
+  tagSuggestions?: string[];
+}) {
   const router = useRouter();
   const mode = link ? "edit" : "create";
   const form = useForm<LinkFormValues>({
@@ -149,6 +161,7 @@ export function LinkForm({ link, siteUrl }: { link?: LinkDto; siteUrl: string })
     const shared = {
       destinationUrl: values.destinationUrl,
       title: values.title,
+      tags: values.tags,
       expiresAt: values.expiration === "custom" ? toIso(values.expiresAt) : undefined,
       accessLimit: values.accessLimit,
       maxClicks: values.maxClicks,
@@ -249,6 +262,26 @@ export function LinkForm({ link, siteUrl }: { link?: LinkDto; siteUrl: string })
                         {...field}
                       />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="tags"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel htmlFor="link-tags">Tags (optional)</FormLabel>
+                    <TagsInput
+                      id="link-tags"
+                      value={field.value}
+                      onChange={field.onChange}
+                      suggestions={tagSuggestions}
+                    />
+                    <FormDescription>
+                      Group links to filter them later. Press Enter or comma to add; up to{" "}
+                      {LIMITS.tagsPerLinkMax} tags of letters, numbers, - or _.
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}

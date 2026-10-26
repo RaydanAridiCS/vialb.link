@@ -15,6 +15,8 @@ export interface ILinkRepository {
   /** Active (not soft-deleted) link by exact, case-sensitive code. */
   findByCode(code: string): Promise<Link | null>;
   list(query: LinkListQuery): Promise<Page<Link>>;
+  /** Distinct tags across a user's non-deleted links, sorted alphabetically. `undefined` = every user (admin). */
+  listTags(userId: string | undefined): Promise<string[]>;
   listByCursor(userId: string, cursor: string | null, limit: number): Promise<CursorPage<Link>>;
   /** Every non-deleted link owned by a user (data export). */
   listAllByUser(userId: string): Promise<Link[]>;

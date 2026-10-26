@@ -28,6 +28,7 @@ export class InMemoryLinkRepository implements ILinkRepository {
       destinationUrl: input.destinationUrl,
       userId: input.userId ?? null,
       title: input.title ?? null,
+      tags: input.tags ?? [],
       passwordHash: input.passwordHash ?? null,
       expiresAt: input.expiresAt ?? null,
       maxClicks: input.maxClicks ?? null,
@@ -74,6 +75,8 @@ export class InMemoryLinkRepository implements ILinkRepository {
         [l.code, l.title ?? "", l.destinationUrl].some((v) => v.toLowerCase().includes(search)),
       );
     }
+    const { tag } = query;
+    if (tag) items = items.filter((l) => l.tags.includes(tag));
     switch (query.status) {
       case "active":
         items = items.filter((l) => l.isEnabled && !isExpired(l));
@@ -111,6 +114,15 @@ export class InMemoryLinkRepository implements ILinkRepository {
       page: query.page,
       pageSize: query.pageSize,
     };
+  }
+
+  async listTags(userId: string | undefined): Promise<string[]> {
+    const tags = new Set<string>();
+    for (const link of this.rows.values()) {
+      if (link.deletedAt || (userId !== undefined && link.userId !== userId)) continue;
+      for (const tag of link.tags) tags.add(tag);
+    }
+    return [...tags].sort();
   }
 
   async listByCursor(userId: string, cursor: string | null, limit: number): Promise<CursorPage<Link>> {
