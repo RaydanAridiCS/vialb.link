@@ -83,6 +83,7 @@ export class DrizzleLinkRepository implements ILinkRepository {
       .select({
         code: links.code,
         userId: links.userId,
+        workspaceId: links.workspaceId,
         destinationUrl: links.destinationUrl,
         deletedAt: links.deletedAt,
       })
@@ -92,7 +93,7 @@ export class DrizzleLinkRepository implements ILinkRepository {
 
   async list(query: LinkListQuery): Promise<Page<Link>> {
     const conditions: (SQL | undefined)[] = [isNull(links.deletedAt)];
-    if (query.userId !== undefined) conditions.push(eq(links.userId, query.userId));
+    if (query.workspaceId !== undefined) conditions.push(eq(links.workspaceId, query.workspaceId));
     if (query.kind !== "any") conditions.push(eq(links.kind, query.kind ?? "link"));
 
     const search = query.search?.trim();
@@ -156,24 +157,29 @@ export class DrizzleLinkRepository implements ILinkRepository {
     return { items, total: totals[0]?.total ?? 0, page: query.page, pageSize: query.pageSize };
   }
 
-  async listTags(userId: string | undefined): Promise<string[]> {
+  async listTags(workspaceId: string | undefined): Promise<string[]> {
     const tag = sql<string>`unnest(${links.tags})`;
     const rows = await this.db
       .selectDistinct({ tag })
       .from(links)
-      .where(and(isNull(links.deletedAt), userId === undefined ? undefined : eq(links.userId, userId)))
+      .where(
+        and(
+          isNull(links.deletedAt),
+          workspaceId === undefined ? undefined : eq(links.workspaceId, workspaceId),
+        ),
+      )
       .orderBy(tag);
     return rows.map((row) => row.tag);
   }
 
-  async listByCursor(userId: string, cursor: string | null, limit: number): Promise<CursorPage<Link>> {
+  async listByCursor(workspaceId: string, cursor: string | null, limit: number): Promise<CursorPage<Link>> {
     // uuidv7 ids are time-ordered, so the id doubles as a stable keyset cursor.
     const rows = await this.db
       .select()
       .from(links)
       .where(
         and(
-          eq(links.userId, userId),
+          eq(links.workspaceId, workspaceId),
           eq(links.kind, "link"),
           isNull(links.deletedAt),
           cursor ? lt(links.id, cursor) : undefined,
@@ -246,21 +252,23 @@ export class DrizzleLinkRepository implements ILinkRepository {
     return this.db
       .select()
       .from(links)
-      .where(and(inArray(links.claimTokenHash, [...hashes]), isNull(links.userId), isNull(links.deletedAt)));
+      .where(
+        and(inArray(links.claimTokenHash, [...hashes]), isNull(links.workspaceId), isNull(links.deletedAt)),
+      );
   }
 
-  async claim(ids: readonly string[], userId: string): Promise<number> {
+  async claim(ids: readonly string[], userId: string, workspaceId: string): Promise<number> {
     if (ids.length === 0) return 0;
     const rows = await this.db
       .update(links)
-      .set({ userId, claimTokenHash: null, updatedAt: new Date() })
-      .where(and(inArray(links.id, [...ids]), isNull(links.userId), isNull(links.deletedAt)))
+      .set({ userId, workspaceId, claimTokenHash: null, updatedAt: new Date() })
+      .where(and(inArray(links.id, [...ids]), isNull(links.workspaceId), isNull(links.deletedAt)))
       .returning({ id: links.id });
     return rows.length;
   }
 
-  async overview(userId: string | undefined, now: Date): Promise<UserOverviewStats> {
-    const owner = userId === undefined ? undefined : eq(links.userId, userId);
+  async overview(workspaceId: string | undefined, now: Date): Promise<UserOverviewStats> {
+    const owner = workspaceId === undefined ? undefined : eq(links.workspaceId, workspaceId);
     const since7 = new Date(now.getTime() - 7 * DAY_MS);
     const since30 = new Date(now.getTime() - 29 * DAY_MS);
     const humanClicks = (since: Date) =>

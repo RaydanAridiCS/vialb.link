@@ -3,7 +3,7 @@ import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { UniqueViolationError } from "@/server/errors";
 import { DrizzleLinkRepository } from "@/server/repositories/drizzle/link.repository.drizzle";
 import { DrizzleClickRepository } from "@/server/repositories/drizzle/click.repository.drizzle";
-import { connect, createUser, truncateAll } from "./helpers";
+import { connect, createUser, personalWorkspace, truncateAll } from "./helpers";
 
 const { db, close } = connect();
 const repo = new DrizzleLinkRepository(db);
@@ -43,35 +43,46 @@ describe("DrizzleLinkRepository", () => {
   it("lists with search, status filters, sorting and pagination", async () => {
     const user = await createUser(db);
     const other = await createUser(db);
+    const userSpace = await personalWorkspace(db, user.id);
+    const otherSpace = await personalWorkspace(db, other.id);
     await repo.create({
       code: "alpha",
       destinationUrl: "https://alpha.example",
       userId: user.id,
+      workspaceId: userSpace,
       title: "Alpha",
     });
     await repo.create({
       code: "beta",
       destinationUrl: "https://beta.example",
       userId: user.id,
+      workspaceId: userSpace,
       expiresAt: new Date(now.getTime() - 1000),
     });
     await repo.create({
       code: "gamma",
       destinationUrl: "https://g.example",
       userId: user.id,
+      workspaceId: userSpace,
       isEnabled: false,
     });
     await repo.create({
       code: "delta",
       destinationUrl: "https://d.example",
       userId: user.id,
+      workspaceId: userSpace,
       passwordHash: "x",
       maxClicks: 1,
       clickCount: 1,
     });
-    await repo.create({ code: "other", destinationUrl: "https://o.example", userId: other.id });
+    await repo.create({
+      code: "other",
+      destinationUrl: "https://o.example",
+      userId: other.id,
+      workspaceId: otherSpace,
+    });
 
-    const base = { userId: user.id, page: 1, pageSize: 10, now };
+    const base = { userId: user.id, workspaceId: userSpace, page: 1, pageSize: 10, now };
     expect((await repo.list(base)).total).toBe(4);
     expect((await repo.list({ ...base, search: "alp" })).items.map((l) => l.code)).toEqual(["alpha"]);
     expect((await repo.list({ ...base, search: "%" })).total).toBe(0);
@@ -91,13 +102,19 @@ describe("DrizzleLinkRepository", () => {
 
   it("paginates by cursor", async () => {
     const user = await createUser(db);
+    const workspaceId = await personalWorkspace(db, user.id);
     for (let i = 0; i < 5; i++)
-      await repo.create({ code: `c${i}xx`, destinationUrl: "https://x.example", userId: user.id });
-    const first = await repo.listByCursor(user.id, null, 2);
+      await repo.create({
+        code: `c${i}xx`,
+        destinationUrl: "https://x.example",
+        userId: user.id,
+        workspaceId,
+      });
+    const first = await repo.listByCursor(workspaceId, null, 2);
     expect(first.items).toHaveLength(2);
     expect(first.nextCursor).not.toBeNull();
-    const second = await repo.listByCursor(user.id, first.nextCursor, 2);
-    const third = await repo.listByCursor(user.id, second.nextCursor, 2);
+    const second = await repo.listByCursor(workspaceId, first.nextCursor, 2);
+    const third = await repo.listByCursor(workspaceId, second.nextCursor, 2);
     expect(third.items).toHaveLength(1);
     expect(third.nextCursor).toBeNull();
     const ids = [...first.items, ...second.items, ...third.items].map((l) => l.id);
@@ -107,30 +124,51 @@ describe("DrizzleLinkRepository", () => {
   it("stores tags, filters by tag and lists distinct tags per owner", async () => {
     const alice = (await createUser(db)).id;
     const bob = (await createUser(db)).id;
+    const aliceSpace = await personalWorkspace(db, alice);
+    const bobSpace = await personalWorkspace(db, bob);
     await repo.create({
       code: "t1",
       destinationUrl: "https://x.example",
       userId: alice,
+      workspaceId: aliceSpace,
       tags: ["promo", "menus"],
     });
-    await repo.create({ code: "t2", destinationUrl: "https://x.example", userId: alice, tags: ["promo"] });
-    await repo.create({ code: "t3", destinationUrl: "https://x.example", userId: alice });
+    await repo.create({
+      code: "t2",
+      destinationUrl: "https://x.example",
+      userId: alice,
+      workspaceId: aliceSpace,
+      tags: ["promo"],
+    });
+    await repo.create({
+      code: "t3",
+      destinationUrl: "https://x.example",
+      userId: alice,
+      workspaceId: aliceSpace,
+    });
     const gone = await repo.create({
       code: "t4",
       destinationUrl: "https://x.example",
       userId: alice,
+      workspaceId: aliceSpace,
       tags: ["deleted"],
     });
-    await repo.create({ code: "t5", destinationUrl: "https://x.example", userId: bob, tags: ["bob-only"] });
+    await repo.create({
+      code: "t5",
+      destinationUrl: "https://x.example",
+      userId: bob,
+      workspaceId: bobSpace,
+      tags: ["bob-only"],
+    });
     await repo.softDelete([gone.id], now);
 
-    const query = { page: 1, pageSize: 20, now, userId: alice };
+    const query = { page: 1, pageSize: 20, now, workspaceId: aliceSpace };
     expect((await repo.list({ ...query, tag: "promo" })).total).toBe(2);
     expect((await repo.list({ ...query, tag: "menus" })).items.map((l) => l.code)).toEqual(["t1"]);
     expect((await repo.list({ ...query, tag: "bob-only" })).total).toBe(0);
     expect((await repo.findByCode("t3"))?.tags).toEqual([]);
 
-    expect(await repo.listTags(alice)).toEqual(["menus", "promo"]);
+    expect(await repo.listTags(aliceSpace)).toEqual(["menus", "promo"]);
     expect(await repo.listTags(undefined)).toEqual(["bob-only", "menus", "promo"]);
 
     const first = await repo.findByCode("t1");
@@ -186,27 +224,48 @@ describe("DrizzleLinkRepository", () => {
 
     it("never returns soft-deleted links and keeps their tags out of listTags", async () => {
       const user = (await createUser(db)).id;
-      const gone = await repo.create({ code: "g1", destinationUrl: url, userId: user, tags: ["only-here"] });
-      await repo.create({ code: "g2", destinationUrl: url, userId: user, tags: ["kept"] });
+      const workspaceId = await personalWorkspace(db, user);
+      const gone = await repo.create({
+        code: "g1",
+        destinationUrl: url,
+        userId: user,
+        workspaceId,
+        tags: ["only-here"],
+      });
+      await repo.create({ code: "g2", destinationUrl: url, userId: user, workspaceId, tags: ["kept"] });
       await repo.softDelete([gone.id], now);
 
-      expect((await repo.list({ page: 1, pageSize: 20, now, userId: user, tag: "only-here" })).total).toBe(0);
-      expect(await repo.listTags(user)).toEqual(["kept"]);
+      expect((await repo.list({ page: 1, pageSize: 20, now, workspaceId, tag: "only-here" })).total).toBe(0);
+      expect(await repo.listTags(workspaceId)).toEqual(["kept"]);
       expect(await repo.listTags(undefined)).toEqual(["kept"]);
     });
 
     it("lists across owners in admin scope, including anonymous links, and keeps users isolated otherwise", async () => {
       const alice = (await createUser(db)).id;
       const bob = (await createUser(db)).id;
-      await repo.create({ code: "a1", destinationUrl: url, userId: alice, tags: ["shared"] });
-      await repo.create({ code: "b1", destinationUrl: url, userId: bob, tags: ["shared"] });
+      const aliceSpace = await personalWorkspace(db, alice);
+      const bobSpace = await personalWorkspace(db, bob);
+      await repo.create({
+        code: "a1",
+        destinationUrl: url,
+        userId: alice,
+        workspaceId: aliceSpace,
+        tags: ["shared"],
+      });
+      await repo.create({
+        code: "b1",
+        destinationUrl: url,
+        userId: bob,
+        workspaceId: bobSpace,
+        tags: ["shared"],
+      });
       await repo.create({ code: "n1", destinationUrl: url, tags: ["shared", "anon"] });
 
       const all = { page: 1, pageSize: 20, now, tag: "shared" };
       expect((await repo.list(all)).items.map((l) => l.code).sort()).toEqual(["a1", "b1", "n1"]);
-      expect((await repo.list({ ...all, userId: alice })).items.map((l) => l.code)).toEqual(["a1"]);
+      expect((await repo.list({ ...all, workspaceId: aliceSpace })).items.map((l) => l.code)).toEqual(["a1"]);
       expect(await repo.listTags(undefined)).toEqual(["anon", "shared"]);
-      expect(await repo.listTags(bob)).toEqual(["shared"]);
+      expect(await repo.listTags(bobSpace)).toEqual(["shared"]);
     });
 
     it("has a GIN index on tags that the containment filter can use", async () => {
@@ -295,19 +354,21 @@ describe("DrizzleLinkRepository", () => {
 
     it("stores a full import-sized batch of tagged links", async () => {
       const user = (await createUser(db)).id;
+      const workspaceId = await personalWorkspace(db, user);
       for (let i = 0; i < 50; i++) {
         await repo.create({
           code: `bulk-${i}`,
           destinationUrl: `https://x.example/${i}`,
           userId: user,
+          workspaceId,
           title: i % 2 === 0 ? `Title ${i}` : null,
           tags: i % 5 === 0 ? ["imported", "five"] : ["imported"],
         });
       }
 
-      const page = await repo.list({ page: 1, pageSize: 100, now, userId: user, tag: "imported" });
+      const page = await repo.list({ page: 1, pageSize: 100, now, workspaceId, tag: "imported" });
       expect(page.total).toBe(50);
-      expect((await repo.list({ page: 1, pageSize: 100, now, userId: user, tag: "five" })).total).toBe(10);
+      expect((await repo.list({ page: 1, pageSize: 100, now, workspaceId, tag: "five" })).total).toBe(10);
     });
   });
 
@@ -337,6 +398,7 @@ describe("DrizzleLinkRepository", () => {
 
   it("claims anonymous links by token hash", async () => {
     const user = await createUser(db);
+    const workspaceId = await personalWorkspace(db, user.id);
     const link = await repo.create({
       code: "anon1",
       destinationUrl: "https://x.example",
@@ -344,14 +406,20 @@ describe("DrizzleLinkRepository", () => {
     });
     const found = await repo.findByClaimTokenHashes(["h1", "nope"]);
     expect(found.map((l) => l.id)).toEqual([link.id]);
-    expect(await repo.claim([link.id], user.id)).toBe(1);
+    expect(await repo.claim([link.id], user.id, workspaceId)).toBe(1);
     expect(await repo.findByClaimTokenHashes(["h1"])).toHaveLength(0);
-    expect((await repo.findById(link.id))?.userId).toBe(user.id);
+    expect(await repo.findById(link.id)).toMatchObject({ userId: user.id, workspaceId });
   });
 
   it("computes overview stats with a zero-filled 30 day series", async () => {
     const user = await createUser(db);
-    const link = await repo.create({ code: "ov", destinationUrl: "https://x.example", userId: user.id });
+    const workspaceId = await personalWorkspace(db, user.id);
+    const link = await repo.create({
+      code: "ov",
+      destinationUrl: "https://x.example",
+      userId: user.id,
+      workspaceId,
+    });
     const base = {
       linkId: link.id,
       visitorHash: "v",
@@ -377,7 +445,7 @@ describe("DrizzleLinkRepository", () => {
     await clicks.record({ ...base, isBot: false, occurredAt: new Date(realNow.getTime() - 10 * 86_400_000) });
     await clicks.record({ ...base, isBot: true, occurredAt: new Date(realNow.getTime() - 60_000) });
 
-    const stats = await repo.overview(user.id, realNow);
+    const stats = await repo.overview(workspaceId, realNow);
     expect(stats.totalLinks).toBe(1);
     expect(stats.clicks7d).toBe(1);
     expect(stats.clicks30d).toBe(2);

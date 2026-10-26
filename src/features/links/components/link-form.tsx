@@ -39,6 +39,7 @@ import type { CardDesign } from "@/lib/social-card";
 import type { LinkDto } from "@/server/services/dto";
 import { createLinkAction, updateLinkAction } from "../actions";
 import { createLinkSchema, updateLinkSchema } from "../schemas";
+import { PixelsSection } from "./pixels-section";
 import { QrControls } from "./qr-controls";
 import { QrPreview } from "./qr-preview";
 import { RoutingRules } from "./routing-rules";
@@ -54,6 +55,8 @@ export interface LinkFormValues {
   tags: string[];
   routingRules: RoutingRule[];
   cardDesign: CardDesign | null;
+  /** Empty strings mean "none". */
+  pixels: { meta: string; google: string };
   expiration: ExpirationPreset | "keep";
   expiresAt: string;
   accessLimit: AccessLimitPreset;
@@ -128,6 +131,7 @@ function defaultsFor(link?: LinkDto): LinkFormValues {
     tags: link?.tags ?? [],
     routingRules: link?.routingRules ?? [],
     cardDesign: link?.cardDesign ?? null,
+    pixels: { meta: link?.pixels?.meta ?? "", google: link?.pixels?.google ?? "" },
     expiration: link ? "keep" : "never",
     expiresAt: toLocalInput(link?.expiresAt ?? null),
     accessLimit: (isPreset ? presetLimit : "custom") as AccessLimitPreset,
@@ -149,10 +153,13 @@ function defaultsFor(link?: LinkDto): LinkFormValues {
 export function LinkForm({
   link,
   siteUrl,
+  pixelsEnabled = false,
   tagSuggestions,
 }: {
   link?: LinkDto;
   siteUrl: string;
+  /** Whether the instance lets links use retargeting pixels. */
+  pixelsEnabled?: boolean;
   /** Tags the user already has, offered while typing. */
   tagSuggestions?: string[];
 }) {
@@ -197,6 +204,8 @@ export function LinkForm({
     toast.error(error.serverError ?? "Please check the form for errors");
     if (error.serverError && /^Rule \d+:/.test(error.serverError))
       form.setError("routingRules", { message: error.serverError });
+    else if (error.serverError && /pixel/i.test(error.serverError))
+      form.setError("pixels", { message: error.serverError });
     else if (error.serverError?.toLowerCase().includes("code"))
       form.setError("customCode", { message: error.serverError });
     else if (error.serverError) form.setError("destinationUrl", { message: error.serverError });
@@ -227,6 +236,7 @@ export function LinkForm({
       tags: values.tags,
       routingRules: values.routingRules,
       cardDesign: values.cardDesign,
+      pixels: values.pixels,
       expiresAt: values.expiration === "custom" ? toIso(values.expiresAt) : undefined,
       accessLimit: values.accessLimit,
       maxClicks: values.maxClicks,
@@ -558,6 +568,8 @@ export function LinkForm({
               );
             }}
           />
+
+          <PixelsSection form={form} enabled={pixelsEnabled} />
 
           <SocialCardStudio form={form} siteUrl={siteUrl} link={link} />
         </div>

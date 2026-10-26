@@ -34,6 +34,7 @@ export const RESERVED_CODES: ReadonlySet<string> = new Set(
     "reset-password",
     "two-factor",
     "verify-email",
+    "invite",
     "u",
     "docs",
     "_next",
@@ -120,7 +121,17 @@ export const LIMITS = {
   /** Smart routing: rules per link and countries per rule. */
   routingRulesMax: 10,
   routingCountriesMax: 50,
+  /** Team workspaces: how many a person may create, members and pending invitations per workspace. */
+  workspaceNameMax: 60,
+  workspacesPerUserMax: 10,
+  workspaceMembersMax: 50,
+  workspaceInvitesMax: 50,
+  /** How long an invitation link works. */
+  inviteTtlDays: 7,
 } as const;
+
+/** Cookie holding the workspace the dashboard is showing. Re-checked against membership on every request. */
+export const ACTIVE_WORKSPACE_COOKIE = "vialb_ws";
 
 export const EXPIRATION_PRESETS = [
   "never",
@@ -204,6 +215,10 @@ export const RATE_LIMITS = {
   bioHandle: { limit: 5, windowMs: 24 * 60 * 60 * 1000 },
   /** Bio buttons are links underneath (each one is checked against the blocklist and Safe Browsing). */
   bioButtons: { limit: 60, windowMs: 60 * 60 * 1000 },
+  /** Creating workspaces, inviting people, and trying invitation links. */
+  workspaceCreate: { limit: 10, windowMs: 24 * 60 * 60 * 1000 },
+  invite: { limit: 30, windowMs: 60 * 60 * 1000 },
+  acceptInvite: { limit: 20, windowMs: 60 * 60 * 1000 },
   passwordPerIpCode: { limit: 10, windowMs: 15 * 60 * 1000 },
   passwordPerCode: { limit: 100, windowMs: 15 * 60 * 1000 },
   apiKey: { limit: 120, windowMs: 60 * 1000 },
@@ -214,3 +229,7 @@ export const ANALYTICS_RANGES = ["24h", "7d", "30d", "90d", "all", "custom"] as 
 export type AnalyticsRange = (typeof ANALYTICS_RANGES)[number];
 
 export const CLAIM_TOKENS_STORAGE_KEY = "vialb:claim-tokens";
+/** A team invitation opened before signing in; offered again on the dashboard. */
+export const PENDING_INVITE_STORAGE_KEY = "vialb:pending-invite";
+/** Fired on `window` when that value changes in this tab (the browser only fires `storage` for other tabs). */
+export const PENDING_INVITE_EVENT = "vialb:pending-invite-changed";

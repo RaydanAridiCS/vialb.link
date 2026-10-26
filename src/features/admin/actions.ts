@@ -16,6 +16,7 @@ export const updateInstanceSettingsAction = adminActionClient
     z.object({
       allowAnonymousLinks: nullableBool,
       allowSignups: nullableBool,
+      pixelsEnabled: nullableBool,
       anonLinkTtlHours: z.union([z.literal(""), z.coerce.number().int().min(1).max(8760)]),
       blockedDomains: z.string().max(200_000),
       blockedDomainsMode: z.enum(["default", "custom"]),
@@ -25,6 +26,7 @@ export const updateInstanceSettingsAction = adminActionClient
     const settings = await getContainer().settings.update(ctx.actor, {
       allowAnonymousLinks: parsedInput.allowAnonymousLinks,
       allowSignups: parsedInput.allowSignups,
+      pixelsEnabled: parsedInput.pixelsEnabled,
       anonLinkTtlHours: parsedInput.anonLinkTtlHours === "" ? null : parsedInput.anonLinkTtlHours,
       blockedDomains:
         parsedInput.blockedDomainsMode === "default" ? null : parsedInput.blockedDomains.split(/[\s,]+/),

@@ -83,6 +83,8 @@ flowchart TD
   H -- ok --> R{"smart routing<br/>rule matches device/country?"}
   R -- yes --> RD["302/307 → that rule's URL (+ forwarded query)<br/>Cache-Control: private, no-store"]
   R -- no --> RD2["302/307 → the link's URL (+ forwarded query)<br/>Cache-Control: private, no-store"]
+  RD -. "link has pixels, no GPC/DNT, instance on" .-> PX["consent page (200, own CSP)<br/>tags load only after accept, then forward"]
+  RD2 -.-> PX
   RD -. after() .-> CL["record click (+ which rule)"]
   RD2 -. after() .-> CL
 ```
@@ -97,7 +99,12 @@ flowchart TD
 
 ```mermaid
 erDiagram
-  user ||--o{ links : owns
+  user ||--o{ workspace_members : "belongs via"
+  workspaces ||--o{ workspace_members : has
+  workspaces ||--o{ workspace_invites : "pending"
+  workspaces ||--o{ links : owns
+  workspaces ||--o{ api_keys : "acts in"
+  user ||--o{ links : "created"
   user ||--o{ api_keys : owns
   user ||--o{ session : has
   user ||--o{ account : has
@@ -110,10 +117,13 @@ erDiagram
     uuid id PK "uuidv7"
     text code UK "case-sensitive"
     text destination_url
+    uuid workspace_id FK "owner; null only for unclaimed anonymous links"
+    text user_id FK "creator (set null when they leave)"
     text kind "link or bio_button (hidden from lists)"
     text_array tags "normalized labels, GIN indexed"
     jsonb routing_rules "ordered smart-routing rules, [] by default"
     jsonb card_design "social card: template, palette, text; null = none"
+    jsonb pixels "Meta / Google tag IDs for the consent page; null = none"
     text qr_ecc "L M Q H, default M for old rows"
     text qr_frame "none or badge"
     text qr_frame_text "badge label, null = Scan me"
@@ -171,6 +181,11 @@ and [Social card studio](social-cards.md).
 Bio pages (`/@handle`) are one `bio_profiles` row per user plus ordered `bio_buttons`. Each button owns a
 hidden `links` row (`kind = 'bio_button'`), which is why clicks, limits and analytics need no special
 casing; `kind` only keeps those rows out of the normal lists. See [Link-in-bio pages](link-in-bio.md).
+
+Links and API keys belong to a **workspace** (`workspaces`, `workspace_members(role)`, `workspace_invites`).
+Everyone has a personal workspace, created the first time they sign in; teams are extra workspaces. Who may touch
+a link is decided in one place, `assertCanManageLink`, from the actor's workspace role (`src/lib/permissions.ts`).
+`links.user_id` is only the creator. See [Teams](teams.md).
 
 Plus `instance_settings` (single row of admin overrides on top of env
 defaults), `daily_salts` (one random salt per UTC day) and Better Auth's tables.

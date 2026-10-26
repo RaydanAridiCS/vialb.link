@@ -1,5 +1,6 @@
 import "server-only";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import { can } from "@/lib/permissions";
 import { requireSession } from "@/server/auth/session";
 import { getContainer } from "@/server/container";
 import { ForbiddenError, NotFoundError } from "@/server/errors";
@@ -9,6 +10,12 @@ import type { LinkDto } from "@/server/services/dto";
 export async function loadTagSuggestions(): Promise<string[]> {
   const { actor } = await requireSession();
   return getContainer().links.listTags(actor);
+}
+
+/** Pages that create or change links: read-only roles are sent back to the list instead of a form that fails. */
+export async function requireLinkWriterPage(): Promise<void> {
+  const { actor } = await requireSession();
+  if (!can(actor.workspace.role, "link:write")) redirect("/dashboard/links");
 }
 
 /** Loads a link the current user may manage, or renders the 404 page. */

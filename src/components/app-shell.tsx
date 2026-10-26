@@ -6,6 +6,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { UserMenu } from "@/components/user-menu";
 import { AppNav, type NavItem } from "@/components/app-nav";
 import { Button } from "@/components/ui/button";
+import { WorkspaceSwitcher, type WorkspaceOption } from "@/features/workspaces/components/workspace-switcher";
 
 /** Authenticated application chrome shared by the dashboard and admin areas. */
 export function AppShell({
@@ -13,11 +14,14 @@ export function AppShell({
   items,
   children,
   showNewLink = false,
+  workspace,
 }: {
   user: { name: string; email: string; isAdmin: boolean };
   items: NavItem[];
   children: ReactNode;
   showNewLink?: boolean;
+  /** The workspace being shown and the others the person can switch to. */
+  workspace?: { current: WorkspaceOption; options: WorkspaceOption[] };
 }) {
   return (
     <div className="flex min-h-svh flex-col">
@@ -36,6 +40,7 @@ export function AppShell({
             <AppNav items={items} />
           </div>
           <div className="ml-auto flex h-16 items-center gap-1.5 lg:ml-0">
+            {workspace ? <WorkspaceSwitcher {...workspace} /> : null}
             {showNewLink ? (
               <Button size="sm" asChild className="mr-1">
                 <Link href="/dashboard/links/new">

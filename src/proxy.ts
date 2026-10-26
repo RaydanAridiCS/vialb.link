@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { RESERVED_CODES } from "@/lib/constants";
 
 /**
  * Per-request CSP nonce + security headers (Next 16 "proxy", formerly
@@ -13,9 +14,18 @@ export function proxy(request: NextRequest) {
     /^\/%40([A-Za-z0-9_]{1,50})\/?$/.exec(request.nextUrl.pathname)?.[1];
   if (handle) return NextResponse.redirect(new URL(`/@${handle}`, process.env.SITE_URL ?? request.url), 308);
 
-  const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
   const isDev = process.env.NODE_ENV === "development";
   const siteUrl = process.env.SITE_URL ?? "";
+
+  // A single path segment that is not a reserved page name can only be a short code, which the
+  // redirect route answers with its own bodies (404, bot preview, pixel page) and its own CSP. If the
+  // proxy set one here it would replace theirs, so those responses get the other headers only.
+  const segment = /^\/([A-Za-z0-9_-]{1,50})$/.exec(request.nextUrl.pathname)?.[1];
+  if (segment !== undefined && !RESERVED_CODES.has(segment.toLowerCase())) {
+    return withSecurityHeaders(NextResponse.next(), { isDev, siteUrl });
+  }
+
+  const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
   const turnstile = process.env.TURNSTILE_SITE_KEY ? " https://challenges.cloudflare.com" : "";
 
   const csp = [
@@ -40,6 +50,13 @@ export function proxy(request: NextRequest) {
 
   const response = NextResponse.next({ request: { headers: requestHeaders } });
   response.headers.set("Content-Security-Policy", csp);
+  return withSecurityHeaders(response, { isDev, siteUrl });
+}
+
+function withSecurityHeaders(
+  response: NextResponse,
+  { isDev, siteUrl }: { isDev: boolean; siteUrl: string },
+) {
   response.headers.set("X-Content-Type-Options", "nosniff");
   response.headers.set("X-Frame-Options", "DENY");
   response.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=(), interest-cohort=()");

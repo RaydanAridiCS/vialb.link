@@ -3,7 +3,7 @@ import { UniqueViolationError } from "@/server/errors";
 import { DrizzleApiKeyRepository } from "@/server/repositories/drizzle/api-key.repository.drizzle";
 import { DrizzleSettingsRepository } from "@/server/repositories/drizzle/settings.repository.drizzle";
 import { DrizzleUserRepository } from "@/server/repositories/drizzle/user.repository.drizzle";
-import { connect, createUser, truncateAll } from "./helpers";
+import { connect, createUser, personalWorkspace, truncateAll } from "./helpers";
 
 const { db, close } = connect();
 
@@ -15,9 +15,16 @@ describe("DrizzleApiKeyRepository", () => {
 
   it("creates, finds, touches and revokes keys", async () => {
     const user = await createUser(db);
-    const key = await repo.create({ userId: user.id, name: "CI", prefix: "tw_abcdefgh", hash: "deadbeef" });
+    const workspaceId = await personalWorkspace(db, user.id);
+    const key = await repo.create({
+      userId: user.id,
+      workspaceId,
+      name: "CI",
+      prefix: "tw_abcdefgh",
+      hash: "deadbeef",
+    });
     await expect(
-      repo.create({ userId: user.id, name: "dup", prefix: "tw_abcdefgh", hash: "x" }),
+      repo.create({ userId: user.id, workspaceId, name: "dup", prefix: "tw_abcdefgh", hash: "x" }),
     ).rejects.toBeInstanceOf(UniqueViolationError);
     expect(await repo.findActiveByPrefix("tw_abcdefgh")).toMatchObject({ id: key.id });
     const at = new Date("2026-05-05T00:00:00Z");
@@ -38,12 +45,13 @@ describe("DrizzleSettingsRepository", () => {
   it("upserts the single settings row", async () => {
     expect(await repo.get()).toBeNull();
     await repo.upsert({ allowAnonymousLinks: true });
-    await repo.upsert({ blockedDomains: ["evil.example"] });
+    await repo.upsert({ blockedDomains: ["evil.example"], pixelsEnabled: true });
     expect(await repo.get()).toEqual({
       allowAnonymousLinks: true,
       allowSignups: null,
       anonLinkTtlHours: null,
       blockedDomains: ["evil.example"],
+      pixelsEnabled: true,
     });
     await repo.upsert({ allowAnonymousLinks: null });
     expect((await repo.get())?.allowAnonymousLinks).toBeNull();

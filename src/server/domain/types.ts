@@ -5,14 +5,22 @@
 
 import type { SocialLink } from "@/lib/bio";
 import type { PaletteKey } from "@/lib/palettes";
+import type { WorkspaceRole } from "@/lib/permissions";
+import type { LinkPixels } from "@/lib/pixels";
 import type { CardDesign } from "@/lib/social-card";
 import type { RoutingRule } from "@/lib/routing";
 import type { QrEcc, QrFrame } from "@/lib/qr-options";
 
 export type Role = "user" | "admin";
 
+/** The workspace a signed-in user is acting in, and what they may do there. Re-checked on every request. */
+export interface WorkspaceAccess {
+  id: string;
+  role: WorkspaceRole;
+}
+
 export type Actor =
-  | { kind: "user"; userId: string; role: Role }
+  | { kind: "user"; userId: string; role: Role; workspace: WorkspaceAccess }
   | { kind: "anonymous"; ip: string | null }
   | { kind: "system" };
 
@@ -24,13 +32,18 @@ export interface Link {
   kind: LinkKind;
   code: string;
   destinationUrl: string;
+  /** Who created it. `null` for anonymous links, and when that person has since left. */
   userId: string | null;
+  /** The workspace the link belongs to; `null` only for anonymous links nobody has claimed. */
+  workspaceId: string | null;
   title: string | null;
   tags: string[];
   /** Ordered smart-routing rules; the first match replaces `destinationUrl`. */
   routingRules: RoutingRule[];
   /** Designed social preview card; `null` when the link has none. */
   cardDesign: CardDesign | null;
+  /** Retargeting pixel IDs; `null` when the link has none. Only used while the instance allows pixels. */
+  pixels: LinkPixels | null;
   passwordHash: string | null;
   expiresAt: Date | null;
   maxClicks: number | null;
@@ -57,10 +70,12 @@ export type NewLink = Pick<Link, "code" | "destinationUrl"> &
       Link,
       | "kind"
       | "userId"
+      | "workspaceId"
       | "title"
       | "tags"
       | "routingRules"
       | "cardDesign"
+      | "pixels"
       | "passwordHash"
       | "expiresAt"
       | "maxClicks"
@@ -88,6 +103,7 @@ export type LinkPatch = Partial<
     | "tags"
     | "routingRules"
     | "cardDesign"
+    | "pixels"
     | "passwordHash"
     | "expiresAt"
     | "maxClicks"
@@ -101,6 +117,7 @@ export type LinkPatch = Partial<
     | "qrFrame"
     | "qrFrameText"
     | "userId"
+    | "workspaceId"
     | "claimTokenHash"
   >
 >;
@@ -109,8 +126,8 @@ export type LinkStatusFilter = "all" | "active" | "expired" | "disabled" | "prot
 export type LinkSort = "created_desc" | "created_asc" | "clicks_desc" | "clicks_asc";
 
 export interface LinkListQuery {
-  /** Restrict to one owner. `undefined` = every link (admin only). */
-  userId?: string;
+  /** Restrict to one workspace. `undefined` = every link (admin only). */
+  workspaceId?: string;
   search?: string;
   /** Only links carrying this (normalized) tag. */
   tag?: string;
@@ -235,6 +252,7 @@ export interface InstanceSettingsOverride {
   allowSignups: boolean | null;
   anonLinkTtlHours: number | null;
   blockedDomains: string[] | null;
+  pixelsEnabled: boolean | null;
 }
 
 export interface InstanceSettings {
@@ -242,11 +260,15 @@ export interface InstanceSettings {
   allowSignups: boolean;
   anonLinkTtlHours: number;
   blockedDomains: string[];
+  /** Whether links may send visitors through the retargeting-pixel consent page. */
+  pixelsEnabled: boolean;
 }
 
 export interface ApiKey {
   id: string;
   userId: string;
+  /** The workspace this key acts in. */
+  workspaceId: string;
   name: string;
   prefix: string;
   hash: string;
@@ -293,3 +315,35 @@ export interface BioButton {
 
 /** The repository appends the button after the user's last one. */
 export type NewBioButton = Pick<BioButton, "userId" | "linkId" | "label">;
+
+export interface Workspace {
+  id: string;
+  name: string;
+  /** A person's own space: always exactly one member, cannot be renamed, shared or deleted. */
+  isPersonal: boolean;
+  createdAt: Date;
+}
+
+/** A workspace as one person sees it. */
+export interface WorkspaceMembership extends Workspace {
+  role: WorkspaceRole;
+  memberCount: number;
+}
+
+export interface WorkspaceMember {
+  userId: string;
+  name: string;
+  email: string;
+  role: WorkspaceRole;
+  joinedAt: Date;
+}
+
+export interface WorkspaceInvite {
+  id: string;
+  workspaceId: string;
+  email: string;
+  role: WorkspaceRole;
+  invitedBy: string | null;
+  expiresAt: Date;
+  createdAt: Date;
+}

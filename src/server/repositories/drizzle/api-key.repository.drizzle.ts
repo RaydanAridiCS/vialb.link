@@ -9,7 +9,7 @@ import { rethrowUniqueViolation } from "./pg-errors";
 export class DrizzleApiKeyRepository implements IApiKeyRepository {
   constructor(private readonly db: Database) {}
 
-  async create(input: Pick<ApiKey, "userId" | "name" | "prefix" | "hash">): Promise<ApiKey> {
+  async create(input: Pick<ApiKey, "userId" | "workspaceId" | "name" | "prefix" | "hash">): Promise<ApiKey> {
     try {
       const [row] = await this.db.insert(apiKeys).values(input).returning();
       if (!row) throw new Error("Insert returned no row");
@@ -28,8 +28,17 @@ export class DrizzleApiKeyRepository implements IApiKeyRepository {
     return row ?? null;
   }
 
-  async listByUser(userId: string): Promise<ApiKey[]> {
-    return this.db.select().from(apiKeys).where(eq(apiKeys.userId, userId)).orderBy(desc(apiKeys.createdAt));
+  async listByUser(userId: string, workspaceId?: string): Promise<ApiKey[]> {
+    return this.db
+      .select()
+      .from(apiKeys)
+      .where(
+        and(
+          eq(apiKeys.userId, userId),
+          workspaceId === undefined ? undefined : eq(apiKeys.workspaceId, workspaceId),
+        ),
+      )
+      .orderBy(desc(apiKeys.createdAt));
   }
 
   async revoke(id: string, userId: string, at: Date): Promise<boolean> {

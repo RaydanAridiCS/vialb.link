@@ -1,6 +1,7 @@
 import { boolean, date, integer, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { v7 as uuidv7 } from "uuid";
 import { user } from "./auth";
+import { workspaces } from "./workspaces";
 
 /**
  * Single-row table (id = 1). NULL columns mean "use the environment default",
@@ -13,6 +14,7 @@ export const instanceSettings = pgTable("instance_settings", {
   allowSignups: boolean("allow_signups"),
   anonLinkTtlHours: integer("anon_link_ttl_hours"),
   blockedDomains: text("blocked_domains").array(),
+  pixelsEnabled: boolean("pixels_enabled"),
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .notNull()
     .defaultNow()
@@ -33,6 +35,10 @@ export const apiKeys = pgTable("api_keys", {
   userId: text("user_id")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
+  /** The workspace the key acts in (with the owner's role there). */
+  workspaceId: uuid("workspace_id")
+    .notNull()
+    .references(() => workspaces.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   /** First characters of the key, shown in the UI and used for lookup. */
   prefix: text("prefix").notNull().unique(),

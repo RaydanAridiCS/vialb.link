@@ -9,6 +9,7 @@ import {
   cardDesignSchema,
   hexColorSchema,
   httpsUrlSchema,
+  pixelsSchema,
   qrEccSchema,
   qrFrameSchema,
   qrFrameTextSchema,
@@ -58,6 +59,14 @@ export const apiCreateLinkSchema = z
           showHost: true,
         },
       }),
+    pixels: pixelsSchema
+      .nullable()
+      .optional()
+      .meta({
+        description:
+          "Retargeting pixel IDs: `meta` (Meta Pixel, digits) and/or `google` (G-, AW- or GTM- tag). Visitors see a consent page first; only works while the instance has pixels enabled, and not on password-protected links.",
+        example: { meta: "123456789012345", google: "G-ABCD1234" },
+      }),
     expiresAt: z.iso
       .datetime({ offset: true })
       .nullable()
@@ -92,6 +101,10 @@ export const apiUpdateLinkSchema = z
       .nullable()
       .optional()
       .meta({ description: "null removes the card; omit to keep it" }),
+    pixels: pixelsSchema
+      .nullable()
+      .optional()
+      .meta({ description: "Replaces the pixels; null removes them, omit to keep them" }),
     expiresAt: z.iso
       .datetime({ offset: true })
       .nullable()
@@ -144,6 +157,7 @@ export const linkSchema = z
       }),
     ),
     cardDesign: cardDesignSchema.nullable(),
+    pixels: z.object({ meta: z.string().optional(), google: z.string().optional() }).nullable(),
     hasPassword: z.boolean(),
     expiresAt: z.string().nullable(),
     maxClicks: z.number().int().nullable(),
@@ -211,6 +225,7 @@ export function toCreateCommand(input: z.output<typeof apiCreateLinkSchema>): Cr
     tags: input.tags,
     routingRules: input.routingRules,
     cardDesign: input.cardDesign,
+    pixels: input.pixels,
     expiration: input.expiresAt
       ? { preset: "custom", customAt: new Date(input.expiresAt) }
       : { preset: "never" },
@@ -234,6 +249,7 @@ export function toUpdateCommand(input: z.output<typeof apiUpdateLinkSchema>): Up
     tags: input.tags,
     routingRules: input.routingRules,
     cardDesign: input.cardDesign,
+    pixels: input.pixels,
     expiration:
       input.expiresAt === undefined
         ? undefined

@@ -160,4 +160,78 @@ describe("migrations", () => {
     expect(link).toEqual({ routing_rules: [] });
     expect(click).toEqual({ routed_by: null });
   });
+
+  it("give links from before retargeting pixels none, and leave the instance setting on its default", async () => {
+    const url = await freshDatabase();
+    await applyAll(url, truncatedFolder(6));
+    expect(await columnsOfLinks(url)).not.toContain("pixels");
+
+    const sql = postgres(url, { max: 1, onnotice: () => {} });
+    await sql`insert into links (id, code, destination_url) values (gen_random_uuid(), 'before-pixels', 'https://old.example')`;
+    await sql`insert into instance_settings (id, allow_signups) values (1, false)`;
+    await sql.end();
+
+    await applyAll(url);
+
+    const check = postgres(url, { max: 1, onnotice: () => {} });
+    const [link] = await check<{ pixels: unknown }[]>`select pixels from links where code = 'before-pixels'`;
+    const [settings] = await check<
+      { pixels_enabled: boolean | null; allow_signups: boolean | null }[]
+    >`select pixels_enabled, allow_signups from instance_settings`;
+    await check.end();
+    expect(link).toEqual({ pixels: null });
+    expect(settings).toEqual({ pixels_enabled: null, allow_signups: false });
+  });
+  it("give every existing user a personal workspace holding what they already own", async () => {
+    const url = await freshDatabase();
+    await applyAll(url, truncatedFolder(7));
+    expect(await columnsOfLinks(url)).not.toContain("workspace_id");
+
+    const sql = postgres(url, { max: 1, onnotice: () => {} });
+    await sql`insert into "user" (id, name, email) values ('u-alice', 'Alice', 'alice@x.io'), ('u-bob', 'Bob', 'bob@x.io')`;
+    await sql`insert into links (id, code, destination_url, user_id) values
+      ('00000000-0000-4000-8000-0000000000a1', 'alice-1', 'https://a.example', 'u-alice'),
+      ('00000000-0000-4000-8000-0000000000a2', 'alice-2', 'https://a.example', 'u-alice'),
+      ('00000000-0000-4000-8000-0000000000b1', 'bob-1', 'https://b.example', 'u-bob')`;
+    await sql`insert into links (id, code, destination_url, user_id, kind) values
+      ('00000000-0000-4000-8000-0000000000a3', 'alice-bio', 'https://a.example', 'u-alice', 'bio_button')`;
+    await sql`insert into links (id, code, destination_url) values ('00000000-0000-4000-8000-0000000000c1', 'anon-1', 'https://c.example')`;
+    await sql`insert into api_keys (id, user_id, name, prefix, hash) values (gen_random_uuid(), 'u-alice', 'ci', 'tw_aaaaaaaa', 'h')`;
+    await sql.end();
+
+    await applyAll(url);
+
+    const check = postgres(url, { max: 1, onnotice: () => {} });
+    const spaces = await check<{ id: string; personal_user_id: string; name: string }[]>`
+      select id, personal_user_id, name from workspaces order by personal_user_id`;
+    const members = await check<{ user_id: string; role: string; workspace_id: string }[]>`
+      select user_id, role, workspace_id from workspace_members order by user_id`;
+    const owned = await check<{ code: string; workspace_id: string | null }[]>`
+      select code, workspace_id from links order by code`;
+    const keys = await check<{ workspace_id: string }[]>`select workspace_id from api_keys`;
+    const nullable = await check<{ is_nullable: string }[]>`
+      select is_nullable from information_schema.columns
+      where table_name = 'api_keys' and column_name = 'workspace_id'`;
+    await check.end();
+
+    const alice = spaces.find((w) => w.personal_user_id === "u-alice");
+    const bob = spaces.find((w) => w.personal_user_id === "u-bob");
+    expect(spaces.map((w) => [w.personal_user_id, w.name])).toEqual([
+      ["u-alice", "Personal"],
+      ["u-bob", "Personal"],
+    ]);
+    expect(members.map((m) => [m.user_id, m.role])).toEqual([
+      ["u-alice", "owner"],
+      ["u-bob", "owner"],
+    ]);
+    expect(owned).toEqual([
+      { code: "alice-1", workspace_id: alice?.id },
+      { code: "alice-2", workspace_id: alice?.id },
+      { code: "alice-bio", workspace_id: alice?.id },
+      { code: "anon-1", workspace_id: null },
+      { code: "bob-1", workspace_id: bob?.id },
+    ]);
+    expect(keys).toEqual([{ workspace_id: alice?.id }]);
+    expect(nullable).toEqual([{ is_nullable: "NO" }]);
+  });
 });

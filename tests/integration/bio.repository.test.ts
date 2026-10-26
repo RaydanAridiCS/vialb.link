@@ -5,7 +5,7 @@ import type { NewBioProfile } from "@/server/domain/types";
 import { UniqueViolationError } from "@/server/errors";
 import { DrizzleBioRepository } from "@/server/repositories/drizzle/bio.repository.drizzle";
 import { DrizzleLinkRepository } from "@/server/repositories/drizzle/link.repository.drizzle";
-import { connect, createUser, truncateAll } from "./helpers";
+import { connect, createUser, personalWorkspace, truncateAll } from "./helpers";
 
 const { db, close } = connect();
 const bio = new DrizzleBioRepository(db);
@@ -30,7 +30,14 @@ function newProfile(userId: string, overrides: Partial<NewBioProfile> = {}): New
 }
 
 async function buttonLink(userId: string, code: string) {
-  return links.create({ code, destinationUrl: `https://${code}.example`, userId, kind: "bio_button" });
+  const workspaceId = await personalWorkspace(db, userId);
+  return links.create({
+    code,
+    destinationUrl: `https://${code}.example`,
+    userId,
+    workspaceId,
+    kind: "bio_button",
+  });
 }
 
 describe("DrizzleBioRepository profiles", () => {
@@ -185,9 +192,10 @@ describe("DrizzleLinkRepository with bio buttons", () => {
 
   it("hides bio buttons from lists, the cursor and the overview unless asked for", async () => {
     const user = await createUser(db);
-    await links.create({ code: "normal", destinationUrl: "https://n.example", userId: user.id });
+    const workspaceId = await personalWorkspace(db, user.id);
+    await links.create({ code: "normal", destinationUrl: "https://n.example", userId: user.id, workspaceId });
     await buttonLink(user.id, "hidden");
-    const base = { userId: user.id, page: 1, pageSize: 20, now };
+    const base = { workspaceId, page: 1, pageSize: 20, now };
 
     expect((await links.list(base)).items.map((l) => l.code)).toEqual(["normal"]);
     expect((await links.list({ ...base, kind: "link" })).total).toBe(1);
@@ -195,8 +203,8 @@ describe("DrizzleLinkRepository with bio buttons", () => {
     expect((await links.list({ ...base, kind: "any" })).total).toBe(2);
     expect((await links.list({ page: 1, pageSize: 20, now })).total).toBe(1);
 
-    expect((await links.listByCursor(user.id, null, 10)).items.map((l) => l.code)).toEqual(["normal"]);
-    expect((await links.overview(user.id, now)).totalLinks).toBe(1);
+    expect((await links.listByCursor(workspaceId, null, 10)).items.map((l) => l.code)).toEqual(["normal"]);
+    expect((await links.overview(workspaceId, now)).totalLinks).toBe(1);
     expect(await links.listAllByUser(user.id)).toHaveLength(2);
     expect(await links.count()).toBe(2);
   });

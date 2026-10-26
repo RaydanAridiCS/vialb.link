@@ -20,7 +20,7 @@ export function withSession<P>(handler: Handler<P>) {
     try {
       const session = await getSession();
       if (!session) throw new UnauthorizedError();
-      return await handler(request, actorFromSession(session), await context.params);
+      return await handler(request, await actorFromSession(session), await context.params);
     } catch (error) {
       return errorResponse(error, { "Cache-Control": "no-store" });
     }

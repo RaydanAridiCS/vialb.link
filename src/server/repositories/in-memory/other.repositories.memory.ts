@@ -130,7 +130,7 @@ export class InMemoryClickRepository implements IClickRepository {
 export class InMemoryApiKeyRepository implements IApiKeyRepository {
   readonly rows: ApiKey[] = [];
 
-  async create(input: Pick<ApiKey, "userId" | "name" | "prefix" | "hash">): Promise<ApiKey> {
+  async create(input: Pick<ApiKey, "userId" | "workspaceId" | "name" | "prefix" | "hash">): Promise<ApiKey> {
     if (this.rows.some((k) => k.prefix === input.prefix))
       throw new UniqueViolationError("api_keys_prefix_unique");
     const key: ApiKey = { ...input, id: uuidv7(), lastUsedAt: null, createdAt: new Date(), revokedAt: null };
@@ -142,8 +142,10 @@ export class InMemoryApiKeyRepository implements IApiKeyRepository {
     return this.rows.find((k) => k.prefix === prefix && !k.revokedAt) ?? null;
   }
 
-  async listByUser(userId: string): Promise<ApiKey[]> {
-    return this.rows.filter((k) => k.userId === userId);
+  async listByUser(userId: string, workspaceId?: string): Promise<ApiKey[]> {
+    return this.rows.filter(
+      (k) => k.userId === userId && (workspaceId === undefined || k.workspaceId === workspaceId),
+    );
   }
 
   async revoke(id: string, userId: string, at: Date): Promise<boolean> {
@@ -173,6 +175,7 @@ export class InMemorySettingsRepository implements ISettingsRepository {
       allowSignups: null,
       anonLinkTtlHours: null,
       blockedDomains: null,
+      pixelsEnabled: null,
       ...this.current,
       ...patch,
     };

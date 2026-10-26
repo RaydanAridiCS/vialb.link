@@ -15,6 +15,7 @@ export function makeLinkDto(overrides: Partial<LinkDto> = {}): LinkDto {
     tags: [],
     routingRules: [],
     cardDesign: null,
+    pixels: null,
     hasPassword: false,
     expiresAt: null,
     maxClicks: null,

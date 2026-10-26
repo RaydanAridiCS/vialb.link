@@ -93,6 +93,8 @@ export interface BioServiceDeps {
   abuse: AbuseService;
   clock: Clock;
   siteUrl: string;
+  /** A person's personal workspace, where their buttons' hidden links live whatever workspace is showing. */
+  personalWorkspaceId: (userId: string) => Promise<string>;
 }
 
 function cleanText(raw: string | null | undefined, max: number, field: string, what: string): string | null {
@@ -269,7 +271,11 @@ export class BioService {
     if (!isAdmin(actor))
       await this.deps.abuse.enforceRateLimit(`bio:buttons:${user.userId}`, RATE_LIMITS.bioButtons);
 
-    const link = await this.deps.links.createManaged(actor, { destinationUrl: cmd.url, title: label });
+    const link = await this.deps.links.createManaged(
+      actor,
+      { destinationUrl: cmd.url, title: label },
+      await this.deps.personalWorkspaceId(user.userId),
+    );
     let button: BioButton;
     try {
       button = await this.deps.bio.addButton({ userId: user.userId, linkId: link.id, label });

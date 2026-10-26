@@ -35,6 +35,7 @@ export const createLinkAction = authActionClient
         tags: input.tags,
         routingRules: input.routingRules,
         cardDesign: input.cardDesign,
+        pixels: input.pixels,
         expiration: {
           preset: input.expiration,
           customAt: input.expiration === "custom" && input.expiresAt ? new Date(input.expiresAt) : null,
@@ -80,6 +81,7 @@ export const updateLinkAction = authActionClient
       tags: input.tags,
       routingRules: input.routingRules,
       cardDesign: input.cardDesign,
+      pixels: input.pixels,
       expiration:
         input.expiration === "keep"
           ? undefined

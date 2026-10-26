@@ -12,6 +12,7 @@ import {
 } from "@/lib/constants";
 import { DEFAULT_QR_ECC, isScannable, QR_ECC_LEVELS, QR_FRAME_TEXT_MAX, QR_FRAMES } from "@/lib/qr-options";
 import { PALETTE_KEYS } from "@/lib/palettes";
+import { GOOGLE_TAG_PATTERN, hasPixels, META_PIXEL_PATTERN, normalizePixels } from "@/lib/pixels";
 import { COUNTRY_PATTERN, normalizeCountries, ROUTING_PLATFORMS, routingIssue } from "@/lib/routing";
 import { CARD_HEADLINE_MAX, CARD_SUBLINE_MAX, CARD_TEMPLATES } from "@/lib/social-card";
 import { isValidTag, normalizeTag } from "@/lib/tags";
@@ -138,6 +139,23 @@ export const cardDesignSchema = z.object({
   showHost: z.boolean(),
 });
 
+/** Retargeting pixel IDs as typed in the form: empty means "none", anything else must look like a real ID. */
+export const pixelsSchema = z.object({
+  meta: z
+    .string()
+    .trim()
+    .refine((value) => value === "" || META_PIXEL_PATTERN.test(value), "A Meta Pixel ID is 8 to 20 digits")
+    .optional(),
+  google: z
+    .string()
+    .trim()
+    .refine(
+      (value) => value === "" || GOOGLE_TAG_PATTERN.test(value.toUpperCase()),
+      "A Google tag ID looks like G-XXXXXXX, AW-XXXXXXX or GTM-XXXXXXX",
+    )
+    .optional(),
+});
+
 const optionalText = (max: number) => z.string().trim().max(max, `At most ${max} characters`).optional();
 
 const dateString = z
@@ -156,6 +174,7 @@ const linkFieldsShape = {
   tags: tagsSchema,
   routingRules: routingRulesSchema.optional(),
   cardDesign: cardDesignSchema.nullable().optional(),
+  pixels: pixelsSchema.nullable().optional(),
   expiresAt: dateString.optional().or(z.literal("")),
   accessLimit: z.enum(ACCESS_LIMIT_PRESETS),
   maxClicks: z.string().optional(),
@@ -188,6 +207,14 @@ function refineLimits(
   }
 }
 
+function refinePixelsPassword(ctx: z.RefinementCtx) {
+  ctx.addIssue({
+    code: "custom",
+    path: ["pixels"],
+    message: "Retargeting pixels can't be used on a password-protected link",
+  });
+}
+
 export const createLinkSchema = z
   .object({
     ...linkFieldsShape,
@@ -199,6 +226,7 @@ export const createLinkSchema = z
   .superRefine((value, ctx) => {
     refineLimits(value, ctx);
     refineQrColors(value, ctx);
+    if (value.password && hasPixels(normalizePixels(value.pixels))) refinePixelsPassword(ctx);
   });
 
 export type CreateLinkFormValues = z.input<typeof createLinkSchema>;
@@ -217,6 +245,7 @@ export const updateLinkSchema = z
   .superRefine((value, ctx) => {
     refineLimits(value, ctx);
     refineQrColors(value, ctx);
+    if (value.passwordAction === "set" && hasPixels(normalizePixels(value.pixels))) refinePixelsPassword(ctx);
     if (value.passwordAction === "set" && !passwordSchema.safeParse(value.password ?? "").success) {
       ctx.addIssue({
         code: "custom",
@@ -253,6 +282,7 @@ export const DEFAULT_LINK_FORM: CreateLinkFormValues = {
   tags: [],
   routingRules: [],
   cardDesign: null,
+  pixels: null,
   expiration: "never",
   expiresAt: "",
   accessLimit: "unlimited",

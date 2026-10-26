@@ -37,6 +37,8 @@
 - 🧑‍🎤 **Link-in-bio pages**: a public page at `/@handle` with your picture, bio, social icons and buttons; every button click is counted like a link ([details](docs/link-in-bio.md))
 - 🧭 **Smart routing**: one link, different destinations by device (iPhone, Android, desktop) and country, with analytics on which rule fired ([details](docs/smart-routing.md))
 - 🖼️ **Social card studio**: design the preview image for shared links without uploading anything, and see mock-ups for WhatsApp, iMessage, Slack and X ([details](docs/social-cards.md))
+- 🎯 **Retargeting pixels**: send visitors through a consent page that runs your Meta Pixel or Google tag before forwarding them; off by default, honours Global Privacy Control ([details](docs/retargeting-pixels.md))
+- 👥 **Teams**: shared workspaces with owner, admin, editor and viewer roles, email invitations, and API keys that act in their workspace ([details](docs/teams.md))
 - 🔑 **REST API**: API keys, per-key rate limits, OpenAPI 3.1 + interactive docs
 - 👥 **Accounts**: email/password, optional GitHub & Google, TOTP 2FA with backup codes, data export, account deletion
 - 🛡️ **Admin**: instance settings, user roles and bans, every link on the instance, stats
@@ -74,24 +76,25 @@ Everything else (tests, scripts, conventions) is in [CONTRIBUTING.md](CONTRIBUTI
 
 The most important variables (all of them are in [docs/configuration.md](docs/configuration.md) and [`.env.example`](.env.example)):
 
-| Variable                                             | Default       | Description                                              |
-| ---------------------------------------------------- | ------------- | -------------------------------------------------------- |
-| `SITE_URL`                                           | —             | Public base URL; every absolute URL is built from it     |
-| `DATABASE_URL`                                       | —             | PostgreSQL connection string                             |
-| `BETTER_AUTH_SECRET`                                 | —             | ≥ 32 random characters                                   |
-| `ALLOW_SIGNUPS`                                      | `true`        | Allow new accounts (overridable in the admin UI)         |
-| `ALLOW_ANONYMOUS_LINKS`                              | `false`       | Shorten without an account (overridable)                 |
-| `ANON_LINK_TTL_HOURS`                                | `720`         | Lifetime of anonymous links                              |
-| `REDIRECT_STATUS`                                    | `302`         | `302` or `307` (never permanent)                         |
-| `FORWARD_QUERY_PARAMS`                               | `true`        | Pass `?utm_*` etc. through to the destination            |
-| `TRUST_PROXY` / `TRUSTED_PROXY_HOPS`                 | `false` / `1` | Read the client IP from `X-Forwarded-For` behind a proxy |
-| `GEOLITE2_DB_PATH`                                   | —             | Local MaxMind database for country/city analytics        |
-| `TRUST_PROXY_GEO_HEADERS`                            | `false`       | Use CDN geo headers (Cloudflare, Vercel, CloudFront)     |
-| `REDIS_URL`                                          | —             | Shared rate limits across replicas                       |
-| `GITHUB_CLIENT_ID/SECRET`, `GOOGLE_CLIENT_ID/SECRET` | —             | Optional OAuth sign-in                                   |
-| `SMTP_*`                                             | —             | Password reset & verification emails                     |
-| `TURNSTILE_SITE_KEY/SECRET_KEY`                      | —             | Captcha for anonymous links                              |
-| `SAFE_BROWSING_API_KEY`                              | —             | Google Safe Browsing check on creation                   |
+| Variable                                             | Default       | Description                                                   |
+| ---------------------------------------------------- | ------------- | ------------------------------------------------------------- |
+| `SITE_URL`                                           | —             | Public base URL; every absolute URL is built from it          |
+| `DATABASE_URL`                                       | —             | PostgreSQL connection string                                  |
+| `BETTER_AUTH_SECRET`                                 | —             | ≥ 32 random characters                                        |
+| `ALLOW_SIGNUPS`                                      | `true`        | Allow new accounts (overridable in the admin UI)              |
+| `ALLOW_ANONYMOUS_LINKS`                              | `false`       | Shorten without an account (overridable)                      |
+| `PIXELS_ENABLED`                                     | `false`       | Allow Meta / Google retargeting pixels on links (overridable) |
+| `ANON_LINK_TTL_HOURS`                                | `720`         | Lifetime of anonymous links                                   |
+| `REDIRECT_STATUS`                                    | `302`         | `302` or `307` (never permanent)                              |
+| `FORWARD_QUERY_PARAMS`                               | `true`        | Pass `?utm_*` etc. through to the destination                 |
+| `TRUST_PROXY` / `TRUSTED_PROXY_HOPS`                 | `false` / `1` | Read the client IP from `X-Forwarded-For` behind a proxy      |
+| `GEOLITE2_DB_PATH`                                   | —             | Local MaxMind database for country/city analytics             |
+| `TRUST_PROXY_GEO_HEADERS`                            | `false`       | Use CDN geo headers (Cloudflare, Vercel, CloudFront)          |
+| `REDIS_URL`                                          | —             | Shared rate limits across replicas                            |
+| `GITHUB_CLIENT_ID/SECRET`, `GOOGLE_CLIENT_ID/SECRET` | —             | Optional OAuth sign-in                                        |
+| `SMTP_*`                                             | —             | Password reset & verification emails                          |
+| `TURNSTILE_SITE_KEY/SECRET_KEY`                      | —             | Captcha for anonymous links                                   |
+| `SAFE_BROWSING_API_KEY`                              | —             | Google Safe Browsing check on creation                        |
 
 ## API
 

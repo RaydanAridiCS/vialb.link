@@ -64,6 +64,21 @@ describe("collectConfigWarnings", () => {
   });
 });
 
+describe("collectConfigWarnings: pixels", () => {
+  it("warns when pixels are on without https, in any environment", () => {
+    const dev = { ...healthy, NODE_ENV: "development" as const, SITE_URL: "http://localhost:3000" };
+    expect(collectConfigWarnings({ ...dev, PIXELS_ENABLED: true })).toEqual([
+      expect.stringContaining("PIXELS_ENABLED"),
+    ]);
+    expect(collectConfigWarnings({ ...dev, PIXELS_ENABLED: false })).toEqual([]);
+    expect(collectConfigWarnings({ ...dev })).toEqual([]);
+  });
+
+  it("is silent with pixels on behind https", () => {
+    expect(collectConfigWarnings({ ...healthy, PIXELS_ENABLED: true })).toEqual([]);
+  });
+});
+
 describe("RedisRateLimiter", () => {
   it("counts through the Lua script and reports the remaining budget", async () => {
     const redis = { eval: vi.fn().mockResolvedValue([2, 5000]) };

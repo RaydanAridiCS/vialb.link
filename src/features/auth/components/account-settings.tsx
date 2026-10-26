@@ -347,7 +347,7 @@ export function DataCard() {
       toast.error(error.message ?? "Could not delete account");
       return;
     }
-    toast.success("Your account and all of your links were deleted");
+    toast.success("Your account and your personal links were deleted");
     router.push("/");
     router.refresh();
   }
@@ -373,8 +373,9 @@ export function DataCard() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete your account?</AlertDialogTitle>
             <AlertDialogDescription>
-              This permanently deletes your account, all of your links and their analytics. This cannot be
-              undone.
+              This permanently deletes your account, your personal links and their analytics. Teams you share
+              with others keep their links (you leave them), but you must make another member an owner first
+              if you are the only one. Teams only you belong to are deleted. This cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="space-y-1.5">

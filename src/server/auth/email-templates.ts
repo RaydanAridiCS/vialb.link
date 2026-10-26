@@ -306,3 +306,97 @@ export function renderPasswordResetEmail({
 
   return { text, html };
 }
+
+export interface WorkspaceInviteEmailProps {
+  appName: string;
+  siteUrl: string;
+  inviteUrl: string;
+  workspaceName: string;
+  inviterName: string;
+  roleLabel: string;
+  expiresInDays: number;
+}
+
+export function renderWorkspaceInviteEmail({
+  appName,
+  siteUrl,
+  inviteUrl,
+  workspaceName,
+  inviterName,
+  roleLabel,
+  expiresInDays,
+}: WorkspaceInviteEmailProps): { text: string; html: string } {
+  const escapedApp = escapeHtml(appName);
+  const escapedInitial = escapeHtml(appName.charAt(0).toUpperCase());
+  const escapedUrl = escapeHtml(inviteUrl);
+  const escapedWorkspace = escapeHtml(workspaceName);
+  const escapedInviter = escapeHtml(inviterName);
+  const escapedRole = escapeHtml(roleLabel);
+  const escapedSiteUrl = escapeHtml(siteUrl);
+
+  const text = [
+    "Hi there,",
+    "",
+    `${inviterName} invited you to join "${workspaceName}" on ${appName} as ${roleLabel}.`,
+    "Open this link while signed in with this email address to accept:",
+    "",
+    inviteUrl,
+    "",
+    `The invitation expires in ${expiresInDays} days. If you were not expecting it, you can ignore this email.`,
+    "",
+    `The ${appName} team`,
+    siteUrl,
+  ].join("\n");
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Join ${escapedWorkspace} on ${escapedApp}</title>
+</head>
+<body style="margin: 0; padding: 32px 16px; background-color: #f7f6f3; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; color: #1e293b;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" style="max-width: 540px; margin: 0 auto; background: #ffffff; border-radius: 14px; border: 1px solid #e7e5e0; overflow: hidden;" cellpadding="0" cellspacing="0" border="0">
+          <tr>
+            <td style="padding: 36px 36px 20px 36px;">
+              <span style="display: inline-block; width: 38px; height: 38px; background-color: #166534; border-radius: 10px; text-align: center; line-height: 38px; color: #ffffff; font-size: 20px; font-weight: bold;">${escapedInitial}</span>
+              <span style="font-size: 19px; font-weight: 700; color: #0f172a; margin-left: 12px; vertical-align: middle;">${escapedApp}</span>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 10px 36px 36px 36px;">
+              <h1 style="margin: 0 0 16px 0; font-size: 24px; font-weight: 700; color: #0f172a; line-height: 1.3;">Join ${escapedWorkspace}</h1>
+              <p style="margin: 0 0 24px 0; font-size: 15px; line-height: 1.6; color: #334155;">
+                <strong>${escapedInviter}</strong> invited you to the <strong>${escapedWorkspace}</strong> workspace on ${escapedApp} as <strong>${escapedRole}</strong>.
+              </p>
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin: 28px 0 32px 0;">
+                <tr>
+                  <td align="left" style="border-radius: 8px; background-color: #166534;">
+                    <a href="${escapedUrl}" target="_blank" rel="noopener noreferrer" style="display: inline-block; padding: 14px 28px; font-size: 15px; font-weight: 600; color: #ffffff; text-decoration: none; border-radius: 8px; background-color: #166534;">Accept invitation &rarr;</a>
+                  </td>
+                </tr>
+              </table>
+              <p style="margin: 0 0 6px 0; font-size: 12px; color: #64748b;">Or copy this link into your browser (sign in with the address this email was sent to):</p>
+              <p style="margin: 0 0 24px 0; font-size: 12px; line-height: 1.4; word-break: break-all;"><a href="${escapedUrl}" style="color: #166534; text-decoration: underline;">${escapedUrl}</a></p>
+              <p style="margin: 0; font-size: 13px; line-height: 1.5; color: #64748b; border-top: 1px solid #f1f5f9; padding-top: 20px;">
+                This invitation expires in <strong>${expiresInDays} days</strong>. If you were not expecting it, you can safely ignore this email.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 20px 36px; background-color: #fafaf9; border-top: 1px solid #e7e5e0; text-align: center;">
+              <p style="margin: 0; font-size: 12px; color: #94a3b8;"><a href="${escapedSiteUrl}" style="color: #64748b; text-decoration: underline;">${escapedSiteUrl}</a></p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+  return { text, html };
+}

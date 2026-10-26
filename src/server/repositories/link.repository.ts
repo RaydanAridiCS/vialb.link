@@ -9,7 +9,7 @@ import type {
 } from "@/server/domain/types";
 
 /** Who holds a short code; enough to tell "mine, same destination" from "taken". */
-export type CodeHolder = Pick<Link, "code" | "userId" | "destinationUrl" | "deletedAt">;
+export type CodeHolder = Pick<Link, "code" | "userId" | "workspaceId" | "destinationUrl" | "deletedAt">;
 
 export interface ILinkRepository {
   /** Inserts a link. Throws `UniqueViolationError` when the code is taken (incl. soft-deleted). */
@@ -22,11 +22,11 @@ export interface ILinkRepository {
   /** Holders of the given codes, soft-deleted links included (their codes stay reserved). */
   findCodeHolders(codes: readonly string[]): Promise<CodeHolder[]>;
   list(query: LinkListQuery): Promise<Page<Link>>;
-  /** Distinct tags across a user's non-deleted links, sorted alphabetically. `undefined` = every user (admin). */
-  listTags(userId: string | undefined): Promise<string[]>;
+  /** Distinct tags across a workspace's non-deleted links, sorted alphabetically. `undefined` = every workspace (admin). */
+  listTags(workspaceId: string | undefined): Promise<string[]>;
   /** Bio page buttons (kind `bio_button`) are excluded from lists unless the query asks for `any`. */
-  listByCursor(userId: string, cursor: string | null, limit: number): Promise<CursorPage<Link>>;
-  /** Every non-deleted link owned by a user (data export). */
+  listByCursor(workspaceId: string, cursor: string | null, limit: number): Promise<CursorPage<Link>>;
+  /** Every non-deleted link a user created, in any workspace (data export). */
   listAllByUser(userId: string): Promise<Link[]>;
   update(id: string, patch: LinkPatch): Promise<Link | null>;
   softDelete(ids: readonly string[], at: Date): Promise<number>;
@@ -38,8 +38,8 @@ export interface ILinkRepository {
    */
   consumeAccess(id: string): Promise<string | null>;
   findByClaimTokenHashes(hashes: readonly string[]): Promise<Link[]>;
-  /** Clears the claim token and assigns ownership; returns how many links were claimed. */
-  claim(ids: readonly string[], userId: string): Promise<number>;
-  overview(userId: string | undefined, now: Date): Promise<UserOverviewStats>;
+  /** Clears the claim token and moves unclaimed links into a workspace; returns how many were claimed. */
+  claim(ids: readonly string[], userId: string, workspaceId: string): Promise<number>;
+  overview(workspaceId: string | undefined, now: Date): Promise<UserOverviewStats>;
   count(): Promise<number>;
 }

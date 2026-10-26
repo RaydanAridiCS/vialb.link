@@ -45,6 +45,8 @@ export default defineConfig({
       // Lets the routing specs pick a country with a cf-ipcountry header.
       TRUST_PROXY_GEO_HEADERS: "true",
       ALLOW_SIGNUPS: "true",
+      // Lets the pixel specs send visitors through the consent page.
+      PIXELS_ENABLED: "true",
       LOG_LEVEL: "warn",
       NEXT_TELEMETRY_DISABLED: "1",
     },

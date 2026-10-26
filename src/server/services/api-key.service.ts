@@ -5,6 +5,7 @@ import { randomToken, safeEqualHex, sha256Hex } from "@/server/lib/hashing";
 import type { Clock } from "@/server/ports/clock";
 import type { IApiKeyRepository } from "@/server/repositories/api-key.repository";
 import type { IUserRepository } from "@/server/repositories/user.repository";
+import type { IWorkspaceRepository } from "@/server/repositories/workspace.repository";
 import { requireUser } from "./authorization";
 import { toApiKeyDto, type ApiKeyDto } from "./dto";
 
@@ -23,7 +24,14 @@ export interface ApiPrincipal {
  * because the secret has full entropy and can't be brute-forced.
  */
 export class ApiKeyService {
-  constructor(private readonly deps: { apiKeys: IApiKeyRepository; users: IUserRepository; clock: Clock }) {}
+  constructor(
+    private readonly deps: {
+      apiKeys: IApiKeyRepository;
+      users: IUserRepository;
+      workspaces: Pick<IWorkspaceRepository, "getRole">;
+      clock: Clock;
+    },
+  ) {}
 
   async create(actor: Actor, name: string): Promise<{ key: ApiKeyDto; secret: string }> {
     const user = requireUser(actor);
@@ -40,6 +48,7 @@ export class ApiKeyService {
       try {
         const key = await this.deps.apiKeys.create({
           userId: user.userId,
+          workspaceId: user.workspace.id,
           name: trimmed,
           prefix: secret.slice(0, PREFIX_LENGTH),
           hash: sha256Hex(secret),
@@ -52,7 +61,14 @@ export class ApiKeyService {
     throw new Error("Could not generate a unique API key");
   }
 
+  /** The keys that act in the workspace the person is looking at. */
   async list(actor: Actor): Promise<ApiKeyDto[]> {
+    const user = requireUser(actor);
+    return (await this.deps.apiKeys.listByUser(user.userId, user.workspace.id)).map(toApiKeyDto);
+  }
+
+  /** Every key the person has, whichever workspace it acts in (data export). */
+  async listAll(actor: Actor): Promise<ApiKeyDto[]> {
     const user = requireUser(actor);
     return (await this.deps.apiKeys.listByUser(user.userId)).map(toApiKeyDto);
   }
@@ -71,12 +87,18 @@ export class ApiKeyService {
     if (!key || !safeEqualHex(sha256Hex(secret), key.hash)) return null;
     const user = await this.deps.users.findById(key.userId);
     if (!user || user.banned) return null;
+    // The key acts with its owner's role in its workspace; once they have left, it stops working.
+    const workspaceRole = await this.deps.workspaces.getRole(key.workspaceId, key.userId);
+    if (!workspaceRole) return null;
 
     const now = this.deps.clock.now();
     if (!key.lastUsedAt || now.getTime() - key.lastUsedAt.getTime() > TOUCH_INTERVAL_MS) {
       await this.deps.apiKeys.touch(key.id, now);
     }
     const role: Role = user.role === "admin" ? "admin" : "user";
-    return { actor: { kind: "user", userId: user.id, role }, keyId: key.id };
+    return {
+      actor: { kind: "user", userId: user.id, role, workspace: { id: key.workspaceId, role: workspaceRole } },
+      keyId: key.id,
+    };
   }
 }

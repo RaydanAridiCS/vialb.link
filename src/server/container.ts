@@ -25,6 +25,7 @@ import { DrizzleHealthRepository } from "@/server/repositories/drizzle/health.re
 import { DrizzleLinkRepository } from "@/server/repositories/drizzle/link.repository.drizzle";
 import { DrizzleSettingsRepository } from "@/server/repositories/drizzle/settings.repository.drizzle";
 import { DrizzleUserRepository } from "@/server/repositories/drizzle/user.repository.drizzle";
+import { DrizzleWorkspaceRepository } from "@/server/repositories/drizzle/workspace.repository.drizzle";
 import { AbuseService } from "@/server/services/abuse.service";
 import { AdminService } from "@/server/services/admin.service";
 import { AnalyticsService } from "@/server/services/analytics.service";
@@ -35,6 +36,7 @@ import { LinkService } from "@/server/services/link.service";
 import { QrService } from "@/server/services/qr.service";
 import { RedirectService } from "@/server/services/redirect.service";
 import { SettingsService } from "@/server/services/settings.service";
+import { WorkspaceService } from "@/server/services/workspace.service";
 import { collectConfigWarnings } from "@/server/startup-checks";
 
 /**
@@ -60,6 +62,7 @@ function buildContainer() {
     users: new DrizzleUserRepository(db),
     health: new DrizzleHealthRepository(db),
     bio: new DrizzleBioRepository(db),
+    workspaces: new DrizzleWorkspaceRepository(db),
   };
 
   let limiter: RateLimiter = new MemoryRateLimiter();
@@ -96,6 +99,7 @@ function buildContainer() {
     allowSignups: env.ALLOW_SIGNUPS,
     anonLinkTtlHours: env.ANON_LINK_TTL_HOURS,
     blockedDomains: [],
+    pixelsEnabled: env.PIXELS_ENABLED,
   });
 
   const abuse = new AbuseService({
@@ -123,11 +127,22 @@ function buildContainer() {
     ipPepper: env.BETTER_AUTH_SECRET,
   });
 
+  const workspaces = new WorkspaceService({
+    workspaces: repos.workspaces,
+    users: repos.users,
+    mailer,
+    abuse,
+    clock,
+    siteUrl,
+    siteName: APP_NAME,
+  });
+
   return {
     clock,
     limiter,
     mailer,
     repos,
+    workspaces,
     settings,
     abuse,
     links,
@@ -140,6 +155,7 @@ function buildContainer() {
       siteUrl,
       forwardQueryParams: env.FORWARD_QUERY_PARAMS,
       geo,
+      pixelsEnabled: async () => (await settings.get()).pixelsEnabled,
     }),
     analytics: new AnalyticsService({
       clicks: repos.clicks,
@@ -157,10 +173,16 @@ function buildContainer() {
       abuse,
       clock,
       siteUrl,
+      personalWorkspaceId: (userId) => workspaces.personalWorkspaceId(userId),
     }),
     card: new CardService({ linkRepo: repos.links, siteUrl, clock }),
     qr: new QrService({ links, linkRepo: repos.links, siteUrl }),
-    apiKeys: new ApiKeyService({ apiKeys: repos.apiKeys, users: repos.users, clock }),
+    apiKeys: new ApiKeyService({
+      apiKeys: repos.apiKeys,
+      users: repos.users,
+      workspaces: repos.workspaces,
+      clock,
+    }),
     admin: new AdminService({ users: repos.users, links: repos.links, clicks: repos.clicks, clock }),
   };
 }

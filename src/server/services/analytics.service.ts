@@ -181,7 +181,7 @@ export class AnalyticsService {
   }
 
   async getLinkAnalytics(actor: Actor, linkId: string, query: AnalyticsQuery): Promise<LinkAnalytics> {
-    const link = await this.deps.links.getOwned(actor, linkId);
+    const link = await this.deps.links.getOwned(actor, linkId, "link:read");
     const range = await this.resolveRange(query, link.id, link.createdAt);
     const filter: ClickFilter = {
       linkId: link.id,
@@ -237,7 +237,7 @@ export class AnalyticsService {
 
   /** Lightweight stats for the REST API. */
   async getLinkStats(actor: Actor, linkId: string, from?: Date, to?: Date) {
-    const link = await this.deps.links.getOwned(actor, linkId);
+    const link = await this.deps.links.getOwned(actor, linkId, "link:read");
     const range = await this.resolveRange(
       from && to ? { range: "custom", from, to, includeBots: false } : { range: "30d", includeBots: false },
       link.id,
@@ -267,7 +267,7 @@ export class AnalyticsService {
     linkId: string,
     query: AnalyticsQuery,
   ): Promise<ReadableStream<Uint8Array>> {
-    const link = await this.deps.links.getOwned(actor, linkId);
+    const link = await this.deps.links.getOwned(actor, linkId, "link:read");
     const range = await this.resolveRange(query, link.id, link.createdAt);
     const filter: ClickFilter = {
       linkId: link.id,

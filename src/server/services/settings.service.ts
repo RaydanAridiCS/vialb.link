@@ -13,6 +13,7 @@ export interface SettingsUpdate {
   allowSignups?: boolean | null;
   anonLinkTtlHours?: number | null;
   blockedDomains?: string[] | null;
+  pixelsEnabled?: boolean | null;
 }
 
 /**
@@ -53,6 +54,7 @@ export class SettingsService {
       allowSignups: null,
       anonLinkTtlHours: null,
       blockedDomains: null,
+      pixelsEnabled: null,
     };
     try {
       const override = (await this.repo.get()) ?? fallbackOverride;
@@ -67,6 +69,7 @@ export class SettingsService {
     const patch: Partial<InstanceSettingsOverride> = {};
     if (update.allowAnonymousLinks !== undefined) patch.allowAnonymousLinks = update.allowAnonymousLinks;
     if (update.allowSignups !== undefined) patch.allowSignups = update.allowSignups;
+    if (update.pixelsEnabled !== undefined) patch.pixelsEnabled = update.pixelsEnabled;
     if (update.anonLinkTtlHours !== undefined) {
       if (
         update.anonLinkTtlHours !== null &&
@@ -103,6 +106,7 @@ export class SettingsService {
       allowSignups: override?.allowSignups ?? this.defaults.allowSignups,
       anonLinkTtlHours: override?.anonLinkTtlHours ?? this.defaults.anonLinkTtlHours,
       blockedDomains: override?.blockedDomains ?? this.defaults.blockedDomains,
+      pixelsEnabled: override?.pixelsEnabled ?? this.defaults.pixelsEnabled,
     };
   }
 }

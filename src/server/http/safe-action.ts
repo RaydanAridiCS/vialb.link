@@ -21,7 +21,7 @@ export const actionClient = createSafeActionClient({
 export const publicActionClient = actionClient.use(async ({ next }) => {
   const session = await getSession();
   const ip = await getRequestIp();
-  const actor: Actor = session ? actorFromSession(session) : { kind: "anonymous", ip };
+  const actor: Actor = session ? await actorFromSession(session) : { kind: "anonymous", ip };
   return next({ ctx: { actor, ip } });
 });
 
@@ -29,7 +29,7 @@ export const publicActionClient = actionClient.use(async ({ next }) => {
 export const authActionClient = actionClient.use(async ({ next }) => {
   const session = await getSession();
   if (!session) throw new UnauthorizedError("Please sign in again");
-  return next({ ctx: { session, actor: actorFromSession(session), ip: await getRequestIp() } });
+  return next({ ctx: { session, actor: await actorFromSession(session), ip: await getRequestIp() } });
 });
 
 /** Requires the admin role. */

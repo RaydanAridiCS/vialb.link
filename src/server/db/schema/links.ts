@@ -12,11 +12,13 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import type { QrEcc, QrFrame } from "@/lib/qr-options";
+import type { LinkPixels } from "@/lib/pixels";
 import type { RoutingRule } from "@/lib/routing";
 import type { CardDesign } from "@/lib/social-card";
 import type { LinkKind } from "@/server/domain/types";
 import { v7 as uuidv7 } from "uuid";
 import { user } from "./auth";
+import { workspaces } from "./workspaces";
 
 export const links = pgTable(
   "links",
@@ -29,7 +31,10 @@ export const links = pgTable(
     /** `bio_button` rows belong to a bio page and are hidden from the links list. */
     kind: text("kind").$type<LinkKind>().notNull().default("link"),
     destinationUrl: text("destination_url").notNull(),
-    userId: text("user_id").references(() => user.id, { onDelete: "cascade" }),
+    /** Who created it. Kept (set null) when that person leaves: the link belongs to its workspace. */
+    userId: text("user_id").references(() => user.id, { onDelete: "set null" }),
+    /** Who may see and change the link. `null` only for anonymous links nobody has claimed. */
+    workspaceId: uuid("workspace_id").references(() => workspaces.id, { onDelete: "cascade" }),
     title: text("title"),
     /** Normalized (lowercase) labels used to group and filter links in the dashboard. */
     tags: text("tags")
@@ -43,6 +48,8 @@ export const links = pgTable(
       .default(sql`'[]'::jsonb`),
     /** Designed social preview card (template, palette, text); `null` when there is none. */
     cardDesign: jsonb("card_design").$type<CardDesign>(),
+    /** Retargeting tag IDs fired from the consent page; `null` when the link has none. */
+    pixels: jsonb("pixels").$type<LinkPixels>(),
     passwordHash: text("password_hash"),
     expiresAt: timestamp("expires_at", { withTimezone: true }),
     maxClicks: integer("max_clicks"),
@@ -71,6 +78,7 @@ export const links = pgTable(
   (t) => [
     uniqueIndex("links_code_unique").on(t.code),
     index("links_user_created_idx").on(t.userId, t.createdAt.desc()),
+    index("links_workspace_created_idx").on(t.workspaceId, t.createdAt.desc()),
     index("links_expires_at_idx").on(t.expiresAt),
     index("links_tags_idx").using("gin", t.tags),
     index("links_claim_token_idx")

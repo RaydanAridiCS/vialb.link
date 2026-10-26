@@ -4,7 +4,7 @@ import { enabledSocialProviders } from "@/server/auth/auth";
 import { getContainer } from "@/server/container";
 
 /** Date shown on the legal pages. Update it whenever their text changes. */
-export const LEGAL_UPDATED_AT = "2026-10-18";
+export const LEGAL_UPDATED_AT = "2026-10-26";
 
 /**
  * Facts about how this instance is configured, so the legal pages only
@@ -15,6 +15,7 @@ export async function getLegalFacts() {
   const effective = await settings.get();
   return {
     anonymousLinks: effective.allowAnonymousLinks,
+    pixels: effective.pixelsEnabled,
     anonLinkTtlHours: effective.anonLinkTtlHours,
     captcha: !!abuse.captchaSiteKey,
     safeBrowsing: !!env.SAFE_BROWSING_API_KEY,

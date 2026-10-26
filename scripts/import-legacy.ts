@@ -97,7 +97,7 @@ async function main() {
   const rows: Row[] = file.toLowerCase().endsWith(".csv") ? parseCsv(text) : (JSON.parse(text) as Row[]);
   if (!Array.isArray(rows)) throw new Error("Expected a JSON array of rows");
 
-  const { repos } = getContainer();
+  const { repos, workspaces } = getContainer();
   const fallbackOwner = await repos.users.findFirstAdmin();
   if (!fallbackOwner)
     throw new Error("No admin user exists yet. Sign up first (the first user becomes admin).");
@@ -151,6 +151,8 @@ async function main() {
         code,
         destinationUrl: destination,
         userId: ownerId,
+        // Imported links start in their owner's personal workspace.
+        workspaceId: await workspaces.personalWorkspaceId(ownerId),
         title: str(row.title)?.slice(0, LIMITS.titleMax) ?? null,
         passwordHash: passwordHash && /^\$2[aby]\$/.test(passwordHash) ? passwordHash : null,
         expiresAt: date(row.expiresAt),

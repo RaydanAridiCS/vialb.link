@@ -32,6 +32,8 @@ These were consciously left out of the first release or only partially done:
 - QR customizer: error correction levels, badge frame, SVG and high-res PNG downloads
 - Link-in-bio pages (`/@handle`)
 - Smart device and geo routing
+- Retargeting pixels (Meta, Google) behind a consent page
+- Team workspaces with roles and invitations
 - Social card studio (designed preview cards and app mock-ups)
 - Launch hardening: pool settings, startup config warnings, Redis fail-open, Sentry (opt-in), encrypted backups
 
@@ -52,7 +54,7 @@ These were consciously left out of the first release or only partially done:
 ## Later
 
 - Custom domains (multiple short domains per instance, per-user domains)
-- Teams / organizations with shared links and roles
+- Teams: per-workspace settings, moving links between workspaces, audit log, SSO
 - Internationalisation of the UI
 - Click retention policies and aggregated rollups for very large instances
 - Public, read-only stats pages per link (opt-in)

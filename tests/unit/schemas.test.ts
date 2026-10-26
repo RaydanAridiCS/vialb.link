@@ -195,3 +195,49 @@ describe("link form: routing rules and card design", () => {
     ).toBe(false);
   });
 });
+
+describe("retargeting pixels in the link form", () => {
+  const valid = { ...DEFAULT_LINK_FORM, destinationUrl: "https://e.com" };
+  const edit = {
+    ...DEFAULT_LINK_FORM,
+    id: crypto.randomUUID(),
+    destinationUrl: "https://e.com",
+    expiration: "keep",
+    passwordAction: "keep",
+    isEnabled: true,
+  };
+
+  it("starts with none, and treats empty fields as none", () => {
+    expect(DEFAULT_LINK_FORM.pixels).toBeNull();
+    expect(createLinkSchema.safeParse({ ...valid, pixels: { meta: "", google: "" } }).success).toBe(true);
+  });
+
+  it("accepts real IDs, with a Google tag in any case", () => {
+    expect(
+      createLinkSchema.safeParse({ ...valid, pixels: { meta: "123456789012345", google: "g-abcd1234" } })
+        .success,
+    ).toBe(true);
+  });
+
+  it("names the field that is wrong", () => {
+    const result = createLinkSchema.safeParse({ ...valid, pixels: { meta: "abc", google: "UA-1" } });
+    const paths = result.error?.issues.map((issue) => issue.path.join(".")) ?? [];
+    expect(paths).toEqual(expect.arrayContaining(["pixels.meta", "pixels.google"]));
+  });
+
+  it("does not combine with a password, on create or when setting one on edit", () => {
+    const pixels = { meta: "123456789", google: "" };
+    const created = createLinkSchema.safeParse({ ...valid, pixels, password: "a-long-password" });
+    expect(created.error?.issues.map((issue) => issue.path.join("."))).toContain("pixels");
+    const edited = updateLinkSchema.safeParse({
+      ...edit,
+      pixels,
+      passwordAction: "set",
+      password: "a-long-password",
+    });
+    expect(edited.error?.issues.map((issue) => issue.path.join("."))).toContain("pixels");
+    // Keeping or removing the password is fine as far as the form can tell.
+    expect(updateLinkSchema.safeParse({ ...edit, pixels, passwordAction: "remove" }).success).toBe(true);
+    expect(createLinkSchema.safeParse({ ...valid, pixels, password: "" }).success).toBe(true);
+  });
+});

@@ -35,6 +35,7 @@ import {
   type QrEcc,
   type QrFrame,
 } from "@/lib/qr-options";
+import { normalizePixels, pixelsProblem, type LinkPixels } from "@/lib/pixels";
 import { isRoutingPlatform, normalizeCountries, routingProblem, type RoutingRule } from "@/lib/routing";
 import { parseCardDesign, type CardDesign } from "@/lib/social-card";
 import { isValidTag, normalizeTag, normalizeTags } from "@/lib/tags";
@@ -45,7 +46,8 @@ import type { CodeGenerator } from "@/server/ports/code-generator";
 import type { PasswordHasher } from "@/server/ports/password-hasher";
 import type { ILinkRepository } from "@/server/repositories/link.repository";
 import type { AbuseService } from "./abuse.service";
-import { assertCanManageLink, isAdmin, requireUser } from "./authorization";
+import { assertCanManageLink, isAdmin, requireLinkWriter, requireUser } from "./authorization";
+import type { Permission } from "@/lib/permissions";
 import { toLinkDto, type LinkDto } from "./dto";
 import type { SettingsService } from "./settings.service";
 
@@ -61,6 +63,7 @@ export interface CreateLinkCommand {
   tags?: string[];
   routingRules?: RoutingRule[];
   cardDesign?: CardDesign | null;
+  pixels?: LinkPixels | null;
   expiration?: ExpirationInput;
   maxClicks?: number | null;
   password?: string | null;
@@ -83,6 +86,8 @@ export interface UpdateLinkCommand {
   routingRules?: RoutingRule[];
   /** `undefined` keeps the current card, `null` removes it. */
   cardDesign?: CardDesign | null;
+  /** `undefined` keeps the current pixels, `null` removes them. */
+  pixels?: LinkPixels | null;
   /** `undefined` keeps the current expiration. */
   expiration?: ExpirationInput;
   maxClicks?: number | null;
@@ -182,8 +187,11 @@ export class LinkService {
         `create:anon:${ctx.ip ?? "unknown"}`,
         RATE_LIMITS.createLinkAnon,
       );
-    } else if (actor.kind === "user" && actor.role !== "admin") {
-      await this.deps.abuse.enforceRateLimit(`create:user:${actor.userId}`, RATE_LIMITS.createLinkUser);
+    } else if (actor.kind === "user") {
+      requireLinkWriter(actor);
+      if (actor.role !== "admin") {
+        await this.deps.abuse.enforceRateLimit(`create:user:${actor.userId}`, RATE_LIMITS.createLinkUser);
+      }
     }
 
     let expiresAt = resolveExpiresAt(cmd.expiration?.preset ?? "never", cmd.expiration?.customAt, now);
@@ -204,10 +212,17 @@ export class LinkService {
   async createManaged(
     actor: Actor,
     cmd: Pick<CreateLinkCommand, "destinationUrl" | "title">,
+    /** The person's personal workspace: bio pages are personal, whichever workspace is showing. */
+    workspaceId: string,
   ): Promise<LinkDto> {
     const user = requireUser(actor);
     const { base } = await this.buildLink(actor, cmd, null, { ip: null });
-    const link = await this.insertGenerated({ ...base, userId: user.userId, kind: "bio_button" });
+    const link = await this.insertGenerated({
+      ...base,
+      userId: user.userId,
+      workspaceId,
+      kind: "bio_button",
+    });
     return this.dto(link);
   }
 
@@ -233,10 +248,12 @@ export class LinkService {
     const base: Omit<NewLink, "code"> = {
       destinationUrl,
       userId: actor.kind === "user" ? actor.userId : null,
+      workspaceId: actor.kind === "user" ? actor.workspace.id : null,
       title: cmd.title?.trim() || null,
       tags: this.cleanTags(cmd.tags),
       routingRules: await this.cleanRouting(cmd.routingRules, [], assertDestination),
       cardDesign: this.cleanCard(cmd.cardDesign),
+      pixels: this.cleanPixels(cmd.pixels, Boolean(cmd.password)),
       passwordHash: cmd.password ? await this.deps.hasher.hash(cmd.password) : null,
       expiresAt,
       maxClicks: cmd.maxClicks ?? null,
@@ -263,7 +280,7 @@ export class LinkService {
    * Spends one `importBatches` token per call instead of one `createLinkUser` token per row.
    */
   async importLinks(actor: Actor, rows: readonly ImportRowCommand[]): Promise<ImportRowResult[]> {
-    const user = requireUser(actor);
+    const user = requireLinkWriter(actor);
     if (rows.length === 0) throw new ValidationError("There are no rows to import");
     if (rows.length > LIMITS.importBatchSize) {
       throw new ValidationError(`At most ${LIMITS.importBatchSize} rows can be imported per request`);
@@ -286,7 +303,7 @@ export class LinkService {
     const results: ImportRowResult[] = [];
     for (const row of rows) {
       try {
-        results.push(await this.importRow(actor, user.userId, row, assertDestination));
+        results.push(await this.importRow(actor, user.workspace.id, row, assertDestination));
       } catch (error) {
         results.push(importFailure(row.row, error));
       }
@@ -296,7 +313,7 @@ export class LinkService {
 
   private async importRow(
     actor: Actor,
-    userId: string,
+    workspaceId: string,
     row: ImportRowCommand,
     assertDestination: (url: string) => Promise<void>,
   ): Promise<ImportRowResult> {
@@ -311,7 +328,7 @@ export class LinkService {
     const customCode = row.customCode?.trim() || undefined;
     if (customCode) {
       const existing = await this.deps.links.findByCode(customCode);
-      if (existing && existing.userId === userId && existing.destinationUrl === destinationUrl) {
+      if (existing && existing.workspaceId === workspaceId && existing.destinationUrl === destinationUrl) {
         return { row: row.row, status: "skipped", code: existing.code, reason: "Already imported" };
       }
     }
@@ -349,7 +366,7 @@ export class LinkService {
       if (!holder) continue;
       const mine =
         holder.deletedAt === null &&
-        holder.userId === user.userId &&
+        holder.workspaceId === user.workspace.id &&
         holder.destinationUrl === destinationUrl.trim();
       (mine ? existing : taken).add(code);
     }
@@ -462,6 +479,22 @@ export class LinkService {
   }
 
   /**
+   * Validates retargeting pixels. A password-protected link cannot carry them: the unlock form hands
+   * the visitor straight to the destination, so the pixels would silently never run.
+   */
+  private cleanPixels(raw: LinkPixels | null | undefined, hasPassword: boolean): LinkPixels | null {
+    const pixels = normalizePixels(raw);
+    const problem = pixelsProblem(pixels);
+    if (problem) throw new ValidationError(problem, { field: "pixels" });
+    if (pixels && hasPassword) {
+      throw new ValidationError("Retargeting pixels can't be used on a password-protected link", {
+        field: "pixels",
+      });
+    }
+    return pixels;
+  }
+
+  /**
    * QR options for a new or edited link. Creates fill gaps from `fallback`; edits (`partial`) only
    * return what the command sets. Colours must be scannable together, checked against the saved
    * colour when only one of them changes.
@@ -509,15 +542,16 @@ export class LinkService {
     }
   }
 
-  async getOwned(actor: Actor, id: string): Promise<Link> {
+  /** The link, if the actor may use it for `permission` (read-only things like analytics ask for `link:read`). */
+  async getOwned(actor: Actor, id: string, permission: Permission = "link:write"): Promise<Link> {
     const link = await this.deps.links.findById(id);
     if (!link) throw new NotFoundError("Link not found");
-    assertCanManageLink(actor, link);
+    assertCanManageLink(actor, link, permission);
     return link;
   }
 
   async get(actor: Actor, id: string): Promise<LinkDto> {
-    return this.dto(await this.getOwned(actor, id));
+    return this.dto(await this.getOwned(actor, id, "link:read"));
   }
 
   async update(actor: Actor, id: string, cmd: UpdateLinkCommand): Promise<LinkDto> {
@@ -533,6 +567,15 @@ export class LinkService {
     if (cmd.title !== undefined) patch.title = cmd.title?.trim() || null;
     if (cmd.tags !== undefined) patch.tags = this.cleanTags(cmd.tags);
     if (cmd.cardDesign !== undefined) patch.cardDesign = this.cleanCard(cmd.cardDesign);
+    // Pixels and a password exclude each other, so check the result of this edit, not just the new field.
+    const willHavePassword = cmd.password === undefined ? link.passwordHash !== null : cmd.password !== null;
+    if (cmd.pixels !== undefined) {
+      patch.pixels = this.cleanPixels(cmd.pixels, willHavePassword);
+    } else if (cmd.password && link.pixels) {
+      throw new ValidationError("Remove the retargeting pixels before adding a password", {
+        field: "password",
+      });
+    }
     if (cmd.routingRules !== undefined) {
       patch.routingRules = await this.cleanRouting(cmd.routingRules, link.routingRules);
     }
@@ -589,7 +632,7 @@ export class LinkService {
     const user = requireUser(actor);
     const all = input.scope === "all" && isAdmin(actor);
     const page = await this.deps.links.list({
-      userId: all ? undefined : user.userId,
+      workspaceId: all ? undefined : user.workspace.id,
       kind: all ? "any" : "link",
       search: input.search,
       tag: input.tag ? normalizeTag(input.tag) : undefined,
@@ -605,7 +648,7 @@ export class LinkService {
   /** Tags in use, for the dashboard filter. Admins listing every link see every tag. */
   async listTags(actor: Actor, scope: "mine" | "all" = "mine"): Promise<string[]> {
     const user = requireUser(actor);
-    return this.deps.links.listTags(scope === "all" && isAdmin(actor) ? undefined : user.userId);
+    return this.deps.links.listTags(scope === "all" && isAdmin(actor) ? undefined : user.workspace.id);
   }
 
   async listByCursor(
@@ -614,7 +657,11 @@ export class LinkService {
     limit: number,
   ): Promise<{ items: LinkDto[]; nextCursor: string | null }> {
     const user = requireUser(actor);
-    const page = await this.deps.links.listByCursor(user.userId, cursor, Math.min(100, Math.max(1, limit)));
+    const page = await this.deps.links.listByCursor(
+      user.workspace.id,
+      cursor,
+      Math.min(100, Math.max(1, limit)),
+    );
     return { items: page.items.map((l) => this.dto(l)), nextCursor: page.nextCursor };
   }
 
@@ -628,6 +675,7 @@ export class LinkService {
     return this.deps.links.claim(
       claimable.map((l) => l.id),
       user.userId,
+      user.workspace.id,
     );
   }
 
@@ -639,6 +687,6 @@ export class LinkService {
 
   async overview(actor: Actor) {
     const user = requireUser(actor);
-    return this.deps.links.overview(user.userId, this.deps.clock.now());
+    return this.deps.links.overview(user.workspace.id, this.deps.clock.now());
   }
 }

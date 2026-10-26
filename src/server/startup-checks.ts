@@ -8,6 +8,7 @@ export interface ConfigSnapshot {
   ALLOW_ANONYMOUS_LINKS: boolean;
   TRUST_PROXY: boolean;
   SENTRY_DSN?: string;
+  PIXELS_ENABLED?: boolean;
 }
 
 /**
@@ -28,6 +29,12 @@ export function collectConfigWarnings(config: ConfigSnapshot): string[] {
   if (config.ALLOW_ANONYMOUS_LINKS && !captchaOn) {
     warnings.push(
       "Anonymous link creation is enabled without Cloudflare Turnstile: bots can create links. Set TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY.",
+    );
+  }
+
+  if (config.PIXELS_ENABLED && !config.SITE_URL.startsWith("https://")) {
+    warnings.push(
+      "PIXELS_ENABLED is on but SITE_URL is not https: the consent cookie cannot be marked Secure. Use https before sending visitors through ad pixels.",
     );
   }
 

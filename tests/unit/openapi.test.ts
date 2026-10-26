@@ -142,3 +142,43 @@ describe("API: smart routing and social cards", () => {
     }
   });
 });
+
+describe("API: retargeting pixels", () => {
+  const pixels = { meta: "123456789012345", google: "G-ABCD1234" };
+
+  it("documents the field on create, update and the link itself", () => {
+    const schemas = buildOpenApiDocument("https://sho.rt").components?.schemas ?? {};
+    for (const name of ["CreateLinkRequest", "UpdateLinkRequest"]) {
+      const properties = (schemas[name] as { properties?: Record<string, unknown> }).properties ?? {};
+      expect(properties, name).toHaveProperty("pixels");
+    }
+    const link = (schemas["Link"] as { properties?: Record<string, unknown>; required?: string[] }) ?? {};
+    expect(link.properties).toHaveProperty("pixels");
+    expect(link.required).toContain("pixels");
+  });
+
+  it("passes the IDs through, keeps them when omitted on update, and clears them with null", () => {
+    expect(toCreateCommand(apiCreateLinkSchema.parse({ url: "https://e.com", pixels })).pixels).toEqual(
+      pixels,
+    );
+    expect(toUpdateCommand(apiUpdateLinkSchema.parse({})).pixels).toBeUndefined();
+    expect(toUpdateCommand(apiUpdateLinkSchema.parse({ pixels })).pixels).toEqual(pixels);
+    expect(toUpdateCommand(apiUpdateLinkSchema.parse({ pixels: null })).pixels).toBeNull();
+  });
+
+  it("rejects values that are not pixel IDs", () => {
+    const bad: unknown[] = [
+      { meta: "12" },
+      { meta: '1"};alert(1)//' },
+      { google: "UA-12345678" },
+      { google: "G-ABC';alert(1)" },
+      { meta: 123456789 },
+    ];
+    for (const value of bad) {
+      expect(
+        apiCreateLinkSchema.safeParse({ url: "https://e.com", pixels: value }).success,
+        JSON.stringify(value),
+      ).toBe(false);
+    }
+  });
+});

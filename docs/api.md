@@ -12,7 +12,9 @@ Create a key in **Dashboard → API keys** and send it as a Bearer token:
 Authorization: Bearer tw_…
 ```
 
-Keys act on behalf of their owner. Only a hash is stored, so a lost key can't be
+Keys act on behalf of their owner, **in the workspace they were created in** and with the owner's role there
+(see [Teams](teams.md)): a viewer's key can read but not change anything, and a key stops working when its owner
+leaves that workspace. Only a hash is stored, so a lost key can't be
 recovered; revoke it and create a new one. Cookies are never accepted by the API.
 
 ## Rate limits
@@ -117,7 +119,11 @@ Smart routing and social cards are part of the link too, and returned on every l
   served at `/{code}/card`, or `null`. On `PATCH`, omit to keep, `null` to remove.
   See [Social card studio](social-cards.md).
 
-Invalid rules or card designs answer `400 VALIDATION_ERROR`. Rule targets are checked like `url`
+- `pixels`: `{ meta?, google? }` Meta Pixel and Google tag IDs, or `null`. Visitors see a consent page before the tags
+  run, only while the instance has pixels enabled, and not on password-protected links. On `PATCH`, omit to keep,
+  `null` to remove. See [Retargeting pixels](retargeting-pixels.md).
+
+Invalid rules, card designs or pixels answer `400 VALIDATION_ERROR`. Rule targets are checked like `url`
 (blocklist, Safe Browsing), and a message such as `Rule 2: ...` names the rule.
 
 Tags are lowercase labels (up to 10 per link, 30 characters each: letters, numbers,

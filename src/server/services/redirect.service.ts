@@ -1,4 +1,5 @@
 import { RATE_LIMITS } from "@/lib/constants";
+import { hasPixels, optsOutOfTracking, parseConsent, type LinkPixels } from "@/lib/pixels";
 import { needsGeo, pickRoute } from "@/lib/routing";
 import { CARD_HEIGHT, CARD_WIDTH } from "@/lib/social-card";
 import type { Link } from "@/server/domain/types";
@@ -19,7 +20,17 @@ export type RedirectDecision =
   | { kind: "gone"; reason: "disabled" | "expired" | "limit" }
   | { kind: "preview"; linkId: string; html: string }
   | { kind: "password" }
-  | { kind: "redirect"; linkId: string; destination: string; routedBy: string | null };
+  | { kind: "redirect"; linkId: string; destination: string; routedBy: string | null }
+  /** The link has retargeting pixels: show the consent page, which forwards to `destination`. */
+  | {
+      kind: "pixel";
+      linkId: string;
+      destination: string;
+      routedBy: string | null;
+      pixels: LinkPixels;
+      /** `granted` when the visitor already agreed; the page then loads tags without asking again. */
+      consent: "ask" | "granted";
+    };
 
 export interface RedirectRequest {
   code: string;
@@ -49,12 +60,15 @@ export interface RedirectServiceDeps {
   forwardQueryParams: boolean;
   /** Needed only for country routing rules; without it those rules never match. */
   geo?: GeoResolver;
+  /** Whether the instance lets links use pixels right now. Without it pixels are off. */
+  pixelsEnabled?: () => Promise<boolean>;
 }
 
 /**
  * The hot path. Decides what `GET /[code]` returns, in this exact order:
  * not found → disabled → expired → preview bot (OG page, no access consumed)
- * → password → atomic access-limit consume → redirect.
+ * → password → atomic access-limit consume → smart routing → redirect (or the pixel page, when the
+ * link has retargeting pixels and the visitor has not opted out).
  */
 export class RedirectService {
   private dummyHash: Promise<string> | null = null;
@@ -98,14 +112,29 @@ export class RedirectService {
       ip: request.ip ?? null,
       headers: request.headers,
     });
-    return {
-      kind: "redirect",
-      linkId: link.id,
-      destination: this.deps.forwardQueryParams
-        ? forwardQuery(destination, request.searchParams)
-        : destination,
-      routedBy,
-    };
+    const target = this.deps.forwardQueryParams
+      ? forwardQuery(destination, request.searchParams)
+      : destination;
+    const pixel = await this.pixelStep(link, target, request.headers);
+    if (pixel) return { kind: "pixel", linkId: link.id, destination: target, routedBy, ...pixel };
+    return { kind: "redirect", linkId: link.id, destination: target, routedBy };
+  }
+
+  /**
+   * Decides whether a visitor goes through the pixel page. Not when the instance has pixels off, the
+   * link has none, the visitor signals they do not want tracking, or they already said no.
+   */
+  private async pixelStep(
+    link: Link,
+    target: string,
+    headers: Headers | undefined,
+  ): Promise<{ pixels: LinkPixels; consent: "ask" | "granted" } | null> {
+    if (!hasPixels(link.pixels) || !/^https?:\/\//i.test(target)) return null;
+    if (optsOutOfTracking(headers)) return null;
+    if (!(await this.deps.pixelsEnabled?.())) return null;
+    const consent = parseConsent(headers?.get("cookie"));
+    if (consent === "denied") return null;
+    return { pixels: link.pixels, consent: consent === "granted" ? "granted" : "ask" };
   }
 
   /**

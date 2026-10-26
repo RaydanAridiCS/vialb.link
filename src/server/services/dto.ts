@@ -1,3 +1,4 @@
+import type { LinkPixels } from "@/lib/pixels";
 import type { QrEcc, QrFrame } from "@/lib/qr-options";
 import type { RoutingRule } from "@/lib/routing";
 import { cardVersion, type CardDesign } from "@/lib/social-card";
@@ -15,6 +16,7 @@ export interface LinkDto {
   tags: string[];
   routingRules: RoutingRule[];
   cardDesign: CardDesign | null;
+  pixels: LinkPixels | null;
   hasPassword: boolean;
   expiresAt: string | null;
   maxClicks: number | null;
@@ -61,6 +63,7 @@ export function toLinkDto(link: Link, siteUrl: string, now: Date): LinkDto {
     tags: link.tags,
     routingRules: link.routingRules,
     cardDesign: link.cardDesign,
+    pixels: link.pixels,
     hasPassword: link.passwordHash !== null,
     expiresAt: link.expiresAt?.toISOString() ?? null,
     maxClicks: link.maxClicks,

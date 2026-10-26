@@ -3,6 +3,7 @@ import { env } from "@/lib/env";
 import { getContainer } from "@/server/container";
 import { clientIpFrom } from "@/server/http/request-context";
 import { notFoundHtml } from "@/server/http/static-pages";
+import { pixelPageCsp, renderPixelPage } from "@/server/lib/pixel-page";
 
 /**
  * THE redirect hot path: GET /{code}.
@@ -27,7 +28,12 @@ export async function GET(request: NextRequest, { params }: RouteContext<"/[code
     case "not_found":
       return new Response(notFoundHtml(code), {
         status: 404,
-        headers: { ...noStore, "Content-Type": "text/html; charset=utf-8" },
+        headers: {
+          ...noStore,
+          "Content-Type": "text/html; charset=utf-8",
+          // The page is static with inline styles and no scripts.
+          "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'",
+        },
       });
     case "gone":
       return new Response(null, {
@@ -54,6 +60,32 @@ export async function GET(request: NextRequest, { params }: RouteContext<"/[code
             "default-src 'none'; img-src https: data:; style-src 'unsafe-inline'; frame-ancestors 'none'",
         },
       });
+    case "pixel": {
+      const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
+      const html = renderPixelPage({
+        destination: decision.destination,
+        pixels: decision.pixels,
+        mode: decision.consent,
+        nonce,
+      });
+      scheduleClick(decision.linkId, decision.routedBy);
+      // A stored value that cannot be rendered safely must not break the link: plain redirect instead.
+      if (html === null) {
+        return new Response(null, {
+          status: env.REDIRECT_STATUS,
+          headers: { ...noStore, Location: decision.destination, "Referrer-Policy": env.REFERRER_POLICY },
+        });
+      }
+      return new Response(html, {
+        status: 200,
+        headers: {
+          ...noStore,
+          "Content-Type": "text/html; charset=utf-8",
+          "X-Robots-Tag": "noindex, nofollow",
+          "Content-Security-Policy": pixelPageCsp(nonce),
+        },
+      });
+    }
     case "redirect":
       scheduleClick(decision.linkId, decision.routedBy);
       return new Response(null, {

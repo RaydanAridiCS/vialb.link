@@ -139,8 +139,9 @@ async function main() {
     password: await hashPassword(DEMO.password),
   });
 
-  const { links: linkService } = getContainer();
-  const actor = { kind: "user", userId, role: "admin" } as const; // admin: no rate limit
+  const { links: linkService, workspaces } = getContainer();
+  const workspace = await workspaces.resolveAccess(userId);
+  const actor = { kind: "user", userId, role: "admin", workspace } as const; // admin: no rate limit
   const now = Date.now();
   const DAY = 86_400_000;
   let totalClicks = 0;

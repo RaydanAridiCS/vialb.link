@@ -29,6 +29,7 @@ export function InstanceSettingsForm({
   const router = useRouter();
   const [anon, setAnon] = useState<Tri>(tri(overrides.allowAnonymousLinks));
   const [signups, setSignups] = useState<Tri>(tri(overrides.allowSignups));
+  const [pixels, setPixels] = useState<Tri>(tri(overrides.pixelsEnabled));
   const [ttl, setTtl] = useState(overrides.anonLinkTtlHours?.toString() ?? "");
   const [domainsMode, setDomainsMode] = useState<"default" | "custom">(
     overrides.blockedDomains ? "custom" : "default",
@@ -60,6 +61,7 @@ export function InstanceSettingsForm({
           save.execute({
             allowAnonymousLinks: anon,
             allowSignups: signups,
+            pixelsEnabled: pixels,
             anonLinkTtlHours: ttl === "" ? "" : Number(ttl),
             blockedDomains: domains,
             blockedDomainsMode: domainsMode,
@@ -94,6 +96,23 @@ export function InstanceSettingsForm({
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground">Currently: {onOff(effective.allowSignups)}</p>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="pixels">Retargeting pixels</Label>
+            <Select value={pixels} onValueChange={(v) => setPixels(v as Tri)}>
+              <SelectTrigger id="pixels" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="default">Default ({onOff(defaults.pixelsEnabled)})</SelectItem>
+                <SelectItem value="on">On</SelectItem>
+                <SelectItem value="off">Off</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Currently: {onOff(effective.pixelsEnabled)}. When on, links with Meta or Google tags show a
+              consent page first. Update your privacy policy before enabling.
+            </p>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="ttl">Anonymous link lifetime (hours)</Label>

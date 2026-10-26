@@ -36,6 +36,12 @@ export default async function PrivacyPage() {
           use: "sends account emails such as password reset links to your email address.",
         }
       : null,
+    facts.pixels
+      ? {
+          name: "Meta and Google advertising tags",
+          use: "run only on links whose owner added them, and only after the visitor accepts on the page shown first (see “Links with advertising pixels”).",
+        }
+      : null,
   ].filter((item) => item !== null);
 
   const sections: LegalSection[] = [
@@ -66,11 +72,41 @@ export default async function PrivacyPage() {
           <p>
             <strong>The visitor&apos;s IP address and full user agent are not stored.</strong> Because the
             hashing value changes daily, the visitor ID cannot be used to follow the same person from one day
-            to the next. Visiting a short link does not set any cookies.
+            to the next. Visiting a short link does not set any cookies
+            {facts.pixels ? ", except on links with advertising pixels (see below)" : ""}.
           </p>
         </>
       ),
     },
+    ...(facts.pixels
+      ? [
+          {
+            id: "pixels",
+            title: "Links with advertising pixels",
+            body: (
+              <>
+                <p>
+                  A link owner can add a Meta Pixel or a Google tag to a link. Visitors to such a link first
+                  see a page that asks whether to allow them.
+                </p>
+                <ul>
+                  <li>
+                    <strong>If you accept,</strong> the tag loads from Meta or Google and may read or set its
+                    own cookies and send information about your visit, including your IP address and browser,
+                    to that company. The link owner then receives audience data from them, not from us. Your
+                    choice is remembered for 6 months in a cookie on this site.
+                  </li>
+                  <li>
+                    <strong>If you decline,</strong> or your browser sends a Global Privacy Control or Do Not
+                    Track signal, nothing is loaded and you are taken straight to the destination.
+                  </li>
+                  <li>Link previews shown by messaging apps never run these tags.</li>
+                </ul>
+              </>
+            ),
+          },
+        ]
+      : []),
     {
       id: "account",
       title: "When you create an account",
@@ -84,7 +120,11 @@ export default async function PrivacyPage() {
               your sign-in sessions, including the IP address and user agent of the device that signed in;
             </li>
             <li>your two-factor authentication settings, if you turn that on;</li>
-            <li>the links you create, their settings and their click statistics.</li>
+            <li>the links you create, their settings and their click statistics;</li>
+            <li>
+              the teams you belong to and your role in them. Other members of a team can see your name, your
+              email address and the team&apos;s links with their statistics, including links you made.
+            </li>
           </ul>
         </>
       ),
@@ -117,6 +157,12 @@ export default async function PrivacyPage() {
           <li>
             <strong>Theme.</strong> Your light or dark mode choice is saved in your browser.
           </li>
+          {facts.pixels ? (
+            <li>
+              <strong>Advertising choice.</strong> Remembers whether you accepted or declined advertising
+              pixels on links that use them. Kept for 6 months; only set after you choose.
+            </li>
+          ) : null}
           {facts.anonymousLinks ? (
             <li>
               <strong>Link tokens.</strong> Tokens for links you created without an account are saved in your

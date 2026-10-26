@@ -491,6 +491,7 @@ describe("LinkService QR options", () => {
       code: "oldlow",
       destinationUrl: "https://old.example",
       userId: "alice",
+      workspaceId: "ws-alice",
       qrFgColor: "#CCCCCC",
       qrBgColor: "#FFFFFF",
     });

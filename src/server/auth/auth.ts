@@ -7,6 +7,7 @@ import { admin, twoFactor } from "better-auth/plugins";
 import { APP_NAME } from "@/lib/constants";
 import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
+import { DomainError } from "@/server/errors";
 import { getContainer } from "@/server/container";
 import { db } from "@/server/db/client";
 import * as schema from "@/server/db/schema";
@@ -79,7 +80,18 @@ export const auth = betterAuth({
   },
   socialProviders,
   user: {
-    deleteUser: { enabled: true },
+    deleteUser: {
+      enabled: true,
+      // Refuses while the person is the only owner of a team that has other members.
+      beforeDelete: async (user) => {
+        try {
+          await getContainer().workspaces.prepareAccountDeletion(user.id);
+        } catch (error) {
+          if (error instanceof DomainError) throw new APIError("BAD_REQUEST", { message: error.message });
+          throw error;
+        }
+      },
+    },
   },
   advanced: {
     ipAddress: { ipAddressHeaders: ["x-forwarded-for"] },

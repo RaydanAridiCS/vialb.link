@@ -87,7 +87,7 @@ export class QrService {
     format: QrFormat,
     options: QrOptions = {},
   ): Promise<QrImage> {
-    const link = await this.deps.links.getOwned(actor, linkId);
+    const link = await this.deps.links.getOwned(actor, linkId, "link:read");
     return this.forLink(link, format, options);
   }
 

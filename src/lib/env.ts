@@ -40,6 +40,7 @@ export const env = createEnv({
     ALLOW_ANONYMOUS_LINKS: bool(false),
     ALLOW_SIGNUPS: bool(true),
     ANON_LINK_TTL_HOURS: z.coerce.number().int().min(1).max(8760).default(720),
+    PIXELS_ENABLED: bool(false),
     ADMIN_EMAIL: z.email().optional(),
 
     REDIRECT_STATUS: z

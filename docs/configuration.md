@@ -34,14 +34,15 @@ Booleans accept `true/false`, `1/0`, `yes/no`, `on/off`.
 
 ## Links & redirects
 
-| Variable                | Default                           | Description                                                                     |
-| ----------------------- | --------------------------------- | ------------------------------------------------------------------------------- |
-| `ALLOW_ANONYMOUS_LINKS` | `false`                           | Default for anonymous creation from the landing page (admin can override).      |
-| `ANON_LINK_TTL_HOURS`   | `720`                             | Forced lifetime of anonymous links (1–8760).                                    |
-| `REDIRECT_STATUS`       | `302`                             | `302` or `307`. Permanent redirects are never used for short links.             |
-| `FORWARD_QUERY_PARAMS`  | `true`                            | Append the short link's query string (e.g. `?utm_source=x`) to the destination. |
-| `REFERRER_POLICY`       | `strict-origin-when-cross-origin` | Sent with redirects. `unsafe-url` passes the full short URL to destinations.    |
-| `PUBLIC_QR_ENDPOINT`    | `false`                           | Expose `/{code}/qr?format=svg                                                   | png` without authentication. |
+| Variable                | Default                           | Description                                                                                                                                    |
+| ----------------------- | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PIXELS_ENABLED`        | `false`                           | Default for [retargeting pixels](retargeting-pixels.md) on links (admins can override in the UI). Changes the privacy and terms pages when on. |
+| `ALLOW_ANONYMOUS_LINKS` | `false`                           | Default for anonymous creation from the landing page (admin can override).                                                                     |
+| `ANON_LINK_TTL_HOURS`   | `720`                             | Forced lifetime of anonymous links (1–8760).                                                                                                   |
+| `REDIRECT_STATUS`       | `302`                             | `302` or `307`. Permanent redirects are never used for short links.                                                                            |
+| `FORWARD_QUERY_PARAMS`  | `true`                            | Append the short link's query string (e.g. `?utm_source=x`) to the destination.                                                                |
+| `REFERRER_POLICY`       | `strict-origin-when-cross-origin` | Sent with redirects. `unsafe-url` passes the full short URL to destinations.                                                                   |
+| `PUBLIC_QR_ENDPOINT`    | `false`                           | Expose `/{code}/qr?format=svg                                                                                                                  | png` without authentication. |
 
 ## Reverse proxy, client IP & headers
 

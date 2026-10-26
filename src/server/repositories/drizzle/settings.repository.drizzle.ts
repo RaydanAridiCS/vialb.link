@@ -17,6 +17,7 @@ export class DrizzleSettingsRepository implements ISettingsRepository {
         allowSignups: instanceSettings.allowSignups,
         anonLinkTtlHours: instanceSettings.anonLinkTtlHours,
         blockedDomains: instanceSettings.blockedDomains,
+        pixelsEnabled: instanceSettings.pixelsEnabled,
       })
       .from(instanceSettings)
       .where(eq(instanceSettings.id, SETTINGS_ID))
@@ -34,6 +35,7 @@ export class DrizzleSettingsRepository implements ISettingsRepository {
         allowSignups: instanceSettings.allowSignups,
         anonLinkTtlHours: instanceSettings.anonLinkTtlHours,
         blockedDomains: instanceSettings.blockedDomains,
+        pixelsEnabled: instanceSettings.pixelsEnabled,
       });
     if (!row) throw new Error("Upsert returned no row");
     return row;

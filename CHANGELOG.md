@@ -39,6 +39,13 @@ is maintained automatically by
   a "Smart routing" card in analytics, `routingRules` on the REST API; migration `0004_smart_routing`
 - Social card studio: designed 1200×630 preview cards (three layouts, six palettes) served at `/{code}/card`, mock-ups for WhatsApp, iMessage,
   Slack and X, `og:image` size and alt tags, `cardDesign` on the REST API; migration `0005_social_cards`
+- Retargeting pixels: a Meta Pixel and/or Google tag per link, run from a consent page (off by default, instance switch `PIXELS_ENABLED`,
+  honours Global Privacy Control and Do Not Track, remembers the choice for 6 months), its own CSP, privacy and terms text that follows the
+  switch, `pixels` on the REST API; migration `0006_retargeting_pixels`
+- Team workspaces: shared links, analytics and API keys with owner / admin / editor / viewer roles, invitations by email (7-day links tied to the
+  invited address, copyable when SMTP is off), a workspace switcher, a Teams page, read-only screens for viewers, and an account-deletion guard so a
+  team is never left without an owner; everyone gets a personal workspace (migration `0007_workspaces` moves existing links and keys into it)
+- Short-code responses now keep the redirect route's own Content-Security-Policy (the proxy used to replace it, including the bot preview's)
 - Production hardening: `DATABASE_POOL_MAX` / `DATABASE_PREPARE` (PgBouncer), Redis rate limiter that fails open, startup warnings for
   risky configuration, optional server-side error reporting (`SENTRY_DSN`, with query strings, cookies and SQL parameters stripped),
   encrypted daily backups to S3 / Cloudflare R2 (`backup` compose profile), and `no-store` on the legacy `/s/{code}` redirect

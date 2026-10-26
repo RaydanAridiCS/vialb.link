@@ -106,9 +106,19 @@ export interface LinksTableProps {
   /** Every tag in use in the current scope, for the filter dropdown. */
   tags?: string[];
   admin?: boolean;
+  /** Viewers: no editing, enabling, disabling or deleting. */
+  readOnly?: boolean;
 }
 
-export function LinksTable({ links, total, page, pageSize, tags = [], admin = false }: LinksTableProps) {
+export function LinksTable({
+  links,
+  total,
+  page,
+  pageSize,
+  tags = [],
+  admin = false,
+  readOnly = false,
+}: LinksTableProps) {
   const router = useRouter();
   const [qrLink, setQrLink] = useState<LinkDto | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string[] | null>(null);
@@ -251,20 +261,24 @@ export function LinksTable({ links, total, page, pageSize, tags = [], admin = fa
                       <BarChart3 className="size-4" /> Analytics
                     </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href={`/dashboard/links/${link.id}/edit`}>
-                      <Pencil className="size-4" /> Edit
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onSelect={() => toggle.execute({ ids: [link.id], enabled: !link.isEnabled })}
-                  >
-                    <Power className="size-4" /> {link.isEnabled ? "Disable" : "Enable"}
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem variant="destructive" onSelect={() => setConfirmDelete([link.id])}>
-                    <Trash2 className="size-4" /> Delete
-                  </DropdownMenuItem>
+                  {readOnly ? null : (
+                    <>
+                      <DropdownMenuItem asChild>
+                        <Link href={`/dashboard/links/${link.id}/edit`}>
+                          <Pencil className="size-4" /> Edit
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onSelect={() => toggle.execute({ ids: [link.id], enabled: !link.isEnabled })}
+                      >
+                        <Power className="size-4" /> {link.isEnabled ? "Disable" : "Enable"}
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem variant="destructive" onSelect={() => setConfirmDelete([link.id])}>
+                        <Trash2 className="size-4" /> Delete
+                      </DropdownMenuItem>
+                    </>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             );
@@ -272,7 +286,7 @@ export function LinksTable({ links, total, page, pageSize, tags = [], admin = fa
         }),
       ]),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- action executors are stable
-    [admin],
+    [admin, readOnly],
   );
 
   const table = useTable({ features, columns, data: links, getRowId: (row) => row.id });
@@ -289,20 +303,24 @@ export function LinksTable({ links, total, page, pageSize, tags = [], admin = fa
           aria-label="Bulk actions"
         >
           <span className="font-medium">{selected.length} selected</span>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => toggle.execute({ ids: selected.map((l) => l.id), enabled: false })}
-          >
-            <Power className="size-4" /> Disable
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => toggle.execute({ ids: selected.map((l) => l.id), enabled: true })}
-          >
-            Enable
-          </Button>
+          {readOnly ? null : (
+            <>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => toggle.execute({ ids: selected.map((l) => l.id), enabled: false })}
+              >
+                <Power className="size-4" /> Disable
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => toggle.execute({ ids: selected.map((l) => l.id), enabled: true })}
+              >
+                Enable
+              </Button>
+            </>
+          )}
           <Button
             size="sm"
             variant="outline"
@@ -312,9 +330,15 @@ export function LinksTable({ links, total, page, pageSize, tags = [], admin = fa
           >
             <Download className="size-4" /> Export CSV
           </Button>
-          <Button size="sm" variant="destructive" onClick={() => setConfirmDelete(selected.map((l) => l.id))}>
-            <Trash2 className="size-4" /> Delete
-          </Button>
+          {readOnly ? null : (
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={() => setConfirmDelete(selected.map((l) => l.id))}
+            >
+              <Trash2 className="size-4" /> Delete
+            </Button>
+          )}
         </div>
       ) : null}
 

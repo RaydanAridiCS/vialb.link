@@ -9,6 +9,7 @@ import { parseAnalyticsParams } from "@/features/analytics/schemas";
 import { LinkQuickActions } from "@/features/links/components/link-actions";
 import { loadOwnedLink } from "@/features/links/queries";
 import { formatDateTime, formatNumber } from "@/lib/format";
+import { can } from "@/lib/permissions";
 import { requireSession } from "@/server/auth/session";
 import { getContainer } from "@/server/container";
 import { ValidationError } from "@/server/errors";
@@ -105,11 +106,13 @@ export default async function LinkAnalyticsPage({
         actions={
           <>
             <LinkQuickActions link={link} />
-            <Button variant="outline" size="sm" asChild>
-              <Link href={`/dashboard/links/${link.id}/edit`}>
-                <Pencil className="size-4" /> Edit
-              </Link>
-            </Button>
+            {can(actor.workspace.role, "link:write") ? (
+              <Button variant="outline" size="sm" asChild>
+                <Link href={`/dashboard/links/${link.id}/edit`}>
+                  <Pencil className="size-4" /> Edit
+                </Link>
+              </Button>
+            ) : null}
             <Button variant="outline" size="sm" asChild>
               <a href={`/api/app/links/${link.id}/clicks.csv?${exportQuery}`} download>
                 <Download className="size-4" /> Export CSV

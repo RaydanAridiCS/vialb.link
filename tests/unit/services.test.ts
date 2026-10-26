@@ -183,7 +183,12 @@ describe("ApiKeyService", () => {
     expect(JSON.stringify(f.apiKeyRepo.rows)).not.toContain(secret);
 
     const principal = await f.apiKeys.authenticate(secret);
-    expect(principal?.actor).toEqual({ kind: "user", userId: "alice", role: "user" });
+    expect(principal?.actor).toEqual({
+      kind: "user",
+      userId: "alice",
+      role: "user",
+      workspace: { id: "ws-alice", role: "owner" },
+    });
     expect(f.apiKeyRepo.rows[0]?.lastUsedAt).not.toBeNull();
 
     expect(await f.apiKeys.authenticate(`${secret}x`)).toBeNull();
@@ -220,6 +225,7 @@ describe("SettingsService + AdminService", () => {
       allowSignups: true,
       anonLinkTtlHours: 48,
       blockedDomains: ["bad.test", "evil.example"],
+      pixelsEnabled: false,
     });
     await f.settings.update(users.admin, { allowAnonymousLinks: null });
     expect((await f.settings.get()).allowAnonymousLinks).toBe(false);
@@ -253,6 +259,7 @@ describe("SettingsService + AdminService", () => {
       allowSignups: true,
       anonLinkTtlHours: 720,
       blockedDomains: [],
+      pixelsEnabled: false,
     };
     const service = new SettingsService(brokenRepo, defaults);
     expect(await service.get()).toEqual(defaults);

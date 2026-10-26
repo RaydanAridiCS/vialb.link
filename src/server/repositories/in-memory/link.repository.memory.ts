@@ -28,10 +28,12 @@ export class InMemoryLinkRepository implements ILinkRepository {
       code: input.code,
       destinationUrl: input.destinationUrl,
       userId: input.userId ?? null,
+      workspaceId: input.workspaceId ?? null,
       title: input.title ?? null,
       tags: input.tags ?? [],
       routingRules: input.routingRules ?? [],
       cardDesign: input.cardDesign ?? null,
+      pixels: input.pixels ?? null,
       passwordHash: input.passwordHash ?? null,
       expiresAt: input.expiresAt ?? null,
       maxClicks: input.maxClicks ?? null,
@@ -76,7 +78,13 @@ export class InMemoryLinkRepository implements ILinkRepository {
     const wanted = new Set(codes);
     return [...this.rows.values()]
       .filter((row) => wanted.has(row.code))
-      .map(({ code, userId, destinationUrl, deletedAt }) => ({ code, userId, destinationUrl, deletedAt }));
+      .map(({ code, userId, workspaceId, destinationUrl, deletedAt }) => ({
+        code,
+        userId,
+        workspaceId,
+        destinationUrl,
+        deletedAt,
+      }));
   }
 
   async list(query: LinkListQuery): Promise<Page<Link>> {
@@ -87,7 +95,7 @@ export class InMemoryLinkRepository implements ILinkRepository {
       (l.maxClicks !== null && l.clickCount >= l.maxClicks);
 
     let items = [...this.rows.values()].filter((l) => !l.deletedAt);
-    if (query.userId !== undefined) items = items.filter((l) => l.userId === query.userId);
+    if (query.workspaceId !== undefined) items = items.filter((l) => l.workspaceId === query.workspaceId);
     if (query.kind !== "any") items = items.filter((l) => l.kind === (query.kind ?? "link"));
     if (search) {
       items = items.filter((l) =>
@@ -135,18 +143,21 @@ export class InMemoryLinkRepository implements ILinkRepository {
     };
   }
 
-  async listTags(userId: string | undefined): Promise<string[]> {
+  async listTags(workspaceId: string | undefined): Promise<string[]> {
     const tags = new Set<string>();
     for (const link of this.rows.values()) {
-      if (link.deletedAt || (userId !== undefined && link.userId !== userId)) continue;
+      if (link.deletedAt || (workspaceId !== undefined && link.workspaceId !== workspaceId)) continue;
       for (const tag of link.tags) tags.add(tag);
     }
     return [...tags].sort();
   }
 
-  async listByCursor(userId: string, cursor: string | null, limit: number): Promise<CursorPage<Link>> {
+  async listByCursor(workspaceId: string, cursor: string | null, limit: number): Promise<CursorPage<Link>> {
     const rows = [...this.rows.values()]
-      .filter((l) => l.userId === userId && l.kind === "link" && !l.deletedAt && (!cursor || l.id < cursor))
+      .filter(
+        (l) =>
+          l.workspaceId === workspaceId && l.kind === "link" && !l.deletedAt && (!cursor || l.id < cursor),
+      )
       .sort((a, b) => (a.id < b.id ? 1 : -1));
     const items = rows.slice(0, limit);
     return { items, nextCursor: rows.length > limit ? (items.at(-1)?.id ?? null) : null };
@@ -200,16 +211,17 @@ export class InMemoryLinkRepository implements ILinkRepository {
   async findByClaimTokenHashes(hashes: readonly string[]): Promise<Link[]> {
     const wanted = new Set(hashes);
     return [...this.rows.values()].filter(
-      (l) => l.claimTokenHash !== null && wanted.has(l.claimTokenHash) && !l.userId && !l.deletedAt,
+      (l) => l.claimTokenHash !== null && wanted.has(l.claimTokenHash) && !l.workspaceId && !l.deletedAt,
     );
   }
 
-  async claim(ids: readonly string[], userId: string): Promise<number> {
+  async claim(ids: readonly string[], userId: string, workspaceId: string): Promise<number> {
     let n = 0;
     for (const id of ids) {
       const row = this.rows.get(id);
-      if (row && !row.userId && !row.deletedAt) {
+      if (row && !row.workspaceId && !row.deletedAt) {
         row.userId = userId;
+        row.workspaceId = workspaceId;
         row.claimTokenHash = null;
         n++;
       }
@@ -217,9 +229,10 @@ export class InMemoryLinkRepository implements ILinkRepository {
     return n;
   }
 
-  async overview(userId: string | undefined): Promise<UserOverviewStats> {
+  async overview(workspaceId: string | undefined): Promise<UserOverviewStats> {
     const owned = [...this.rows.values()].filter(
-      (l) => !l.deletedAt && l.kind === "link" && (userId === undefined || l.userId === userId),
+      (l) =>
+        !l.deletedAt && l.kind === "link" && (workspaceId === undefined || l.workspaceId === workspaceId),
     );
     return { totalLinks: owned.length, clicks7d: 0, clicks30d: 0, topLinks: [], daily: [] };
   }

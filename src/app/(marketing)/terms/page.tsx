@@ -64,6 +64,13 @@ export default async function TermsPage() {
             You keep ownership of the links, titles and preview text you add. You allow the operator to store
             them and show them as needed to run the service, for example when a link is opened or shared.
           </p>
+          {facts.pixels ? (
+            <p>
+              If you add an advertising pixel to a link, you are responsible for having the right to use it,
+              for following the rules of the ad platform and for any notice your own audience is owed. Do not
+              use pixels to collect data about people who have declined.
+            </p>
+          ) : null}
           {facts.anonymousLinks ? (
             <p>
               Links created without an account stop working after {formatLifetime(facts.anonLinkTtlHours)}{" "}
