@@ -24,6 +24,7 @@
 Thumbs.db
 *.pem
 *.mmdb
+/data/
 
 # debug
 npm-debug.log*

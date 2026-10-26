@@ -38,6 +38,7 @@ import type { LinkDto } from "@/server/services/dto";
 import { createLinkAction, updateLinkAction } from "../actions";
 import { createLinkSchema, updateLinkSchema } from "../schemas";
 import { QrPreview } from "./qr-preview";
+import { UtmBuilder } from "./utm-builder";
 
 interface LinkFormValues {
   id: string;
@@ -432,6 +433,13 @@ export function LinkForm({ link, siteUrl }: { link?: LinkDto; siteUrl: string })
               ) : null}
             </CardContent>
           </Card>
+
+          <UtmBuilder
+            destinationUrl={destinationUrl}
+            onApply={(url) =>
+              form.setValue("destinationUrl", url, { shouldDirty: true, shouldValidate: true })
+            }
+          />
 
           <details className="group rounded-2xl border bg-card shadow-paper">
             <summary className="flex cursor-pointer list-none items-center justify-between rounded-2xl px-6 py-5 font-display text-xl outline-none focus-visible:ring-4 focus-visible:ring-ring/25">
