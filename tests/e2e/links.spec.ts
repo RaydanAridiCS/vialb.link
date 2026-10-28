@@ -70,9 +70,12 @@ test.describe("short links", () => {
   test("expired link shows the gone page", async ({ page }) => {
     const { id, code } = await createLinkViaForm(page, { url: "https://example.com/old" });
     await withDb((sql) => sql`update links set expires_at = now() - interval '1 minute' where id = ${id}`);
-    await page.goto(`/${code}`);
-    await expect(page).toHaveURL(new RegExp(`/gone/${code}\\?reason=expired`));
+    const response = await page.goto(`/${code}`);
+    // A real 410 straight from the short link, with no redirect hop.
+    expect(response?.status()).toBe(410);
+    await expect(page).toHaveURL(new RegExp(`/${code}$`));
     await expect(page.getByRole("heading", { name: "This link has expired" })).toBeVisible();
+    await expect(page.getByTestId("gone-page")).toHaveAttribute("data-reason", "expired");
   });
 
   test("access limit 1: second visit is gone", async ({ page, request }) => {
@@ -83,8 +86,8 @@ test.describe("short links", () => {
     const first = await request.get(`/${code}`, { maxRedirects: 0, headers: { "user-agent": BROWSER_UA } });
     expect(first.status()).toBe(302);
     const second = await request.get(`/${code}`, { maxRedirects: 0, headers: { "user-agent": BROWSER_UA } });
-    expect(second.status()).toBe(302);
-    expect(second.headers()["location"]).toBe(`/gone/${code}?reason=limit`);
+    expect(second.status()).toBe(410);
+    expect(await second.text()).toContain("This link reached its visit limit");
   });
 
   test("unknown codes return 404 and legacy /s/ links redirect", async ({ request }) => {

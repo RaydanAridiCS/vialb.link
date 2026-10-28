@@ -22,13 +22,32 @@ export const updateInstanceSettingsAction = adminActionClient
       reportSendDay: z.union([z.literal(""), z.coerce.number().int().min(0).max(6)]),
       reportSendHourUtc: z.union([z.literal(""), z.coerce.number().int().min(0).max(23)]),
       clickRetentionDays: z.union([z.literal(""), z.coerce.number().int().min(0).max(3650)]),
+      requireAdmin2fa: nullableBool,
+      branding: z.object({
+        brandName: z.string().max(200),
+        accentColor: z.string().max(20),
+        logoUrl: z.string().max(1000),
+        notFoundMessage: z.string().max(1000),
+        goneMessage: z.string().max(1000),
+        homeLabel: z.string().max(200),
+        homeUrl: z.string().max(1000),
+      }),
       anonLinkTtlHours: z.union([z.literal(""), z.coerce.number().int().min(1).max(8760)]),
       blockedDomains: z.string().max(200_000),
       blockedDomainsMode: z.enum(["default", "custom"]),
     }),
   )
   .action(async ({ parsedInput, ctx }) => {
+    // Switching the requirement on while you cannot meet it yourself would lock you out of this very page.
+    if (parsedInput.requireAdmin2fa === true && ctx.session.user.twoFactorEnabled !== true) {
+      throw new ValidationError(
+        "Turn on two-factor authentication for your own account first, then require it for administrators.",
+        { field: "requireAdmin2fa" },
+      );
+    }
     const settings = await getContainer().settings.update(ctx.actor, {
+      requireAdmin2fa: parsedInput.requireAdmin2fa,
+      branding: parsedInput.branding,
       allowAnonymousLinks: parsedInput.allowAnonymousLinks,
       allowSignups: parsedInput.allowSignups,
       pixelsEnabled: parsedInput.pixelsEnabled,

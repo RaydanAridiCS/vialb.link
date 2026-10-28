@@ -11,6 +11,7 @@ import {
   folderNameSchema,
   moveToFolderSchema,
   moveToWorkspaceSchema,
+  previewPageSchema,
   renameFolderSchema,
   createLinkSchema,
   emptyToNull,
@@ -157,6 +158,17 @@ export const dismissLinkHealthAction = authActionClient
     await getContainer().healthMonitor.dismiss(ctx.actor, parsedInput.id);
     revalidateDashboard();
     return { ok: true };
+  });
+
+export const setPreviewPageAction = authActionClient
+  .metadata({ name: "set-preview-page" })
+  .inputSchema(previewPageSchema)
+  .action(async ({ parsedInput, ctx }) => {
+    await getContainer().links.update(ctx.actor, parsedInput.id, {
+      previewInterstitial: parsedInput.enabled,
+    });
+    revalidateDashboard();
+    return { enabled: parsedInput.enabled };
   });
 
 export const setConversionsAction = authActionClient

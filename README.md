@@ -16,11 +16,15 @@
 
 ---
 
-<!-- Screenshots: run `npm run seed`, sign in as demo@vialb.local, then capture these pages. -->
+<!-- Screenshots are generated: `npm run build && npm run screenshots` (scratch DB, demo seed, light + dark). -->
 
-|       Landing page       |      Link analytics      |     Links dashboard      |
-| :----------------------: | :----------------------: | :----------------------: |
-| _screenshot coming soon_ | _screenshot coming soon_ | _screenshot coming soon_ |
+<table>
+<tr>
+<td align="center" width="33%"><b>Landing page</b><br><picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/landing-dark.png"><img src="docs/images/landing-light.png" alt="Landing page"></picture></td>
+<td align="center" width="33%"><b>Link analytics</b><br><picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/analytics-dark.png"><img src="docs/images/analytics-light.png" alt="Link analytics"></picture></td>
+<td align="center" width="33%"><b>Links dashboard</b><br><picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/links-dark.png"><img src="docs/images/links-light.png" alt="Links dashboard"></picture></td>
+</tr>
+</table>
 
 ## Features
 

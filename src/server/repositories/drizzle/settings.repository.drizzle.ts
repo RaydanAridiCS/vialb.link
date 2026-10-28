@@ -19,6 +19,8 @@ const OVERRIDE_COLUMNS = {
   reportSendDay: instanceSettings.reportSendDay,
   reportSendHourUtc: instanceSettings.reportSendHourUtc,
   clickRetentionDays: instanceSettings.clickRetentionDays,
+  requireAdmin2fa: instanceSettings.requireAdmin2fa,
+  branding: instanceSettings.branding,
 };
 
 export class DrizzleSettingsRepository implements ISettingsRepository {

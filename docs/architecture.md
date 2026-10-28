@@ -71,18 +71,20 @@ flowchart TD
   A[GET /code] --> B{link exists<br/>and not deleted?}
   B -- no --> NF[404 page]
   B -- yes --> C{enabled?}
-  C -- no --> G1["302 → /gone/code?reason=disabled"]
+  C -- no --> G1["410 gone page (HTML from the handler)"]
   C -- yes --> D{expired?}
-  D -- yes --> G2["302 → /gone/code?reason=expired"]
+  D -- yes --> G2["410 gone page"]
   D -- no --> E{bot / link-preview<br/>crawler?}
   E -- yes --> OG["200 escaped OG HTML<br/>no destination if protected<br/>click recorded as bot, no access consumed"]
   E -- no --> F{password?}
   F -- yes --> PW["307 → /p/code"]
   F -- no --> H{"atomic consume:<br/>UPDATE … WHERE click_count < max_clicks RETURNING"}
-  H -- 0 rows --> G3["302 → /gone/code?reason=limit"]
+  H -- 0 rows --> G3["410 gone page"]
   H -- ok --> R{"smart routing<br/>rule matches device/country?"}
   R -- yes --> RD["302/307 → that rule's URL (+ forwarded query)<br/>Cache-Control: private, no-store"]
   R -- no --> RD2["302/307 → the link's URL (+ forwarded query)<br/>Cache-Control: private, no-store"]
+  RD -. "link has the preview page on" .-> IV["200 preview page (script-free, own CSP)<br/>click recorded when shown"]
+  RD2 -.-> IV
   RD -. "link has pixels, no GPC/DNT, instance on" .-> PX["consent page (200, own CSP)<br/>tags load only after accept, then forward"]
   RD2 -.-> PX
   RD -. after() .-> CL["record click (+ which rule)"]
@@ -93,7 +95,9 @@ flowchart TD
   limits, disabling and analytics would silently stop working.
 - The click is written with Next's `after()` once the response is sent; failures
   are logged, never surfaced to the visitor.
-- `HEAD` requests (link checkers) are answered without consuming access.
+- `HEAD` requests (link checkers) are answered without consuming access: `410` for gone links, `404` for unknown or deleted ones.
+- Gone and not-found pages are static HTML from the handler (Next 16 has no page-status API) and can carry instance branding;
+  see [Gone pages, preview page, branding and admin 2FA](gone-pages-and-previews.md).
 
 ## Data model
 

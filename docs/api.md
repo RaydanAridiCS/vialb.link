@@ -53,6 +53,9 @@ All errors share one shape:
 | 429    | `RATE_LIMITED`                                      |
 | 500    | `INTERNAL_ERROR`                                    |
 
+The short links themselves (`GET /{code}`, not the API) answer disabled, expired and limit-reached links with `410 Gone` (also for `HEAD`),
+and unknown or deleted ones with `404`.
+
 ## Endpoints
 
 | Method           | Path                                        | Description                                                                                                |
@@ -76,6 +79,8 @@ Two fields on a link come from background features:
 - `routingRules[].variants`: A/B or percentage split of a rule ([details](smart-routing.md)).
 - `conversionsEnabled`: whether the redirect adds a `vclid` so the destination can report conversions to
   `/api/convert` (no API key; see [Conversions](conversions.md)). Stats responses then include `conversions`.
+- `previewInterstitial`: show a preview page (destination host and address, "Continue") before redirecting visitors; cannot be
+  combined with `pixels` ([details](gone-pages-and-previews.md)).
 - `statsUrl`: address of the [public stats page](public-stats.md) or `null`. `PATCH` with
   `{"publicStats": true}` turns it on (keeping the address), `false` turns it off.
 

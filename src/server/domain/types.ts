@@ -4,6 +4,7 @@
  */
 
 import type { SocialLink } from "@/lib/bio";
+import type { InstanceBranding } from "@/lib/branding";
 import type { PaletteKey } from "@/lib/palettes";
 import type { WorkspaceRole } from "@/lib/permissions";
 import type { LinkPixels } from "@/lib/pixels";
@@ -66,6 +67,8 @@ export interface Link {
   statsToken: string | null;
   /** The redirect adds a `vclid` to the destination so conversions can be reported. */
   conversionsEnabled: boolean;
+  /** Visitors see the destination and a Continue button before being sent there. */
+  previewInterstitial: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -100,6 +103,7 @@ export type NewLink = Pick<Link, "code" | "destinationUrl"> &
       | "claimTokenHash"
       | "statsToken"
       | "conversionsEnabled"
+      | "previewInterstitial"
       | "createdAt"
     >
   >;
@@ -131,6 +135,7 @@ export type LinkPatch = Partial<
     | "claimTokenHash"
     | "statsToken"
     | "conversionsEnabled"
+    | "previewInterstitial"
   >
 >;
 
@@ -341,6 +346,8 @@ export interface InstanceSettingsOverride {
   reportSendDay: number | null;
   reportSendHourUtc: number | null;
   clickRetentionDays: number | null;
+  requireAdmin2fa: boolean | null;
+  branding: InstanceBranding | null;
 }
 
 export interface InstanceSettings {
@@ -360,6 +367,10 @@ export interface InstanceSettings {
   reportSendHourUtc: number;
   /** How many days individual clicks are kept; 0 keeps them forever. */
   clickRetentionDays: number;
+  /** Administrators need two-factor authentication to use the admin area. */
+  requireAdmin2fa: boolean;
+  /** How the 404 and "gone" pages look; empty = default. */
+  branding: InstanceBranding;
 }
 
 export interface ApiKey {

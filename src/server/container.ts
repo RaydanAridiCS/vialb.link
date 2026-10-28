@@ -35,6 +35,7 @@ import { DrizzleUserRepository } from "@/server/repositories/drizzle/user.reposi
 import { DrizzleWorkspaceRepository } from "@/server/repositories/drizzle/workspace.repository.drizzle";
 import { AbuseService } from "@/server/services/abuse.service";
 import { AdminService } from "@/server/services/admin.service";
+import { AdminGateService } from "@/server/services/admin-gate.service";
 import { AnalyticsService } from "@/server/services/analytics.service";
 import { BioService } from "@/server/services/bio.service";
 import { FolderService } from "@/server/services/folder.service";
@@ -126,6 +127,8 @@ function buildContainer() {
     reportSendDay: env.REPORT_SEND_DAY,
     reportSendHourUtc: env.REPORT_SEND_HOUR_UTC,
     clickRetentionDays: env.CLICK_RETENTION_DAYS,
+    requireAdmin2fa: env.REQUIRE_ADMIN_2FA,
+    branding: {},
   });
 
   const safety = env.SAFE_BROWSING_API_KEY
@@ -246,6 +249,11 @@ function buildContainer() {
     healthMonitor,
     reports,
     retention,
+    adminGate: new AdminGateService({
+      settings,
+      users: repos.users,
+      emergencyOff: env.ADMIN_2FA_EMERGENCY_OFF,
+    }),
     folders: new FolderService({ folders: repos.folders }),
     workspaces,
     settings,

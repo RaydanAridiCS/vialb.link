@@ -31,6 +31,14 @@ export type RedirectDecision =
       /** The `vclid` added to `destination`, stored with the click; `null` unless the link tracks conversions. */
       clickRef: string | null;
     }
+  /** The link asks for a preview: show the destination and a Continue button instead of redirecting. */
+  | {
+      kind: "interstitial";
+      linkId: string;
+      destination: string;
+      routedBy: string | null;
+      clickRef: string | null;
+    }
   /** The link has retargeting pixels: show the consent page, which forwards to `destination`. */
   | {
       kind: "pixel";
@@ -134,6 +142,9 @@ export class RedirectService {
       ? forwardQuery(destination, request.searchParams)
       : destination;
     const { destination: finalTarget, clickRef } = this.withClickRef(link, target);
+    if (link.previewInterstitial && /^https?:\/\//i.test(finalTarget)) {
+      return { kind: "interstitial", linkId: link.id, destination: finalTarget, routedBy, clickRef };
+    }
     const pixel = await this.pixelStep(link, finalTarget, request.headers);
     if (pixel) {
       return { kind: "pixel", linkId: link.id, destination: finalTarget, routedBy, clickRef, ...pixel };
@@ -220,10 +231,16 @@ export class RedirectService {
     return (ruleIndex) => splitBucket(key, link.id, ruleIndex);
   }
 
-  /** Side-effect-free check used for HEAD requests (link checkers must not consume access). */
-  async isReachable(code: string): Promise<boolean> {
+  /**
+   * Side-effect-free answer for HEAD requests (link checkers must not consume access): 200 for a link that works,
+   * 410 for one that is disabled, expired or out of visits, 404 for one that does not exist.
+   */
+  async headStatus(code: string): Promise<200 | 404 | 410> {
     const link = await this.deps.links.findByCode(code);
-    return !!link && link.isEnabled && !isExpired(link.expiresAt, this.deps.clock.now());
+    if (!link) return 404;
+    if (!link.isEnabled || isExpired(link.expiresAt, this.deps.clock.now())) return 410;
+    if (link.maxClicks !== null && link.clickCount >= link.maxClicks) return 410;
+    return 200;
   }
 
   /** Whether a link exists and is password protected (for the password page). */

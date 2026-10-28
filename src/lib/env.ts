@@ -50,6 +50,10 @@ export const env = createEnv({
     /** Days to keep individual clicks; 0 keeps them forever. */
     /** A conversion must be reported within this many days of the click. */
     CONVERSION_WINDOW_DAYS: z.coerce.number().int().min(1).max(365).default(30),
+    /** Administrators must use two-factor authentication to open the admin area. */
+    REQUIRE_ADMIN_2FA: bool(false),
+    /** Break-glass: switches the admin 2FA requirement off whatever the saved setting says. */
+    ADMIN_2FA_EMERGENCY_OFF: bool(false),
     CLICK_RETENTION_DAYS: z.coerce.number().int().min(0).max(3650).default(0),
     REPORT_SEND_HOUR_UTC: z.coerce.number().int().min(0).max(23).default(8),
     HEALTH_CHECK_INTERVAL_HOURS: z.coerce.number().int().min(1).max(168).default(24),

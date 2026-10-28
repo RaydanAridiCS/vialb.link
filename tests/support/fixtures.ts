@@ -28,6 +28,7 @@ import {
   InMemoryUserRepository,
 } from "@/server/repositories/in-memory/other.repositories.memory";
 import { AbuseService } from "@/server/services/abuse.service";
+import { AdminGateService } from "@/server/services/admin-gate.service";
 import { AdminService } from "@/server/services/admin.service";
 import { AnalyticsService } from "@/server/services/analytics.service";
 import { BioService } from "@/server/services/bio.service";
@@ -148,6 +149,8 @@ export interface FixtureOptions {
   healthMonitorEnabled?: boolean;
   weeklyReportEnabled?: boolean;
   clickRetentionDays?: number;
+  requireAdmin2fa?: boolean;
+  adminEmergencyOff?: boolean;
   conversionWindowDays?: number;
   /** Replaces the random draw used when a visitor has no address (A/B splits). */
   random?: () => number;
@@ -194,6 +197,8 @@ export function buildFixture(options: FixtureOptions = {}) {
       reportSendDay: 1,
       reportSendHourUtc: 8,
       clickRetentionDays: options.clickRetentionDays ?? 0,
+      requireAdmin2fa: options.requireAdmin2fa ?? false,
+      branding: {},
     },
     () => clock.now().getTime(),
   );
@@ -313,6 +318,11 @@ export function buildFixture(options: FixtureOptions = {}) {
     healthMonitor,
     reports,
     retention,
+    adminGate: new AdminGateService({
+      settings,
+      users: userRepo,
+      emergencyOff: options.adminEmergencyOff ?? false,
+    }),
     folders: new FolderService({ folders: folderRepo }),
     folderRepo,
     conversions,

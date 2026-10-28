@@ -96,6 +96,8 @@ export interface UpdateLinkCommand {
   publicStats?: boolean;
   /** Turns conversion tracking (the `vclid` added to the destination) on or off. */
   conversionsEnabled?: boolean;
+  /** Show a preview page with the destination before redirecting. Cannot be combined with retargeting pixels. */
+  previewInterstitial?: boolean;
   /** `undefined` keeps the current routing rules; an array (even empty) replaces them. */
   routingRules?: RoutingRule[];
   /** `undefined` keeps the current card, `null` removes it. */
@@ -682,6 +684,16 @@ export class LinkService {
     }
     if (cmd.maxClicks !== undefined) patch.maxClicks = cmd.maxClicks;
     if (cmd.conversionsEnabled !== undefined) patch.conversionsEnabled = cmd.conversionsEnabled;
+    if (cmd.previewInterstitial !== undefined) patch.previewInterstitial = cmd.previewInterstitial;
+    // The preview page ends the visit, so the pixel page that would follow it can never run.
+    if (
+      (patch.previewInterstitial ?? link.previewInterstitial) &&
+      (patch.pixels !== undefined ? patch.pixels : link.pixels)
+    ) {
+      throw new ValidationError("Retargeting pixels can't be used together with the preview page", {
+        field: "previewInterstitial",
+      });
+    }
     if (cmd.publicStats !== undefined) {
       patch.statsToken = cmd.publicStats ? (link.statsToken ?? randomToken(16)) : null;
     }

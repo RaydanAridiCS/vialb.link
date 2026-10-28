@@ -119,6 +119,9 @@ export const apiUpdateLinkSchema = z
     maxClicks: maxClicks.nullable().optional().meta({ description: "null removes the limit" }),
     password: password.nullable().optional().meta({ description: "null removes the password" }),
     isEnabled: z.boolean().optional(),
+    previewInterstitial: z.boolean().optional().meta({
+      description: "Show a preview page before redirecting; cannot be combined with pixels.",
+    }),
     conversionsEnabled: z.boolean().optional().meta({
       description: "Turn conversion tracking on or off (see `Link.conversionsEnabled`).",
     }),
@@ -261,6 +264,10 @@ export const linkSchema = z
     cardDesign: cardDesignSchema.nullable(),
     pixels: z.object({ meta: z.string().optional(), google: z.string().optional() }).nullable(),
     hasPassword: z.boolean(),
+    previewInterstitial: z.boolean().meta({
+      description:
+        "When on, visitors first see a page with the destination and a Continue button instead of being redirected at once.",
+    }),
     conversionsEnabled: z.boolean().meta({
       description:
         "When on, visitors are sent to the destination with a random `vclid` parameter, which the destination can report back to `/api/convert` to count a conversion.",
@@ -400,6 +407,7 @@ export function toUpdateCommand(input: z.output<typeof apiUpdateLinkSchema>): Up
     isEnabled: input.isEnabled,
     publicStats: input.publicStats,
     conversionsEnabled: input.conversionsEnabled,
+    previewInterstitial: input.previewInterstitial,
     ogTitle: input.ogTitle,
     ogDescription: input.ogDescription,
     ogImageUrl: input.ogImageUrl,

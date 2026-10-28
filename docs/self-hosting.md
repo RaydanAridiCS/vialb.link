@@ -221,10 +221,11 @@ PgBouncer's transaction pooling mode.
 
 ## Troubleshooting
 
-| Symptom                                                | Fix                                                                    |
-| ------------------------------------------------------ | ---------------------------------------------------------------------- |
-| Container exits with "Invalid environment variables"   | A required variable is missing or malformed; the log lists which.      |
-| All visitors share one rate-limit bucket / one country | Enable `TRUST_PROXY` and set `TRUSTED_PROXY_HOPS` correctly.           |
-| Short links point to `localhost`                       | `SITE_URL` is wrong; it must be the public URL.                        |
-| OAuth "redirect_uri mismatch"                          | Register `${SITE_URL}/api/auth/callback/<provider>` with the provider. |
-| "Forgot password" link missing                         | Configure SMTP (`SMTP_HOST`, `SMTP_FROM`).                             |
+| Symptom                                                | Fix                                                                        |
+| ------------------------------------------------------ | -------------------------------------------------------------------------- |
+| Container exits with "Invalid environment variables"   | A required variable is missing or malformed; the log lists which.          |
+| All visitors share one rate-limit bucket / one country | Enable `TRUST_PROXY` and set `TRUSTED_PROXY_HOPS` correctly.               |
+| Short links point to `localhost`                       | `SITE_URL` is wrong; it must be the public URL.                            |
+| OAuth "redirect_uri mismatch"                          | Register `${SITE_URL}/api/auth/callback/<provider>` with the provider.     |
+| "Forgot password" link missing                         | Configure SMTP (`SMTP_HOST`, `SMTP_FROM`).                                 |
+| An admin is locked out by "require 2FA"                | Start with `ADMIN_2FA_EMERGENCY_OFF=true`, sign in, enrol, then remove it. |

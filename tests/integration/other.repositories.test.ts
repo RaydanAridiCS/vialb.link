@@ -1,4 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import * as schema from "@/server/db/schema";
 import { UniqueViolationError } from "@/server/errors";
 import { DrizzleApiKeyRepository } from "@/server/repositories/drizzle/api-key.repository.drizzle";
 import { DrizzleSettingsRepository } from "@/server/repositories/drizzle/settings.repository.drizzle";
@@ -57,6 +58,8 @@ describe("DrizzleSettingsRepository", () => {
       reportSendDay: null,
       reportSendHourUtc: null,
       clickRetentionDays: null,
+      requireAdmin2fa: null,
+      branding: null,
     });
     await repo.upsert({ allowAnonymousLinks: null });
     expect((await repo.get())?.allowAnonymousLinks).toBeNull();
@@ -82,5 +85,26 @@ describe("DrizzleUserRepository", () => {
     expect((await repo.findByEmail("admin@example.com"))?.id).toBe(admin.id);
     expect((await repo.findById(admin.id))?.role).toBe("admin");
     expect((await repo.findFirstAdmin())?.id).toBe(admin.id);
+  });
+});
+
+describe("DrizzleUserRepository.hasPassword", () => {
+  it("is true for people with a credential account and false for social-only ones", async () => {
+    const repo = new DrizzleUserRepository(db);
+    const withPassword = await createUser(db);
+    const socialOnly = await createUser(db);
+    await db.insert(schema.account).values([
+      {
+        id: `acc-${withPassword.id}`,
+        accountId: withPassword.id,
+        providerId: "credential",
+        userId: withPassword.id,
+        password: "hash",
+      },
+      { id: `acc-${socialOnly.id}`, accountId: "gh-1", providerId: "github", userId: socialOnly.id },
+    ]);
+    expect(await repo.hasPassword(withPassword.id)).toBe(true);
+    expect(await repo.hasPassword(socialOnly.id)).toBe(false);
+    expect(await repo.hasPassword("nobody")).toBe(false);
   });
 });

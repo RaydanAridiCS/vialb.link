@@ -12,6 +12,8 @@ export interface ConfigSnapshot {
   HEALTH_ALLOW_PRIVATE_TARGETS?: boolean;
   WEEKLY_REPORT_ENABLED?: boolean;
   CLICK_RETENTION_DAYS?: number;
+  REQUIRE_ADMIN_2FA?: boolean;
+  ADMIN_2FA_EMERGENCY_OFF?: boolean;
   SMTP_HOST?: string;
   SMTP_FROM?: string;
 }
@@ -54,6 +56,11 @@ export function collectConfigWarnings(config: ConfigSnapshot): string[] {
     );
   }
 
+  if (config.ADMIN_2FA_EMERGENCY_OFF) {
+    warnings.push(
+      "ADMIN_2FA_EMERGENCY_OFF is on: administrators are not required to use two-factor authentication whatever the saved setting says. Remove it once access is restored.",
+    );
+  }
   if (config.CLICK_RETENTION_DAYS && config.CLICK_RETENTION_DAYS > 0) {
     warnings.push(
       `CLICK_RETENTION_DAYS=${config.CLICK_RETENTION_DAYS}: clicks older than that are deleted for good every day. Make sure backups cover anything you need to keep.`,

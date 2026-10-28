@@ -231,6 +231,8 @@ describe("SettingsService + AdminService", () => {
       reportSendDay: 1,
       reportSendHourUtc: 8,
       clickRetentionDays: 0,
+      requireAdmin2fa: false,
+      branding: {},
     });
     await f.settings.update(users.admin, { allowAnonymousLinks: null });
     expect((await f.settings.get()).allowAnonymousLinks).toBe(false);
@@ -283,6 +285,8 @@ describe("SettingsService + AdminService", () => {
       reportSendDay: 1,
       reportSendHourUtc: 8,
       clickRetentionDays: 0,
+      requireAdmin2fa: false,
+      branding: {},
     };
     const service = new SettingsService(brokenRepo, defaults);
     expect(await service.get()).toEqual(defaults);

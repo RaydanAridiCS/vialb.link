@@ -36,6 +36,18 @@ export function InstanceSettingsForm({
   const [reports, setReports] = useState<Tri>(tri(overrides.weeklyReportEnabled));
   const [reportDay, setReportDay] = useState(overrides.reportSendDay?.toString() ?? "");
   const [reportHour, setReportHour] = useState(overrides.reportSendHourUtc?.toString() ?? "");
+  const [twoFactor, setTwoFactor] = useState<Tri>(tri(overrides.requireAdmin2fa));
+  const [branding, setBranding] = useState({
+    brandName: overrides.branding?.brandName ?? "",
+    accentColor: overrides.branding?.accentColor ?? "",
+    logoUrl: overrides.branding?.logoUrl ?? "",
+    notFoundMessage: overrides.branding?.notFoundMessage ?? "",
+    goneMessage: overrides.branding?.goneMessage ?? "",
+    homeLabel: overrides.branding?.homeLabel ?? "",
+    homeUrl: overrides.branding?.homeUrl ?? "",
+  });
+  const setBrand = (key: keyof typeof branding) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setBranding((current) => ({ ...current, [key]: e.target.value }));
   const [retention, setRetention] = useState(overrides.clickRetentionDays?.toString() ?? "");
   const preview = useAction(previewRetentionAction);
   useEffect(() => {
@@ -89,6 +101,8 @@ export function InstanceSettingsForm({
             reportSendDay: reportDay === "" ? "" : Number(reportDay),
             reportSendHourUtc: reportHour === "" ? "" : Number(reportHour),
             clickRetentionDays: retention === "" ? "" : Number(retention),
+            requireAdmin2fa: twoFactor,
+            branding,
             anonLinkTtlHours: ttl === "" ? "" : Number(ttl),
             blockedDomains: domains,
             blockedDomainsMode: domainsMode,
@@ -228,6 +242,26 @@ export function InstanceSettingsForm({
             </p>
           </div>
           <div className="space-y-1.5">
+            <Label htmlFor="admin-2fa">Require two-factor for administrators</Label>
+            <Select value={twoFactor} onValueChange={(v) => setTwoFactor(v as Tri)}>
+              <SelectTrigger id="admin-2fa" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="default">Default ({onOff(defaults.requireAdmin2fa)})</SelectItem>
+                <SelectItem value="on">On</SelectItem>
+                <SelectItem value="off">Off</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Currently: {onOff(effective.requireAdmin2fa)}. Administrators without it are sent to their
+              settings to set it up before they can use this area. You need it on your own account to switch
+              this on. If someone is locked out, set{" "}
+              <span className="font-mono">ADMIN_2FA_EMERGENCY_OFF=true</span> and restart. Administrators who
+              sign in only with GitHub or Google (no password) are not affected.
+            </p>
+          </div>
+          <div className="space-y-1.5">
             <Label htmlFor="ttl">Anonymous link lifetime (hours)</Label>
             <Input
               id="ttl"
@@ -264,6 +298,119 @@ export function InstanceSettingsForm({
             <p className="text-xs text-muted-foreground">
               One domain per line. Subdomains are blocked too. Applies to new links and destination edits.
             </p>
+          </div>
+        </CardContent>
+        <CardContent className="mt-2 border-t pt-6" data-testid="branding-section">
+          <h3 className="font-display text-lg">Not-found and gone pages</h3>
+          <p className="mb-4 text-sm text-muted-foreground">
+            Make the pages visitors see for missing, expired and disabled links match your brand. Leave
+            everything empty for the default look.
+          </p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="brand-name">Name</Label>
+              <Input
+                id="brand-name"
+                maxLength={40}
+                value={branding.brandName}
+                onChange={setBrand("brandName")}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="brand-accent">Accent colour</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="brand-accent"
+                  placeholder="#1A7F5A"
+                  maxLength={7}
+                  value={branding.accentColor}
+                  onChange={setBrand("accentColor")}
+                />
+                <span
+                  aria-hidden
+                  className="size-9 shrink-0 rounded-md border"
+                  style={{
+                    backgroundColor: /^#[0-9A-Fa-f]{6}$/.test(branding.accentColor)
+                      ? branding.accentColor
+                      : "transparent",
+                  }}
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label htmlFor="brand-logo">Logo address (https)</Label>
+              <Input
+                id="brand-logo"
+                type="url"
+                placeholder="https://example.com/logo.png"
+                value={branding.logoUrl}
+                onChange={setBrand("logoUrl")}
+              />
+            </div>
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label htmlFor="brand-404">Message on the not-found page</Label>
+              <Input
+                id="brand-404"
+                maxLength={200}
+                value={branding.notFoundMessage}
+                onChange={setBrand("notFoundMessage")}
+              />
+            </div>
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label htmlFor="brand-gone">Message on the gone page</Label>
+              <Input
+                id="brand-gone"
+                maxLength={200}
+                value={branding.goneMessage}
+                onChange={setBrand("goneMessage")}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="brand-home-label">Button label</Label>
+              <Input
+                id="brand-home-label"
+                maxLength={30}
+                value={branding.homeLabel}
+                onChange={setBrand("homeLabel")}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="brand-home-url">Button link</Label>
+              <Input
+                id="brand-home-url"
+                placeholder="/ or https://example.com"
+                value={branding.homeUrl}
+                onChange={setBrand("homeUrl")}
+              />
+            </div>
+          </div>
+          <div
+            className="mt-5 rounded-xl border bg-muted/40 p-6 text-center"
+            data-testid="branding-preview"
+            aria-label="Preview of the not-found page"
+          >
+            <p
+              className="text-5xl font-bold"
+              style={{
+                color: /^#[0-9A-Fa-f]{6}$/.test(branding.accentColor) ? branding.accentColor : undefined,
+              }}
+            >
+              404
+            </p>
+            <p className="mt-2 font-medium">{branding.brandName || "Your product"}</p>
+            <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
+              {branding.notFoundMessage || "No link matches /example. It may have been mistyped or deleted."}
+            </p>
+            <span
+              className="mt-3 inline-block rounded-md px-3 py-1.5 text-sm text-white"
+              style={{
+                backgroundColor: /^#[0-9A-Fa-f]{6}$/.test(branding.accentColor)
+                  ? branding.accentColor
+                  : "#1a1814",
+              }}
+            >
+              {branding.homeLabel || `Go to ${branding.brandName || "your product"}`}
+            </span>
           </div>
         </CardContent>
         <CardFooter className="mt-2">

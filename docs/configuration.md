@@ -44,6 +44,15 @@ Booleans accept `true/false`, `1/0`, `yes/no`, `on/off`.
 | `REFERRER_POLICY`       | `strict-origin-when-cross-origin` | Sent with redirects. `unsafe-url` passes the full short URL to destinations.                                                                   |
 | `PUBLIC_QR_ENDPOINT`    | `false`                           | Expose `/{code}/qr?format=svg                                                                                                                  | png` without authentication. |
 
+## Administrator two-factor authentication
+
+See [Gone pages, preview page, branding and admin 2FA](gone-pages-and-previews.md). The switch can also be changed in the admin page.
+
+| Variable                  | Default | Description                                                                                                      |
+| ------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------- |
+| `REQUIRE_ADMIN_2FA`       | `false` | Administrators without two-factor authentication are sent to their settings before they can use the admin area.  |
+| `ADMIN_2FA_EMERGENCY_OFF` | `false` | Ignore the setting entirely (recovery for a locked-out admin). A startup warning reminds you to remove it again. |
+
 ## Background jobs, link health & report emails
 
 See [Background jobs](jobs.md), [Link health](link-health.md) and [Reports](reports.md). The three switches can also be changed in the admin page, which overrides these defaults.
@@ -130,7 +139,8 @@ See [Backups](self-hosting.md#backups).
 ## Instance settings in the admin UI
 
 `/admin` lets administrators override **anonymous links**, **sign-ups**,
-**anonymous link lifetime** and the **blocked domains** list. Overrides are
+**anonymous link lifetime** and the **blocked domains** list, plus
+the 404 / gone page **branding** and the admin two-factor requirement. Overrides are
 stored in the `instance_settings` table; choosing "Default" falls back to the
 environment value again. Changes take effect within ~5 seconds on every
 instance.

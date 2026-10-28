@@ -41,8 +41,12 @@ export async function requireSession(): Promise<{
   return { session, actor: await actorFromSession(session) };
 }
 
+/** The admin area. When the instance requires it, administrators without two-factor are sent to set it up first. */
+export const TWO_FACTOR_SETUP_PATH = "/dashboard/settings?2fa=required";
+
 export async function requireAdminSession() {
   const result = await requireSession();
   if (result.actor.role !== "admin") redirect("/dashboard");
+  if (await getContainer().adminGate.mustEnroll(result.session.user)) redirect(TWO_FACTOR_SETUP_PATH);
   return result;
 }

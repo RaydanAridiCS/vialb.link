@@ -1,6 +1,6 @@
 /**
- * Development / screenshot seed: a demo user, a dozen sample links and ~30
- * days of synthetic clicks.
+ * Development / screenshot seed: a demo user, a dozen sample links in two folders, ~30 days of synthetic
+ * clicks, an A/B test with conversions, and one link the health monitor has flagged.
  *
  *   npm run seed            (idempotent: skips if the demo user exists)
  *   npm run seed -- --force (wipes the demo user's data and re-seeds)
@@ -10,9 +10,9 @@ import { hashPassword } from "better-auth/crypto";
 import { eq, sql } from "drizzle-orm";
 import { getContainer } from "@/server/container";
 import { db, pgClient } from "@/server/db/client";
-import { account, clicks, links, user } from "@/server/db/schema";
+import { account, clicks, conversions, linkHealth, links, user } from "@/server/db/schema";
 import type { NewClick } from "@/server/domain/types";
-import { sha256Hex } from "@/server/lib/hashing";
+import { randomToken, sha256Hex } from "@/server/lib/hashing";
 
 const DEMO = { email: "demo@vialb.local", password: "demo-password-123", name: "Demo User" };
 
@@ -38,6 +38,7 @@ const SAMPLE_LINKS = [
     code: "spring-sale",
     title: "Spring sale landing page",
     weight: 8,
+    split: true,
   },
   {
     url: "https://example.com/webinar/2026",
@@ -139,12 +140,30 @@ async function main() {
     password: await hashPassword(DEMO.password),
   });
 
-  const { links: linkService, workspaces } = getContainer();
+  const { links: linkService, workspaces, folders: folderService, repos } = getContainer();
   const workspace = await workspaces.resolveAccess(userId);
   const actor = { kind: "user", userId, role: "admin", workspace } as const; // admin: no rate limit
   const now = Date.now();
   const DAY = 86_400_000;
   let totalClicks = 0;
+
+  const campaigns = await folderService.create(
+    { kind: "user", userId, role: "admin", workspace },
+    "Campaigns",
+  );
+  const docs = await folderService.create({ kind: "user", userId, role: "admin", workspace }, "Docs");
+  const FILED: Record<string, string> = {
+    "spring-sale": campaigns.id,
+    webinar: campaigns.id,
+    launch: campaigns.id,
+    careers: campaigns.id,
+    repo: docs.id,
+    "next-docs": docs.id,
+    pg17: docs.id,
+    drizzle: docs.id,
+    shadcn: docs.id,
+    "auth-docs": docs.id,
+  };
 
   for (const sample of SAMPLE_LINKS) {
     const { link } = await linkService.create(
@@ -155,9 +174,24 @@ async function main() {
         title: sample.title,
         password: sample.password ?? null,
         maxClicks: sample.maxClicks ?? null,
+        folderId: FILED[sample.code] ?? null,
       },
       { ip: null },
     );
+    if (sample.split) {
+      await linkService.update(actor, link.id, {
+        routingRules: [
+          {
+            url: sample.url,
+            variants: [
+              { url: sample.url, weight: 50, label: "Original" },
+              { url: "https://example.com/spring-sale-v2", weight: 50, label: "New layout" },
+            ],
+          },
+        ],
+        conversionsEnabled: true,
+      });
+    }
     const createdAt = new Date(now - 32 * DAY);
     const batch: NewClick[] = [];
     for (let day = 30; day >= 0; day--) {
@@ -189,10 +223,34 @@ async function main() {
           utmContent: null,
           language: pick(LANGS),
           isBot,
+          ...(sample.split
+            ? { routedBy: Math.random() < 0.5 ? "variant:A" : "variant:B", clickRef: randomToken(12) }
+            : {}),
         });
       }
     }
     for (let i = 0; i < batch.length; i += 500) await db.insert(clicks).values(batch.slice(i, i + 500));
+    if (sample.split) {
+      // About 6% of tracked visits convert, a little more often on the new layout.
+      const stored = await db
+        .select({ id: clicks.id, routedBy: clicks.routedBy, isBot: clicks.isBot })
+        .from(clicks)
+        .where(eq(clicks.linkId, link.id));
+      const wins = stored.filter(
+        (c) => !c.isBot && Math.random() < (c.routedBy === "variant:B" ? 0.08 : 0.05),
+      );
+      for (let i = 0; i < wins.length; i += 500) {
+        await db.insert(conversions).values(
+          wins.slice(i, i + 500).map((c) => ({
+            linkId: link.id,
+            clickId: c.id,
+            occurredAt: new Date(now - Math.floor(Math.random() * 20) * DAY),
+            valueMinor: 1500 + Math.floor(Math.random() * 8500),
+            currency: "USD",
+          })),
+        );
+      }
+    }
     const humans = batch.filter((c) => !c.isBot).length;
     totalClicks += batch.length;
     await db
@@ -203,6 +261,23 @@ async function main() {
         ...(sample.expired ? { expiresAt: new Date(now - 2 * DAY) } : {}),
       })
       .where(eq(links.id, link.id));
+  }
+
+  // One link whose destination "broke": the dashboard shows a "Needs attention" badge when the monitor is on.
+  const careers = await repos.links.findByCode("careers");
+  if (careers) {
+    await db.insert(linkHealth).values({
+      linkId: careers.id,
+      state: "flagged",
+      consecutiveFailures: 3,
+      lastCheckedAt: new Date(now - 2 * 3_600_000),
+      nextCheckAt: new Date(now + 20 * 3_600_000),
+      lastReason: "not_found",
+      lastStatusCode: 404,
+      failingTarget: careers.destinationUrl,
+      flaggedAt: new Date(now - 2 * 3_600_000),
+      history: [],
+    });
   }
 
   console.log(`Seeded ${SAMPLE_LINKS.length} links and ${totalClicks} clicks.`);

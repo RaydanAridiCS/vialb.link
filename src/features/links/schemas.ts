@@ -291,6 +291,8 @@ export const moveToWorkspaceSchema = z.object({
   workspaceId: z.uuid(),
 });
 
+export const previewPageSchema = z.object({ id: z.uuid(), enabled: z.boolean() });
+
 export const conversionsSchema = z.object({ id: z.uuid(), enabled: z.boolean() });
 
 export const publicStatsSchema = z.object({

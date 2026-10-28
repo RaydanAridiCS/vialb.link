@@ -434,4 +434,41 @@ describe("migrations", () => {
     expect(clash).toBe("23505");
     expect(after).toEqual({ folder_id: null, n: 1 }); // deleting a folder keeps the link
   });
+  it("keep links without a preview page and instance settings on their defaults", async () => {
+    const url = await freshDatabase();
+    await applyAll(url, truncatedFolder(14));
+    expect(await columnsOfLinks(url)).not.toContain("preview_interstitial");
+
+    const before = postgres(url, { max: 1, onnotice: () => {} });
+    await before`insert into links (id, code, destination_url) values ('00000000-0000-4000-8000-0000000000a8', 'pre-polish', 'https://a.example')`;
+    await before`insert into instance_settings (id, allow_signups, click_retention_days) values (1, false, 30)`;
+    await before.end();
+
+    await applyAll(url);
+
+    const check = postgres(url, { max: 1, onnotice: () => {} });
+    const [link] = await check<{ preview_interstitial: boolean }[]>`select preview_interstitial from links`;
+    const [settings] = await check<
+      {
+        allow_signups: boolean | null;
+        click_retention_days: number | null;
+        require_admin_2fa: boolean | null;
+        branding: unknown;
+      }[]
+    >`select allow_signups, click_retention_days, require_admin_2fa, branding from instance_settings`;
+    await check`update instance_settings set branding = '{"brandName":"Acme"}'::jsonb`;
+    const [stored] = await check<
+      { branding: { brandName: string } }[]
+    >`select branding from instance_settings`;
+    await check.end();
+
+    expect(link).toEqual({ preview_interstitial: false });
+    expect(settings).toEqual({
+      allow_signups: false,
+      click_retention_days: 30,
+      require_admin_2fa: null,
+      branding: null,
+    });
+    expect(stored?.branding.brandName).toBe("Acme");
+  });
 });

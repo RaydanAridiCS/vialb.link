@@ -76,6 +76,8 @@ export const links = pgTable(
     statsToken: text("stats_token"),
     /** Opt-in conversion tracking: the redirect adds a random `vclid` to the destination and stores it on the click. */
     conversionsEnabled: boolean("conversions_enabled").notNull().default(false),
+    /** Show a "you are about to leave" page with the destination instead of redirecting at once. */
+    previewInterstitial: boolean("preview_interstitial").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()

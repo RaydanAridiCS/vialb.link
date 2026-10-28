@@ -2,6 +2,7 @@ import type { Actor, InstanceSettings, InstanceSettingsOverride } from "@/server
 import type { ISettingsRepository } from "@/server/repositories/settings.repository";
 import { normalizeDomainEntry } from "@/server/lib/url";
 import { LIMITS } from "@/lib/constants";
+import { cleanBranding, type InstanceBranding } from "@/lib/branding";
 import { ValidationError } from "@/server/errors";
 import { requireAdmin } from "./authorization";
 
@@ -23,6 +24,9 @@ export interface SettingsUpdate {
   reportSendDay?: number | null;
   reportSendHourUtc?: number | null;
   clickRetentionDays?: number | null;
+  requireAdmin2fa?: boolean | null;
+  /** `null` resets to the default look. */
+  branding?: InstanceBranding | null;
 }
 
 /**
@@ -69,6 +73,8 @@ export class SettingsService {
       reportSendDay: null,
       reportSendHourUtc: null,
       clickRetentionDays: null,
+      requireAdmin2fa: null,
+      branding: null,
     };
     try {
       const override = (await this.repo.get()) ?? fallbackOverride;
@@ -91,6 +97,16 @@ export class SettingsService {
         throw new ValidationError("The report day must be between 0 (Sunday) and 6 (Saturday)");
       }
       patch.reportSendDay = update.reportSendDay;
+    }
+    if (update.requireAdmin2fa !== undefined) patch.requireAdmin2fa = update.requireAdmin2fa;
+    if (update.branding !== undefined) {
+      if (update.branding === null) patch.branding = null;
+      else {
+        const { value, problems } = cleanBranding(update.branding);
+        if (problems.length > 0)
+          throw new ValidationError(problems[0] ?? "Invalid branding", { field: "branding" });
+        patch.branding = Object.keys(value).length === 0 ? null : value;
+      }
     }
     if (update.clickRetentionDays !== undefined) {
       if (update.clickRetentionDays !== null && !isIntBetween(update.clickRetentionDays, 0, 3650)) {
@@ -146,6 +162,8 @@ export class SettingsService {
       reportSendDay: override?.reportSendDay ?? this.defaults.reportSendDay,
       reportSendHourUtc: override?.reportSendHourUtc ?? this.defaults.reportSendHourUtc,
       clickRetentionDays: override?.clickRetentionDays ?? this.defaults.clickRetentionDays,
+      requireAdmin2fa: override?.requireAdmin2fa ?? this.defaults.requireAdmin2fa,
+      branding: override?.branding ?? this.defaults.branding,
     };
   }
 }

@@ -22,6 +22,7 @@
     "db:migrate": "node --env-file-if-exists=.env --import tsx scripts/migrate.ts",
     "db:studio": "drizzle-kit studio",
     "build:migrate": "esbuild scripts/migrate.ts --bundle --platform=node --format=cjs --target=node24 --outfile=dist/migrate.cjs",
+    "screenshots": "node --env-file-if-exists=.env --import tsx scripts/screenshots.ts",
     "seed": "node --env-file-if-exists=.env --conditions=react-server --import tsx scripts/seed.ts",
     "bench:retention": "node --env-file-if-exists=.env --conditions=react-server --import tsx scripts/bench-retention.ts",
     "import:legacy": "node --env-file-if-exists=.env --conditions=react-server --import tsx scripts/import-legacy.ts"

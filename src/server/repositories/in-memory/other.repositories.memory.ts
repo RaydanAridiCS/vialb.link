@@ -301,6 +301,8 @@ export class InMemorySettingsRepository implements ISettingsRepository {
       reportSendDay: null,
       reportSendHourUtc: null,
       clickRetentionDays: null,
+      requireAdmin2fa: null,
+      branding: null,
       ...this.current,
       ...patch,
     };
@@ -326,6 +328,12 @@ export class InMemorySettingsRepository implements ISettingsRepository {
 
 export class InMemoryUserRepository implements IUserRepository {
   readonly rows: UserSummary[] = [];
+  /** People who have no password (social login only); everyone else is assumed to have one. */
+  readonly socialOnly = new Set<string>();
+
+  async hasPassword(userId: string): Promise<boolean> {
+    return !this.socialOnly.has(userId);
+  }
 
   async count(): Promise<number> {
     return this.rows.length;

@@ -148,6 +148,13 @@ failed, and it was restored.
 | Let anyone change another workspace's folders                           | `folders.test.ts`                                         |
 | Do not collapse whitespace in folder names                              | `folders.test.ts` (3 tests)                               |
 | A/B random fallback always gives bucket 0                               | `ab-splits.test.ts`                                       |
+| Drop the colour contrast check on instance branding                     | `stage4.test.ts`                                          |
+| `HEAD` answers 404 instead of 410 for disabled / expired links          | `stage4.test.ts`                                          |
+| Access limit reached is compared with `>` instead of `>=` on `HEAD`     | `stage4.test.ts`                                          |
+| Admin 2FA gate ignores the emergency switch                             | `stage4.test.ts`                                          |
+| Admin 2FA gate also applies to admins who have no password              | `stage4.test.ts`                                          |
+| Admin 2FA gate also applies to non-admins                               | `stage4.test.ts`                                          |
+| Allow retargeting pixels and the preview page on the same link          | `stage4.test.ts`                                          |
 
 ## Coverage
 

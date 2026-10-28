@@ -40,11 +40,11 @@ test.describe("cache headers on the redirect path", () => {
     await withDb((sql) => sql`update links set expires_at = now() - interval '1 minute' where id = ${id}`);
 
     const gone = await request.get(`/${code}`, { maxRedirects: 0, headers: humanHeaders });
-    expect(gone.status()).toBe(302);
+    expect(gone.status()).toBe(410);
     expectNoStore(gone.headers());
 
     const goneView = await request.get(`/gone/${code}?reason=expired`, { maxRedirects: 0 });
-    expect(goneView.status()).toBe(200);
+    expect(goneView.status()).toBe(410);
     expectNoStore(goneView.headers());
   });
 

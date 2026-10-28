@@ -1,7 +1,7 @@
 import "server-only";
-import { asc, count, eq, sql } from "drizzle-orm";
+import { and, asc, count, eq, sql } from "drizzle-orm";
 import type { Database } from "@/server/db/client";
-import { user } from "@/server/db/schema";
+import { account, user } from "@/server/db/schema";
 import type { UserSummary } from "@/server/domain/types";
 import type { IUserRepository } from "@/server/repositories/user.repository";
 
@@ -33,6 +33,15 @@ export class DrizzleUserRepository implements IUserRepository {
   async findById(id: string): Promise<UserSummary | null> {
     const [row] = await this.db.select(summaryColumns).from(user).where(eq(user.id, id)).limit(1);
     return row ?? null;
+  }
+
+  async hasPassword(userId: string): Promise<boolean> {
+    const [row] = await this.db
+      .select({ id: account.id })
+      .from(account)
+      .where(and(eq(account.userId, userId), eq(account.providerId, "credential")))
+      .limit(1);
+    return row !== undefined;
   }
 
   async findFirstAdmin(): Promise<UserSummary | null> {

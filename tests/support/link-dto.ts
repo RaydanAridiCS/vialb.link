@@ -20,6 +20,7 @@ export function makeLinkDto(overrides: Partial<LinkDto> = {}): LinkDto {
     hasPassword: false,
     statsUrl: null,
     conversionsEnabled: false,
+    previewInterstitial: false,
     expiresAt: null,
     maxClicks: null,
     clickCount: 0,

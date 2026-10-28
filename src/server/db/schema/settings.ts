@@ -1,4 +1,5 @@
-import { boolean, date, integer, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { boolean, date, integer, jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import type { InstanceBranding } from "@/lib/branding";
 import { v7 as uuidv7 } from "uuid";
 import { user } from "./auth";
 import { workspaces } from "./workspaces";
@@ -22,6 +23,10 @@ export const instanceSettings = pgTable("instance_settings", {
   reportSendHourUtc: integer("report_send_hour_utc"),
   /** Days to keep individual clicks; 0 = forever. `null` = use the environment default. */
   clickRetentionDays: integer("click_retention_days"),
+  /** Administrators must have two-factor authentication to use the admin area. */
+  requireAdmin2fa: boolean("require_admin_2fa"),
+  /** Look of the 404 and "gone" pages; `null` = the default look. */
+  branding: jsonb("branding").$type<InstanceBranding>(),
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .notNull()
     .defaultNow()

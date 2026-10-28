@@ -50,6 +50,8 @@ export interface LinkDto {
   statsUrl: string | null;
   /** The redirect adds a `vclid` to the destination so it can report conversions. */
   conversionsEnabled: boolean;
+  /** Visitors see a "you are about to leave" page first. */
+  previewInterstitial: boolean;
   expiresAt: string | null;
   maxClicks: number | null;
   clickCount: number;
@@ -108,6 +110,7 @@ export function toLinkDto(
     hasPassword: link.passwordHash !== null,
     statsUrl: link.statsToken ? `${siteUrl}/stats/${link.statsToken}` : null,
     conversionsEnabled: link.conversionsEnabled,
+    previewInterstitial: link.previewInterstitial,
     expiresAt: link.expiresAt?.toISOString() ?? null,
     maxClicks: link.maxClicks,
     clickCount: link.clickCount,
