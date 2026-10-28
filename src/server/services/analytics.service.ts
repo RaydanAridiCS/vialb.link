@@ -13,7 +13,7 @@ import type {
 } from "@/server/domain/types";
 import { RateLimitedError, ValidationError } from "@/server/errors";
 import { csvRow } from "@/server/lib/csv";
-import { randomToken, utcDay, visitorHash } from "@/server/lib/hashing";
+import { utcDay, visitorHash } from "@/server/lib/hashing";
 import { extractUtm } from "@/server/lib/query";
 import { parseReferrer } from "@/server/lib/request";
 import { parseUserAgent, primaryLanguage } from "@/server/lib/user-agent";
@@ -21,6 +21,7 @@ import type { Clock } from "@/server/ports/clock";
 import type { GeoResolver } from "@/server/ports/geo-resolver";
 import type { RateLimiter } from "@/server/ports/rate-limiter";
 import { conversionRate } from "@/lib/conversions";
+import type { DailySaltProvider } from "@/server/lib/daily-salt";
 import type { IClickRepository } from "@/server/repositories/click.repository";
 import type {
   ConversionBreakdownRow,
@@ -130,6 +131,8 @@ export interface AnalyticsServiceDeps {
   geo: GeoResolver;
   clock: Clock;
   logger: Logger;
+  /** The day's visitor-hash salt, shared with the redirect path. */
+  salts: DailySaltProvider;
   /** Limits how often one address can open public stats pages. */
   limiter?: RateLimiter;
   conversions: IConversionRepository;
@@ -150,8 +153,6 @@ const DIMENSIONS: AnalyticsDimension[] = [
 ];
 
 export class AnalyticsService {
-  private readonly salts = new Map<string, Promise<string>>();
-
   constructor(private readonly deps: AnalyticsServiceDeps) {}
 
   /**
@@ -164,7 +165,7 @@ export class AnalyticsService {
       const userAgent = input.headers.get("user-agent");
       const ua = parseUserAgent(userAgent);
       const [salt, geo] = await Promise.all([
-        this.dailySalt(utcDay(now)),
+        this.deps.salts.forDay(utcDay(now)),
         this.deps.geo.resolve({ ip: input.ip, headers: input.headers }),
       ]);
       const utm = extractUtm(input.searchParams);
@@ -196,17 +197,6 @@ export class AnalyticsService {
     } catch (error) {
       this.deps.logger.warn({ err: error, linkId: input.linkId }, "Failed to record click");
     }
-  }
-
-  private dailySalt(day: string): Promise<string> {
-    let salt = this.salts.get(day);
-    if (!salt) {
-      salt = this.deps.settingsRepo.getOrCreateDailySalt(day, randomToken(32));
-      salt.catch(() => this.salts.delete(day));
-      this.salts.clear(); // keep only the current day's salt in memory
-      this.salts.set(day, salt);
-    }
-    return salt;
   }
 
   async resolveRange(

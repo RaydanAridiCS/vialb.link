@@ -1,12 +1,17 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
 import { getContainer } from "@/server/container";
 import { authActionClient, publicActionClient } from "@/server/http/safe-action";
 import {
   checkImportCodesSchema,
   claimSchema,
   conversionsSchema,
+  folderNameSchema,
+  moveToFolderSchema,
+  moveToWorkspaceSchema,
+  renameFolderSchema,
   createLinkSchema,
   emptyToNull,
   importLinksSchema,
@@ -36,6 +41,7 @@ export const createLinkAction = authActionClient
         customCode: input.customCode || undefined,
         title: emptyToNull(input.title),
         tags: input.tags,
+        folderId: input.folderId || null,
         routingRules: input.routingRules,
         cardDesign: input.cardDesign,
         pixels: input.pixels,
@@ -82,6 +88,7 @@ export const updateLinkAction = authActionClient
       destinationUrl: input.destinationUrl,
       title: emptyToNull(input.title),
       tags: input.tags,
+      folderId: input.folderId || null,
       routingRules: input.routingRules,
       cardDesign: input.cardDesign,
       pixels: input.pixels,
@@ -161,6 +168,55 @@ export const setConversionsAction = authActionClient
     return { enabled: parsedInput.enabled };
   });
 
+export const moveToWorkspaceAction = authActionClient
+  .metadata({ name: "move-to-workspace" })
+  .inputSchema(moveToWorkspaceSchema)
+  .action(async ({ parsedInput, ctx }) => {
+    const moved = await getContainer().links.moveToWorkspace(
+      ctx.actor,
+      parsedInput.ids,
+      parsedInput.workspaceId,
+    );
+    revalidateDashboard();
+    return { moved };
+  });
+
+export const createFolderAction = authActionClient
+  .metadata({ name: "create-folder" })
+  .inputSchema(folderNameSchema)
+  .action(async ({ parsedInput, ctx }) => {
+    const folder = await getContainer().folders.create(ctx.actor, parsedInput.name);
+    revalidateDashboard();
+    return { id: folder.id, name: folder.name };
+  });
+
+export const renameFolderAction = authActionClient
+  .metadata({ name: "rename-folder" })
+  .inputSchema(renameFolderSchema)
+  .action(async ({ parsedInput, ctx }) => {
+    const folder = await getContainer().folders.rename(ctx.actor, parsedInput.id, parsedInput.name);
+    revalidateDashboard();
+    return { id: folder.id, name: folder.name };
+  });
+
+export const deleteFolderAction = authActionClient
+  .metadata({ name: "delete-folder" })
+  .inputSchema(z.object({ id: z.uuid() }))
+  .action(async ({ parsedInput, ctx }) => {
+    await getContainer().folders.delete(ctx.actor, parsedInput.id);
+    revalidateDashboard();
+    return { ok: true };
+  });
+
+export const moveToFolderAction = authActionClient
+  .metadata({ name: "move-to-folder" })
+  .inputSchema(moveToFolderSchema)
+  .action(async ({ parsedInput, ctx }) => {
+    const moved = await getContainer().links.moveToFolder(ctx.actor, parsedInput.ids, parsedInput.folderId);
+    revalidateDashboard();
+    return { moved };
+  });
+
 export const setPublicStatsAction = authActionClient
   .metadata({ name: "set-public-stats" })
   .inputSchema(publicStatsSchema)
@@ -198,6 +254,7 @@ export const importLinksAction = authActionClient
         customCode: row.code || undefined,
         title: emptyToNull(row.title),
         tags: row.tags,
+        folder: emptyToNull(row.folder),
       })),
     );
     if (results.some((result) => result.status === "created")) revalidateDashboard();

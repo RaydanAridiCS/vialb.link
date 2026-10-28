@@ -122,11 +122,22 @@ export const LIMITS = {
   /** Smart routing: rules per link and countries per rule. */
   routingRulesMax: 10,
   routingCountriesMax: 50,
+  /** A/B and percentage splits: arms per rule and the length of an arm's name. */
+  routingVariantsMax: 5,
+  /** Moving links to another workspace: links per request. */
+  moveLinksMax: 100,
+  routingVariantLabelMax: 20,
   /** Team workspaces: how many a person may create, members and pending invitations per workspace. */
   workspaceNameMax: 60,
   workspacesPerUserMax: 10,
   workspaceMembersMax: 50,
   workspaceInvitesMax: 50,
+  /** Folders: name length and how many a workspace may have. */
+  folderNameMax: 40,
+  foldersPerWorkspaceMax: 100,
+  /** REST bulk import: rows and request size. */
+  apiImportMaxRows: 100,
+  apiImportMaxBytes: 256 * 1024,
   /** How long an invitation link works. */
   inviteTtlDays: 7,
 } as const;

@@ -404,4 +404,34 @@ describe("migrations", () => {
     expect(second).toHaveLength(0);
     expect(left?.n).toBe(0); // the conversion went with its click
   });
+  it("add folders and leave every existing link in no folder", async () => {
+    const url = await freshDatabase();
+    await applyAll(url, truncatedFolder(13));
+    expect(await columnsOfLinks(url)).not.toContain("folder_id");
+
+    const before = postgres(url, { max: 1, onnotice: () => {} });
+    await before`insert into links (id, code, destination_url) values ('00000000-0000-4000-8000-0000000000b9', 'pre-folder', 'https://a.example')`;
+    await before.end();
+
+    await applyAll(url);
+
+    const check = postgres(url, { max: 1, onnotice: () => {} });
+    const [link] = await check<{ folder_id: string | null }[]>`select folder_id from links`;
+    await check`insert into workspaces (id, name) values ('00000000-0000-4000-8000-0000000000e9', 'Team')`;
+    await check`insert into folders (id, workspace_id, name) values ('00000000-0000-4000-8000-0000000000f9', '00000000-0000-4000-8000-0000000000e9', 'Promo')`;
+    const clash =
+      await check`insert into folders (id, workspace_id, name) values (gen_random_uuid(), '00000000-0000-4000-8000-0000000000e9', 'PROMO')`.catch(
+        (e: { code?: string }) => e.code,
+      );
+    await check`update links set folder_id = '00000000-0000-4000-8000-0000000000f9'`;
+    await check`delete from folders`;
+    const [after] = await check<
+      { folder_id: string | null; n: number }[]
+    >`select folder_id, (select count(*) from links)::int as n from links`;
+    await check.end();
+
+    expect(link).toEqual({ folder_id: null });
+    expect(clash).toBe("23505");
+    expect(after).toEqual({ folder_id: null, n: 1 }); // deleting a folder keeps the link
+  });
 });

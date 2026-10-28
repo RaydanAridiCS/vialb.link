@@ -9,7 +9,7 @@ import type {
   UserOverviewStats,
 } from "@/server/domain/types";
 import { UniqueViolationError } from "@/server/errors";
-import type { CodeHolder, ILinkRepository } from "@/server/repositories/link.repository";
+import type { CodeHolder, ILinkRepository, LinkCursorFilter } from "@/server/repositories/link.repository";
 
 /** In-memory fake for unit tests. Mirrors the Drizzle semantics, not its performance. */
 export class InMemoryLinkRepository implements ILinkRepository {
@@ -32,6 +32,7 @@ export class InMemoryLinkRepository implements ILinkRepository {
       userId: input.userId ?? null,
       workspaceId: input.workspaceId ?? null,
       title: input.title ?? null,
+      folderId: input.folderId ?? null,
       tags: input.tags ?? [],
       routingRules: input.routingRules ?? [],
       cardDesign: input.cardDesign ?? null,
@@ -115,6 +116,8 @@ export class InMemoryLinkRepository implements ILinkRepository {
     }
     const { tag } = query;
     if (tag) items = items.filter((l) => l.tags.includes(tag));
+    if (query.folder === "none") items = items.filter((l) => l.folderId === null);
+    else if (query.folder) items = items.filter((l) => l.folderId === query.folder);
     if (query.health === "attention") items = items.filter((l) => this.attentionIds.has(l.id));
     switch (query.status) {
       case "active":
@@ -164,15 +167,54 @@ export class InMemoryLinkRepository implements ILinkRepository {
     return [...tags].sort();
   }
 
-  async listByCursor(workspaceId: string, cursor: string | null, limit: number): Promise<CursorPage<Link>> {
+  async listByCursor(
+    workspaceId: string,
+    cursor: string | null,
+    limit: number,
+    filter: LinkCursorFilter = {},
+  ): Promise<CursorPage<Link>> {
     const rows = [...this.rows.values()]
       .filter(
         (l) =>
-          l.workspaceId === workspaceId && l.kind === "link" && !l.deletedAt && (!cursor || l.id < cursor),
+          l.workspaceId === workspaceId &&
+          l.kind === "link" &&
+          !l.deletedAt &&
+          (!cursor || l.id < cursor) &&
+          (!filter.tag || l.tags.includes(filter.tag)) &&
+          (!filter.folder || (filter.folder === "none" ? l.folderId === null : l.folderId === filter.folder)),
       )
       .sort((a, b) => (a.id < b.id ? 1 : -1));
     const items = rows.slice(0, limit);
     return { items, nextCursor: rows.length > limit ? (items.at(-1)?.id ?? null) : null };
+  }
+
+  async moveToWorkspace(
+    ids: readonly string[],
+    fromWorkspaceId: string,
+    toWorkspaceId: string,
+  ): Promise<number> {
+    let moved = 0;
+    for (const id of ids) {
+      const row = this.rows.get(id);
+      if (row && !row.deletedAt && row.kind === "link" && row.workspaceId === fromWorkspaceId) {
+        row.workspaceId = toWorkspaceId;
+        row.folderId = null;
+        moved++;
+      }
+    }
+    return moved;
+  }
+
+  async setFolder(ids: readonly string[], folderId: string | null): Promise<number> {
+    let changed = 0;
+    for (const id of ids) {
+      const row = this.rows.get(id);
+      if (row && !row.deletedAt) {
+        row.folderId = folderId;
+        changed++;
+      }
+    }
+    return changed;
   }
 
   async listAllByUser(userId: string): Promise<Link[]> {

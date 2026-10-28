@@ -53,6 +53,8 @@ export interface LinkFormValues {
   customCode: string;
   title: string;
   tags: string[];
+  /** A folder id, or an empty string for none. */
+  folderId: string;
   routingRules: RoutingRule[];
   cardDesign: CardDesign | null;
   /** Empty strings mean "none". */
@@ -129,6 +131,7 @@ function defaultsFor(link?: LinkDto): LinkFormValues {
     customCode: "",
     title: link?.title ?? "",
     tags: link?.tags ?? [],
+    folderId: link?.folder?.id ?? "",
     routingRules: link?.routingRules ?? [],
     cardDesign: link?.cardDesign ?? null,
     pixels: { meta: link?.pixels?.meta ?? "", google: link?.pixels?.google ?? "" },
@@ -155,6 +158,7 @@ export function LinkForm({
   siteUrl,
   pixelsEnabled = false,
   tagSuggestions,
+  folders = [],
 }: {
   link?: LinkDto;
   siteUrl: string;
@@ -162,6 +166,8 @@ export function LinkForm({
   pixelsEnabled?: boolean;
   /** Tags the user already has, offered while typing. */
   tagSuggestions?: string[];
+  /** The workspace's folders. */
+  folders?: { id: string; name: string }[];
 }) {
   const router = useRouter();
   const mode = link ? "edit" : "create";
@@ -234,6 +240,7 @@ export function LinkForm({
       destinationUrl: values.destinationUrl,
       title: values.title,
       tags: values.tags,
+      folderId: values.folderId,
       routingRules: values.routingRules,
       cardDesign: values.cardDesign,
       pixels: values.pixels,
@@ -364,6 +371,36 @@ export function LinkForm({
                   </FormItem>
                 )}
               />
+              {folders.length > 0 ? (
+                <FormField
+                  control={form.control}
+                  name="folderId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel htmlFor="link-folder">Folder (optional)</FormLabel>
+                      <Select
+                        value={field.value || "none"}
+                        onValueChange={(value) => field.onChange(value === "none" ? "" : value)}
+                      >
+                        <FormControl>
+                          <SelectTrigger id="link-folder" className="w-full">
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="none">No folder</SelectItem>
+                          {folders.map((folder) => (
+                            <SelectItem key={folder.id} value={folder.id}>
+                              {folder.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              ) : null}
               {mode === "edit" ? (
                 <FormField
                   control={form.control}

@@ -28,7 +28,10 @@ export class InMemoryLinkHealthRepository implements ILinkHealthRepository {
       const health = this.rows.get(link.id) ?? null;
       if (health && health.nextCheckAt > now) continue;
       const extra = new Set<string>();
-      for (const rule of link.routingRules) extra.add(rule.url);
+      for (const rule of link.routingRules) {
+        extra.add(rule.url);
+        for (const variant of rule.variants ?? []) extra.add(variant.url);
+      }
       due.push({
         at: (health?.nextCheckAt ?? link.createdAt).getTime(),
         candidate: {

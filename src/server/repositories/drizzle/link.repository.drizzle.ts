@@ -29,7 +29,7 @@ import type {
   TimeseriesPoint,
   UserOverviewStats,
 } from "@/server/domain/types";
-import type { CodeHolder, ILinkRepository } from "@/server/repositories/link.repository";
+import type { CodeHolder, ILinkRepository, LinkCursorFilter } from "@/server/repositories/link.repository";
 import { rethrowUniqueViolation } from "./pg-errors";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -114,6 +114,8 @@ export class DrizzleLinkRepository implements ILinkRepository {
     }
 
     if (query.tag) conditions.push(arrayContains(links.tags, [query.tag]));
+    if (query.folder === "none") conditions.push(isNull(links.folderId));
+    else if (query.folder) conditions.push(eq(links.folderId, query.folder));
     if (query.health === "attention") {
       conditions.push(
         sql`exists (select 1 from ${linkHealth} where ${linkHealth.linkId} = ${links.id} and ${linkHealth.state} = 'flagged' and ${linkHealth.dismissedAt} is null)`,
@@ -186,7 +188,12 @@ export class DrizzleLinkRepository implements ILinkRepository {
     return rows.map((row) => row.tag);
   }
 
-  async listByCursor(workspaceId: string, cursor: string | null, limit: number): Promise<CursorPage<Link>> {
+  async listByCursor(
+    workspaceId: string,
+    cursor: string | null,
+    limit: number,
+    filter: LinkCursorFilter = {},
+  ): Promise<CursorPage<Link>> {
     // uuidv7 ids are time-ordered, so the id doubles as a stable keyset cursor.
     const rows = await this.db
       .select()
@@ -197,6 +204,12 @@ export class DrizzleLinkRepository implements ILinkRepository {
           eq(links.kind, "link"),
           isNull(links.deletedAt),
           cursor ? lt(links.id, cursor) : undefined,
+          filter.tag ? arrayContains(links.tags, [filter.tag]) : undefined,
+          filter.folder === "none"
+            ? isNull(links.folderId)
+            : filter.folder
+              ? eq(links.folderId, filter.folder)
+              : undefined,
         ),
       )
       .orderBy(desc(links.id))
@@ -204,6 +217,37 @@ export class DrizzleLinkRepository implements ILinkRepository {
     const hasMore = rows.length > limit;
     const items = hasMore ? rows.slice(0, limit) : rows;
     return { items, nextCursor: hasMore ? (items.at(-1)?.id ?? null) : null };
+  }
+
+  async moveToWorkspace(
+    ids: readonly string[],
+    fromWorkspaceId: string,
+    toWorkspaceId: string,
+  ): Promise<number> {
+    if (ids.length === 0) return 0;
+    const rows = await this.db
+      .update(links)
+      .set({ workspaceId: toWorkspaceId, folderId: null })
+      .where(
+        and(
+          inArray(links.id, [...ids]),
+          eq(links.workspaceId, fromWorkspaceId),
+          eq(links.kind, "link"),
+          isNull(links.deletedAt),
+        ),
+      )
+      .returning({ id: links.id });
+    return rows.length;
+  }
+
+  async setFolder(ids: readonly string[], folderId: string | null): Promise<number> {
+    if (ids.length === 0) return 0;
+    const rows = await this.db
+      .update(links)
+      .set({ folderId })
+      .where(and(inArray(links.id, [...ids]), isNull(links.deletedAt)))
+      .returning({ id: links.id });
+    return rows.length;
   }
 
   async listAllByUser(userId: string): Promise<Link[]> {

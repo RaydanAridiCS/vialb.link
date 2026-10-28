@@ -12,6 +12,11 @@ vi.mock("@/features/links/actions", () => ({
   saveQrOptionsAction: vi.fn(),
   recheckLinkHealthAction: vi.fn(),
   dismissLinkHealthAction: vi.fn(),
+  moveToFolderAction: vi.fn(),
+  moveToWorkspaceAction: vi.fn(),
+  createFolderAction: vi.fn(),
+  renameFolderAction: vi.fn(),
+  deleteFolderAction: vi.fn(),
 }));
 vi.mock("next-safe-action/hooks", () => ({
   useAction: () => ({ execute: vi.fn(), isExecuting: false }),

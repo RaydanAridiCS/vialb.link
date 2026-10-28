@@ -17,6 +17,11 @@ vi.mock("@/features/links/actions", () => ({
   saveQrOptionsAction: "qr",
   recheckLinkHealthAction: "recheck",
   dismissLinkHealthAction: "dismiss",
+  moveToFolderAction: "move",
+  moveToWorkspaceAction: "move-workspace",
+  createFolderAction: "create-folder",
+  renameFolderAction: "rename-folder",
+  deleteFolderAction: "delete-folder",
 }));
 vi.mock("next-safe-action/hooks", () => ({
   useAction: (action: string) => ({

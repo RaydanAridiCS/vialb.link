@@ -36,6 +36,9 @@ export const apiCreateLinkSchema = z
       .optional()
       .meta({ description: "Custom short code (case-sensitive)", example: "launch-2026" }),
     title: z.string().trim().max(LIMITS.titleMax).optional(),
+    folderId: z.uuid().nullable().optional().meta({
+      description: "File the link in one of your workspace's folders (see `/api/v1/folders`)",
+    }),
     tags: tags.optional().meta({
       description: "Labels for grouping links; stored lowercase",
       example: ["promo", "client-work"],
@@ -94,6 +97,9 @@ export const apiUpdateLinkSchema = z
     url: destinationUrlSchema.optional(),
     title: z.string().trim().max(LIMITS.titleMax).nullable().optional(),
     tags: tags.optional().meta({ description: "Replaces all tags; omit to keep them" }),
+    folderId: z.uuid().nullable().optional().meta({
+      description: "Moves the link to a folder; `null` takes it out of its folder, omit to keep it",
+    }),
     routingRules: routingRulesSchema
       .optional()
       .meta({ description: "Replaces all routing rules; send [] to remove them, omit to keep them" }),
@@ -137,7 +143,89 @@ export const apiUpdateLinkSchema = z
 export const apiListQuerySchema = z.object({
   cursor: z.uuid().optional().meta({ description: "`nextCursor` from the previous page" }),
   limit: z.coerce.number().int().min(1).max(100).default(20),
+  tag: tagSchema.optional().meta({ description: "Only links carrying this tag" }),
+  folder: z
+    .union([z.uuid(), z.literal("none")])
+    .optional()
+    .meta({ description: "Only links in this folder id, or `none` for links in no folder" }),
 });
+
+export const folderSchema = z
+  .object({
+    id: z.uuid(),
+    name: z.string(),
+    linkCount: z.number().int(),
+    createdAt: z.string(),
+  })
+  .meta({ id: "Folder" });
+
+export const folderListSchema = z.object({ data: z.array(folderSchema) }).meta({ id: "FolderList" });
+
+export const apiFolderNameSchema = z
+  .object({
+    name: z
+      .string()
+      .max(LIMITS.folderNameMax * 3)
+      .meta({ example: "Spring campaign" }),
+  })
+  .meta({ id: "FolderRequest" });
+
+/** One row of the bulk import. Looser than a single create on purpose: a bad row fails alone. */
+const apiImportRowSchema = z.object({
+  url: z
+    .string()
+    .max(LIMITS.urlMaxLength * 2)
+    .meta({ example: "https://example.com/page" }),
+  code: z.string().max(200).optional().meta({ description: "Custom short code" }),
+  title: z
+    .string()
+    .max(LIMITS.titleMax * 5)
+    .optional(),
+  tags: z
+    .array(z.string().max(200))
+    .max(LIMITS.tagsPerLinkMax * 5)
+    .optional(),
+  folder: z
+    .string()
+    .max(LIMITS.folderNameMax * 3)
+    .optional()
+    .meta({
+      description: "Folder name; created in your workspace when it does not exist yet",
+    }),
+});
+
+export const apiImportRequestSchema = z
+  .object({ links: z.array(apiImportRowSchema).min(1).max(LIMITS.apiImportMaxRows) })
+  .meta({ id: "ImportRequest" });
+
+export const apiImportResponseSchema = z
+  .object({
+    results: z.array(
+      z.discriminatedUnion("status", [
+        z.object({
+          index: z.number().int(),
+          status: z.literal("created"),
+          code: z.string(),
+          shortUrl: z.url(),
+        }),
+        z.object({
+          index: z.number().int(),
+          status: z.literal("skipped"),
+          code: z.string(),
+          shortUrl: z.url(),
+          reason: z.string(),
+        }),
+        z.object({
+          index: z.number().int(),
+          status: z.literal("failed"),
+          reason: z.string(),
+          field: z.string().optional(),
+        }),
+      ]),
+    ),
+    summary: z.object({ created: z.number().int(), skipped: z.number().int(), failed: z.number().int() }),
+  })
+  .meta({ id: "ImportResponse" });
 
 export const apiStatsQuerySchema = z
   .object({
@@ -156,11 +244,18 @@ export const linkSchema = z
     destinationUrl: z.url(),
     title: z.string().nullable(),
     tags: z.array(z.string()),
+    folder: z
+      .object({ id: z.uuid(), name: z.string() })
+      .nullable()
+      .meta({ description: "The folder the link is in" }),
     routingRules: z.array(
       z.object({
         platform: z.enum(ROUTING_PLATFORMS).optional(),
         countries: z.array(z.string()).optional(),
         url: z.string(),
+        variants: z
+          .array(z.object({ url: z.string(), weight: z.number().int(), label: z.string().optional() }))
+          .optional(),
       }),
     ),
     cardDesign: cardDesignSchema.nullable(),
@@ -265,6 +360,7 @@ export function toCreateCommand(input: z.output<typeof apiCreateLinkSchema>): Cr
     customCode: input.code,
     title: input.title ?? null,
     tags: input.tags,
+    folderId: input.folderId,
     routingRules: input.routingRules,
     cardDesign: input.cardDesign,
     pixels: input.pixels,
@@ -289,6 +385,7 @@ export function toUpdateCommand(input: z.output<typeof apiUpdateLinkSchema>): Up
     destinationUrl: input.url,
     title: input.title,
     tags: input.tags,
+    folderId: input.folderId,
     routingRules: input.routingRules,
     cardDesign: input.cardDesign,
     pixels: input.pixels,

@@ -55,20 +55,25 @@ All errors share one shape:
 
 ## Endpoints
 
-| Method   | Path                                   | Description                                                          |
-| -------- | -------------------------------------- | -------------------------------------------------------------------- |
-| `POST`   | `/api/v1/links`                        | Create a link                                                        |
-| `GET`    | `/api/v1/links?cursor=&limit=`         | List your links (newest first, cursor pagination, `limit` ≤ 100)     |
-| `GET`    | `/api/v1/links/{id}`                   | Get a link                                                           |
-| `PATCH`  | `/api/v1/links/{id}`                   | Update a link (`null` clears optional fields; the code is immutable) |
-| `DELETE` | `/api/v1/links/{id}`                   | Delete (soft) a link; its code stays reserved                        |
-| `GET`    | `/api/v1/links/{id}/stats?from&to`     | Aggregated stats (humans only, default last 30 days)                 |
-| `GET`    | `/api/v1/links/{id}/qr.png` / `qr.svg` | QR code (`?fg=&bg=&size=512&ecc=H&frame=badge&frameText=Scan%20me`)  |
+| Method           | Path                                        | Description                                                                                                |
+| ---------------- | ------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `POST`           | `/api/v1/links`                             | Create a link                                                                                              |
+| `GET`            | `/api/v1/links?cursor=&limit=&tag=&folder=` | List your links (newest first, cursor pagination, `limit` ≤ 100); filter by tag and/or folder id or `none` |
+| `POST`           | `/api/v1/links/import`                      | Create up to 100 links; one result per row ([details](folders.md#bulk-import))                             |
+| `GET` `POST`     | `/api/v1/folders`                           | List / create folders ([details](folders.md))                                                              |
+| `PATCH` `DELETE` | `/api/v1/folders/{id}`                      | Rename / delete a folder (its links are kept)                                                              |
+| `GET`            | `/api/v1/links/{id}`                        | Get a link                                                                                                 |
+| `PATCH`          | `/api/v1/links/{id}`                        | Update a link (`null` clears optional fields; the code is immutable)                                       |
+| `DELETE`         | `/api/v1/links/{id}`                        | Delete (soft) a link; its code stays reserved                                                              |
+| `GET`            | `/api/v1/links/{id}/stats?from&to`          | Aggregated stats (humans only, default last 30 days)                                                       |
+| `GET`            | `/api/v1/links/{id}/qr.png` / `qr.svg`      | QR code (`?fg=&bg=&size=512&ecc=H&frame=badge&frameText=Scan%20me`)                                        |
 
 Two fields on a link come from background features:
 
 - `health`: result of the last destination check (`state`, `needsAttention`, `reason`, `statusCode`,
   `failingTarget`, `lastCheckedAt`), or `null` when never checked / the monitor is off. See [Link health](link-health.md).
+- `folder`: `{ id, name }` of the folder the link is in, or `null`; send `folderId` to file or unfile it.
+- `routingRules[].variants`: A/B or percentage split of a rule ([details](smart-routing.md)).
 - `conversionsEnabled`: whether the redirect adds a `vclid` so the destination can report conversions to
   `/api/convert` (no API key; see [Conversions](conversions.md)). Stats responses then include `conversions`.
 - `statsUrl`: address of the [public stats page](public-stats.md) or `null`. `PATCH` with

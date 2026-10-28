@@ -130,6 +130,7 @@ export default async function LinkAnalyticsPage({
         includeBots={query.bots}
         compare={query.compare}
         compareControl
+        routingRules={link.routingRules}
         from={query.from?.toISOString()}
         to={query.to?.toISOString()}
         notice={

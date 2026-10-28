@@ -64,3 +64,9 @@ is maintained automatically by
 - Conversion goals: opt-in per link, a random per-click `vclid` added to the destination, a browser snippet and a postback endpoint at `/api/convert`
   (no cookies, one conversion per click, time window, value/currency validation, rate limits), conversions / rate / value in analytics with a
   breakdown by route, country and device, CSV columns and `conversionsEnabled` on the REST API; migration `0012_conversions`
+- Folders: a flat, single-parent grouping per workspace (create / rename / delete, filter, bulk "Move to folder", a field in the link form, `folder` column
+  in the CSV import, deleting a folder keeps its links), `folderId` / `folder` and `/api/v1/folders` in the REST API; migration `0013_folders`
+- REST API: `GET /api/v1/links` filters by `tag` and `folder`; `POST /api/v1/links/import` creates up to 100 links with a result per row and safe retries
+- A/B and percentage splits inside smart-routing rules (2 to 5 weighted destinations, deterministic per visitor and day without cookies, no-condition
+  A/B rules, variant recorded with each click, "A/B test" results table with planned and actual share and conversion rate); no migration
+- Move links between workspaces (owner or admin of both, up to 100, keeps code, clicks, stats address and health, leaves the folder)

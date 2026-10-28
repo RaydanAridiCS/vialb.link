@@ -3,10 +3,13 @@ import { getContainer } from "@/server/container";
 import { readJson, withApiKey } from "@/server/http/api";
 import { clientIpFrom } from "@/server/http/request-context";
 
-/** GET /api/v1/links?cursor=&limit= — newest first, cursor pagination. */
+/** GET /api/v1/links?cursor=&limit=&tag=&folder= — newest first, cursor pagination, optional filters. */
 export const GET = withApiKey(async (request, { actor }) => {
   const query = apiListQuerySchema.parse(Object.fromEntries(request.nextUrl.searchParams));
-  const page = await getContainer().links.listByCursor(actor, query.cursor ?? null, query.limit);
+  const page = await getContainer().links.listByCursor(actor, query.cursor ?? null, query.limit, {
+    tag: query.tag,
+    folder: query.folder,
+  });
   return Response.json({ data: page.items, nextCursor: page.nextCursor });
 });
 

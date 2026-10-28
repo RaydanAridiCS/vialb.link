@@ -15,11 +15,12 @@ export default async function LinksPage({ searchParams }: PageProps<"/dashboard/
   const params = linkListParamsSchema.parse(await searchParams);
   const writer = can(actor.workspace.role, "link:write");
   const { links } = getContainer();
-  const [result, tags, settings] = await Promise.all([
+  const [result, tags, settings, folders, memberships] = await Promise.all([
     links.list(actor, {
       search: params.q,
       tag: params.tag,
       health: params.health,
+      folder: params.folder,
       status: params.status,
       sort: params.sort,
       page: params.page,
@@ -27,6 +28,8 @@ export default async function LinksPage({ searchParams }: PageProps<"/dashboard/
     }),
     links.listTags(actor),
     getContainer().settings.get(),
+    getContainer().folders.list(actor),
+    getContainer().workspaces.listMine(actor),
   ]);
   return (
     <>
@@ -48,6 +51,10 @@ export default async function LinksPage({ searchParams }: PageProps<"/dashboard/
           tags={tags}
           readOnly={!writer}
           healthEnabled={settings.healthMonitorEnabled}
+          moveTargets={memberships
+            .filter((m) => m.id !== actor.workspace.id && (m.role === "owner" || m.role === "admin"))
+            .map((m) => ({ id: m.id, name: m.isPersonal ? "Personal" : m.name }))}
+          folders={folders.map((f) => ({ id: f.id, name: f.name, linkCount: f.linkCount }))}
         />
       </Suspense>
     </>

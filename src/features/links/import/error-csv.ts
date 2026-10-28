@@ -6,6 +6,7 @@ export interface FailedImportRow {
   title: string;
   code: string;
   tags: readonly string[];
+  folder: string;
   reason: string;
 }
 
@@ -15,8 +16,10 @@ export interface FailedImportRow {
  * importer strips that guard on the way back in.
  */
 export function buildErrorCsv(failures: readonly FailedImportRow[]): string {
-  const header = csvRow(["url", "title", "custom_code", "tags", "error", "original_row"]);
-  const lines = failures.map((f) => csvRow([f.url, f.title, f.code, f.tags.join(" "), f.reason, f.row]));
+  const header = csvRow(["url", "title", "custom_code", "tags", "folder", "error", "original_row"]);
+  const lines = failures.map((f) =>
+    csvRow([f.url, f.title, f.code, f.tags.join(" "), f.folder, f.reason, f.row]),
+  );
   return header + lines.join("");
 }
 

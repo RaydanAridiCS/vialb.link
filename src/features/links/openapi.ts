@@ -3,10 +3,15 @@ import { z } from "zod";
 import { APP_NAME, GITHUB_URL, RATE_LIMITS } from "@/lib/constants";
 import {
   apiCreateLinkSchema,
+  apiFolderNameSchema,
+  apiImportRequestSchema,
+  apiImportResponseSchema,
   apiListQuerySchema,
   apiStatsQuerySchema,
   apiUpdateLinkSchema,
   errorSchema,
+  folderListSchema,
+  folderSchema,
   linkListSchema,
   linkSchema,
   linkStatsSchema,
@@ -65,6 +70,73 @@ export function buildOpenApiDocument(siteUrl: string) {
       409: json(errorSchema, "Custom code already taken"),
       429: errors[429],
     },
+  });
+  registry.registerPath({
+    method: "post",
+    path: "/api/v1/links/import",
+    summary: "Create many links",
+    description: `Up to 100 links per request (256 KB). Each row succeeds or fails on its own and gets its own result; a row whose code already points at the same destination is \`skipped\`, so a request can be retried safely. Counts against the import rate limit like the dashboard import.`,
+    tags: ["Links"],
+    security,
+    request: { body: { content: { "application/json": { schema: apiImportRequestSchema } } } },
+    responses: {
+      200: json(apiImportResponseSchema, "One result per row, in order"),
+      400: errors[400],
+      401: errors[401],
+      403: errors[403],
+      429: errors[429],
+    },
+  });
+  registry.registerPath({
+    method: "get",
+    path: "/api/v1/folders",
+    summary: "List folders",
+    tags: ["Folders"],
+    security,
+    responses: { 200: json(folderListSchema, "The workspace's folders"), 401: errors[401] },
+  });
+  registry.registerPath({
+    method: "post",
+    path: "/api/v1/folders",
+    summary: "Create a folder",
+    tags: ["Folders"],
+    security,
+    request: { body: { content: { "application/json": { schema: apiFolderNameSchema } } } },
+    responses: {
+      201: json(folderSchema, "The folder"),
+      400: errors[400],
+      401: errors[401],
+      403: errors[403],
+      409: json(errorSchema, "A folder with this name exists"),
+    },
+  });
+  registry.registerPath({
+    method: "patch",
+    path: "/api/v1/folders/{id}",
+    summary: "Rename a folder",
+    tags: ["Folders"],
+    security,
+    request: {
+      params: z.object({ id: z.uuid().meta({ description: "Folder id" }) }),
+      body: { content: { "application/json": { schema: apiFolderNameSchema } } },
+    },
+    responses: {
+      200: json(folderSchema, "The folder"),
+      400: errors[400],
+      403: errors[403],
+      404: errors[404],
+      409: json(errorSchema, "A folder with this name exists"),
+    },
+  });
+  registry.registerPath({
+    method: "delete",
+    path: "/api/v1/folders/{id}",
+    summary: "Delete a folder",
+    description: "Deletes the folder only; its links stay and end up in no folder.",
+    tags: ["Folders"],
+    security,
+    request: { params: z.object({ id: z.uuid().meta({ description: "Folder id" }) }) },
+    responses: { 204: { description: "Deleted" }, 403: errors[403], 404: errors[404] },
   });
   registry.registerPath({
     method: "get",

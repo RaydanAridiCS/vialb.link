@@ -12,6 +12,7 @@ import type { ProbeResult, UrlProbe } from "@/server/ports/url-probe";
 import type { UrlSafetyChecker } from "@/server/ports/url-safety-checker";
 import { InMemoryBioRepository } from "@/server/repositories/in-memory/bio.repository.memory";
 import { InMemoryConversionRepository } from "@/server/repositories/in-memory/conversion.repository.memory";
+import { InMemoryFolderRepository } from "@/server/repositories/in-memory/folder.repository.memory";
 import { InMemoryJobRepository } from "@/server/repositories/in-memory/job.repository.memory";
 import {
   InMemoryEmailDeliveryRepository,
@@ -30,6 +31,7 @@ import { AbuseService } from "@/server/services/abuse.service";
 import { AdminService } from "@/server/services/admin.service";
 import { AnalyticsService } from "@/server/services/analytics.service";
 import { BioService } from "@/server/services/bio.service";
+import { FolderService } from "@/server/services/folder.service";
 import { HealthMonitorService, type HealthMonitorDeps } from "@/server/services/health-monitor.service";
 import { CardService } from "@/server/services/card.service";
 import { ApiKeyService } from "@/server/services/api-key.service";
@@ -42,6 +44,7 @@ import { RedirectService } from "@/server/services/redirect.service";
 import { SettingsService } from "@/server/services/settings.service";
 import { WorkspaceService } from "@/server/services/workspace.service";
 import { logger } from "@/lib/logger";
+import { DailySaltProvider } from "@/server/lib/daily-salt";
 
 export class FakeClock implements Clock {
   constructor(public current = new Date("2026-06-01T12:00:00Z")) {}
@@ -146,6 +149,8 @@ export interface FixtureOptions {
   weeklyReportEnabled?: boolean;
   clickRetentionDays?: number;
   conversionWindowDays?: number;
+  /** Replaces the random draw used when a visitor has no address (A/B splits). */
+  random?: () => number;
   healthFailureThreshold?: number;
   /** Batch size, concurrency and per-host pacing of the health monitor (defaults: no pacing). */
   healthPacing?: Partial<Pick<HealthMonitorDeps, "batchSize" | "concurrency" | "hostGapMs" | "sleep">>;
@@ -157,6 +162,7 @@ export function buildFixture(options: FixtureOptions = {}) {
   const clock = new FakeClock();
   const linkRepo = new InMemoryLinkRepository(() => clock.now());
   const healthRepo = new InMemoryLinkHealthRepository(linkRepo);
+  const folderRepo = new InMemoryFolderRepository(linkRepo, () => clock.now());
   const jobRepo = new InMemoryJobRepository();
   const preferencesRepo = new InMemoryUserPreferencesRepository();
   const deliveryRepo = new InMemoryEmailDeliveryRepository();
@@ -174,6 +180,7 @@ export function buildFixture(options: FixtureOptions = {}) {
   const limiter = new MemoryRateLimiter(() => clock.now().getTime());
   const codes = new SequenceCodeGenerator();
   const hasher = new FakeHasher();
+  const salts = new DailySaltProvider(settingsRepo);
   const settings = new SettingsService(
     settingsRepo,
     {
@@ -207,6 +214,8 @@ export function buildFixture(options: FixtureOptions = {}) {
     siteUrl: SITE_URL,
     ipPepper: "pepper",
     health: healthRepo,
+    folders: folderRepo,
+    workspaces: workspaceRepo,
   });
   const redirect = new RedirectService({
     links: linkRepo,
@@ -218,6 +227,8 @@ export function buildFixture(options: FixtureOptions = {}) {
     forwardQueryParams: options.forwardQueryParams ?? true,
     geo: options.geo,
     pixelsEnabled: async () => (await settings.get()).pixelsEnabled,
+    salts,
+    random: options.random,
   });
   const analytics = new AnalyticsService({
     clicks: clickRepo,
@@ -227,6 +238,7 @@ export function buildFixture(options: FixtureOptions = {}) {
     clock,
     logger,
     limiter,
+    salts,
     conversions: conversionRepo,
   });
   const conversions = new ConversionService({
@@ -301,6 +313,8 @@ export function buildFixture(options: FixtureOptions = {}) {
     healthMonitor,
     reports,
     retention,
+    folders: new FolderService({ folders: folderRepo }),
+    folderRepo,
     conversions,
     conversionRepo,
     preferencesRepo,

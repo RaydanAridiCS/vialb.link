@@ -5,8 +5,9 @@ import { needsGeo, pickRoute } from "@/lib/routing";
 import { CARD_HEIGHT, CARD_WIDTH } from "@/lib/social-card";
 import type { Link } from "@/server/domain/types";
 import { GoneError, NotFoundError, RateLimitedError, ValidationError } from "@/server/errors";
+import { utcDay, randomToken, splitBucket, visitorHash } from "@/server/lib/hashing";
 import { isExpired } from "@/server/lib/expiry";
-import { randomToken } from "@/server/lib/hashing";
+import type { DailySaltProvider } from "@/server/lib/daily-salt";
 import { renderPreviewHtml } from "@/server/lib/html";
 import { forwardQuery } from "@/server/lib/query";
 import { detectPlatform, isAnyBot } from "@/server/lib/user-agent";
@@ -72,6 +73,13 @@ export interface RedirectServiceDeps {
   geo?: GeoResolver;
   /** Whether the instance lets links use pixels right now. Without it pixels are off. */
   pixelsEnabled?: () => Promise<boolean>;
+  /**
+   * The daily salt, used to give each visitor a stable A/B bucket for the day. Without it (or without a client
+   * address) visitors are assigned at random.
+   */
+  salts?: DailySaltProvider;
+  /** 0 up to (not including) 1; replaced in tests to make random assignment predictable. */
+  random?: () => number;
 }
 
 /**
@@ -182,10 +190,34 @@ export class RedirectService {
         // A failing lookup must never break the redirect.
       }
     }
-    const match = pickRoute(link.routingRules, { platform: detectPlatform(visitor.userAgent), country });
+    const bucket = await this.bucketFor(link, visitor);
+    const match = pickRoute(link.routingRules, {
+      platform: detectPlatform(visitor.userAgent),
+      country,
+      bucket,
+    });
     return match
-      ? { destination: match.rule.url, routedBy: match.label }
+      ? { destination: match.url, routedBy: match.label }
       : { destination: defaultDestination, routedBy: "default" };
+  }
+
+  /**
+   * Chooses the A/B bucket (0-99) function for this visitor. A known address gets a stable bucket for the UTC day
+   * (hash of address, browser and the day's salt, then link and rule), so a returning visitor sees the same
+   * variant without any cookie. Without an address it falls back to a random draw.
+   */
+  private async bucketFor(
+    link: Link,
+    visitor: { userAgent: string | null; ip: string | null },
+  ): Promise<((ruleIndex: number) => number) | undefined> {
+    if (!link.routingRules.some((rule) => (rule.variants?.length ?? 0) > 0)) return undefined;
+    const random = this.deps.random ?? Math.random;
+    if (visitor.ip === null || !this.deps.salts) {
+      return () => Math.min(99, Math.floor(random() * 100));
+    }
+    const salt = await this.deps.salts.forDay(utcDay(this.deps.clock.now()));
+    const key = visitorHash(visitor.ip, visitor.userAgent, salt);
+    return (ruleIndex) => splitBucket(key, link.id, ruleIndex);
   }
 
   /** Side-effect-free check used for HEAD requests (link checkers must not consume access). */

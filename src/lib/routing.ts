@@ -15,25 +15,53 @@ export const ROUTING_PLATFORM_LABELS: Record<RoutingPlatform, string> = {
   desktop: "Desktop",
 };
 
+/** One destination of an A/B or percentage split. */
+export interface RoutingVariant {
+  url: string;
+  /** Whole percent, 1-100. The weights of a rule's variants add up to 100. */
+  weight: number;
+  /** Optional name shown next to the letter (A, B, …) in analytics. */
+  label?: string;
+}
+
 export interface RoutingRule {
   /** Match visitors on this platform. Omit to match any. */
   platform?: RoutingPlatform;
   /** Match visitors from these countries (ISO 3166-1 alpha-2, upper case). Omit to match any. */
   countries?: string[];
+  /** Where matching visitors go. With `variants`, the first variant's URL (the control). */
   url: string;
+  /**
+   * Splits matching visitors between 2-5 destinations by weight. A rule with variants may have no device or
+   * country condition: it then applies to everyone, which is a plain A/B test.
+   */
+  variants?: RoutingVariant[];
 }
+
+/** Variants are named A, B, C… in the order they are listed. */
+export const VARIANT_LETTERS = "ABCDE";
 
 export interface Visitor {
   /** `null` when the device is unknown (bots, consoles, TVs, no User-Agent). */
   platform: RoutingPlatform | null;
   /** `null` when no geolocation is configured or the address is not in the database. */
   country: string | null;
+  /**
+   * A number from 0 to 99 for the rule at this index, used to choose between its variants. The caller decides how
+   * it is derived (the redirect uses a daily-salted hash of the visitor, so it is stable for a day and testable);
+   * without it every split sends visitors to its first variant.
+   */
+  bucket?: (ruleIndex: number) => number;
 }
 
 export interface RouteMatch {
   rule: RoutingRule;
   index: number;
-  /** Low-cardinality label stored with the click, e.g. `ios`, `country:FR`, `android+country:DE`. */
+  /** Where this visitor goes: the rule's URL, or the chosen variant's. */
+  url: string;
+  /** Index of the chosen variant when the rule splits traffic. */
+  variant: number | null;
+  /** Low-cardinality label stored with the click, e.g. `ios`, `country:FR`, `android+variant:B`, `variant:A`. */
   label: string;
 }
 
@@ -54,10 +82,13 @@ export function normalizeCountries(raw: readonly string[]): string[] {
 }
 
 export function hasCriteria(rule: RoutingRule): boolean {
-  return rule.platform !== undefined || (rule.countries?.length ?? 0) > 0;
+  return rule.platform !== undefined || (rule.countries?.length ?? 0) > 0 || (rule.variants?.length ?? 0) > 0;
 }
 
-/** A rule matches when every condition it sets is met; a rule with no conditions never matches. */
+/**
+ * A rule matches when every condition it sets is met; a rule with no conditions never matches. A rule that only
+ * splits traffic has no conditions to meet and matches everyone.
+ */
 export function ruleMatches(rule: RoutingRule, visitor: Visitor): boolean {
   if (!hasCriteria(rule)) return false;
   if (rule.platform !== undefined && rule.platform !== visitor.platform) return false;
@@ -65,6 +96,19 @@ export function ruleMatches(rule: RoutingRule, visitor: Visitor): boolean {
     if (visitor.country === null || !rule.countries.includes(visitor.country)) return false;
   }
   return true;
+}
+
+/**
+ * Which variant a bucket (0-99) falls into: the weights are laid end to end, so with 70/30 buckets 0-69 are the
+ * first variant and 70-99 the second. A bucket past the total (weights that do not add up) lands on the last one.
+ */
+export function pickVariant(variants: readonly { weight: number }[], bucket: number): number {
+  let upTo = 0;
+  for (const [index, variant] of variants.entries()) {
+    upTo += variant.weight;
+    if (bucket < upTo) return index;
+  }
+  return Math.max(variants.length - 1, 0);
 }
 
 export function pickRoute(rules: readonly RoutingRule[], visitor: Visitor): RouteMatch | null {
@@ -75,7 +119,14 @@ export function pickRoute(rules: readonly RoutingRule[], visitor: Visitor): Rout
     if (rule.countries && rule.countries.length > 0 && visitor.country !== null) {
       parts.push(`country:${visitor.country}`);
     }
-    return { rule, index, label: parts.join("+") };
+    let url = rule.url;
+    let variant: number | null = null;
+    if (rule.variants && rule.variants.length > 0) {
+      variant = pickVariant(rule.variants, visitor.bucket?.(index) ?? 0);
+      url = rule.variants[variant]?.url ?? rule.url;
+      parts.push(`variant:${VARIANT_LETTERS[variant] ?? "?"}`);
+    }
+    return { rule, index, url, variant, label: parts.join("+") };
   }
   return null;
 }
@@ -99,7 +150,11 @@ export function routingIssue(rules: readonly RoutingRule[]): RoutingIssue | null
   const seen = new Set<string>();
   for (const [index, rule] of rules.entries()) {
     const number = index + 1;
-    if (!hasCriteria(rule)) return { index, message: `Rule ${number}: choose a device, a country, or both` };
+    const variantProblem = variantsIssue(rule.variants);
+    if (variantProblem) return { index, message: `Rule ${number}: ${variantProblem}` };
+    if (!hasCriteria(rule)) {
+      return { index, message: `Rule ${number}: choose a device, a country, both, or split the traffic` };
+    }
     const countries = rule.countries ?? [];
     if (countries.length > LIMITS.routingCountriesMax) {
       return { index, message: `Rule ${number}: at most ${LIMITS.routingCountriesMax} countries` };
@@ -119,6 +174,25 @@ export function routingIssue(rules: readonly RoutingRule[]): RoutingIssue | null
   return null;
 }
 
+/** What is wrong with a rule's variants, or `null`. */
+export function variantsIssue(variants: readonly RoutingVariant[] | undefined): string | null {
+  if (variants === undefined) return null;
+  if (variants.length < 2 || variants.length > LIMITS.routingVariantsMax) {
+    return `a split needs between 2 and ${LIMITS.routingVariantsMax} destinations`;
+  }
+  if (variants.some((v) => !Number.isInteger(v.weight) || v.weight < 1 || v.weight > 100)) {
+    return "each destination needs a whole-number share from 1 to 100";
+  }
+  const total = variants.reduce((sum, v) => sum + v.weight, 0);
+  if (total !== 100) return `the shares add up to ${total}%, they must add up to 100%`;
+  if ((variants ?? []).some((v) => (v.label ?? "").length > LIMITS.routingVariantLabelMax)) {
+    return `names can be at most ${LIMITS.routingVariantLabelMax} characters`;
+  }
+  const urls = variants.map((v) => v.url.trim());
+  if (new Set(urls).size !== urls.length) return "each destination must be different";
+  return null;
+}
+
 /** Why a set of rules cannot be saved, or `null`. */
 export function routingProblem(rules: readonly RoutingRule[]): string | null {
   return routingIssue(rules)?.message ?? null;
@@ -128,7 +202,9 @@ export function routingProblem(rules: readonly RoutingRule[]): string | null {
 export function describeRule(rule: RoutingRule): string {
   const device = rule.platform ? ROUTING_PLATFORM_LABELS[rule.platform] : "Any device";
   const where = rule.countries && rule.countries.length > 0 ? ` in ${rule.countries.join(", ")}` : "";
-  return `${device}${where}`;
+  const split = rule.variants ? ` · split ${rule.variants.map((v) => `${v.weight}%`).join(" / ")}` : "";
+  const who = rule.variants && !rule.platform && !where ? "Everyone" : device;
+  return `${who}${where}${split}`;
 }
 
 /**
@@ -140,11 +216,13 @@ export function describeRoute(label: string, countryName: (code: string) => stri
   return label
     .split("+")
     .map((part) =>
-      part.startsWith("country:")
-        ? countryName(part.slice("country:".length))
-        : isRoutingPlatform(part)
-          ? ROUTING_PLATFORM_LABELS[part]
-          : part,
+      part.startsWith("variant:")
+        ? `Variant ${part.slice("variant:".length)}`
+        : part.startsWith("country:")
+          ? countryName(part.slice("country:".length))
+          : isRoutingPlatform(part)
+            ? ROUTING_PLATFORM_LABELS[part]
+            : part,
     )
     .join(" · ");
 }

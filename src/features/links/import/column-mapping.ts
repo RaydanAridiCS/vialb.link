@@ -1,7 +1,7 @@
 import { normalizeTag } from "@/lib/tags";
 import type { CsvRecord } from "./csv-parser";
 
-export const IMPORT_FIELDS = ["url", "title", "code", "tags"] as const;
+export const IMPORT_FIELDS = ["url", "title", "code", "tags", "folder"] as const;
 export type ImportField = (typeof IMPORT_FIELDS)[number];
 
 export const IMPORT_FIELD_LABELS: Record<ImportField, string> = {
@@ -9,6 +9,7 @@ export const IMPORT_FIELD_LABELS: Record<ImportField, string> = {
   title: "Title",
   code: "Custom code",
   tags: "Tags",
+  folder: "Folder",
 };
 
 /** Header names (normalized, see `normalizeHeader`) that identify each field. */
@@ -17,6 +18,7 @@ export const FIELD_ALIASES: Record<ImportField, readonly string[]> = {
   title: ["title", "name", "label"],
   code: ["custom_code", "code", "short_code", "slug", "back_half", "backhalf", "keyword", "alias"],
   tags: ["tags", "tag", "labels", "categories", "category"],
+  folder: ["folder", "folder_name", "group", "collection"],
 };
 
 /** Column index (0-based) per field, or `null` when the file has no such column. */
@@ -30,6 +32,8 @@ export interface ImportRowInput {
   code: string;
   /** Tags from the cell, already split and lowercased; validity is checked in `row-validation.ts`. */
   tags: string[];
+  /** Folder name from the cell; created in the workspace when new. */
+  folder: string;
 }
 
 /** `" Long URL "` / `"Back-Half"` / `"long.url"` -> `"long_url"` / `"back_half"` / `"long_url"`. */
@@ -64,7 +68,7 @@ export function detectHeader(first: readonly string[] | undefined): boolean {
 }
 
 export function emptyMapping(): ColumnMapping {
-  return { url: null, title: null, code: null, tags: null };
+  return { url: null, title: null, code: null, tags: null, folder: null };
 }
 
 /** Picks, per field, the first column whose header is a known alias. Each column is used once. */
@@ -113,5 +117,6 @@ export function extractRows(
     title: read(cells, mapping.title),
     code: read(cells, mapping.code),
     tags: splitTagCell(read(cells, mapping.tags)),
+    folder: read(cells, mapping.folder),
   }));
 }

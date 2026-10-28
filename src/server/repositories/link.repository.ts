@@ -11,6 +11,14 @@ import type {
 /** Who holds a short code; enough to tell "mine, same destination" from "taken". */
 export type CodeHolder = Pick<Link, "code" | "userId" | "workspaceId" | "destinationUrl" | "deletedAt">;
 
+/** Optional filters of the cursor-paginated list (the REST API). */
+export interface LinkCursorFilter {
+  /** Normalized tag. */
+  tag?: string;
+  /** A folder id, or `none`. */
+  folder?: string;
+}
+
 export interface ILinkRepository {
   /** Inserts a link. Throws `UniqueViolationError` when the code is taken (incl. soft-deleted). */
   create(input: NewLink): Promise<Link>;
@@ -27,7 +35,19 @@ export interface ILinkRepository {
   /** Distinct tags across a workspace's non-deleted links, sorted alphabetically. `undefined` = every workspace (admin). */
   listTags(workspaceId: string | undefined): Promise<string[]>;
   /** Bio page buttons (kind `bio_button`) are excluded from lists unless the query asks for `any`. */
-  listByCursor(workspaceId: string, cursor: string | null, limit: number): Promise<CursorPage<Link>>;
+  listByCursor(
+    workspaceId: string,
+    cursor: string | null,
+    limit: number,
+    filter?: LinkCursorFilter,
+  ): Promise<CursorPage<Link>>;
+  /**
+   * Hands live links of `fromWorkspaceId` to `toWorkspaceId` and takes them out of any folder (folders belong to a
+   * workspace). Everything else about a link, clicks included, stays. Returns how many moved.
+   */
+  moveToWorkspace(ids: readonly string[], fromWorkspaceId: string, toWorkspaceId: string): Promise<number>;
+  /** Files these links in a folder (or none). Returns how many changed. */
+  setFolder(ids: readonly string[], folderId: string | null): Promise<number>;
   /** Every non-deleted link a user created, in any workspace (data export). */
   listAllByUser(userId: string): Promise<Link[]>;
   update(id: string, patch: LinkPatch): Promise<Link | null>;

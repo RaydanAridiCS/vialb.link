@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import type { AnalyticsRange } from "@/lib/constants";
 import { CountryCode } from "@/components/country-code";
 import { countryName, formatDateTime, formatNumber, formatRelative } from "@/lib/format";
-import { describeRoute } from "@/lib/routing";
+import { describeRoute, type RoutingRule } from "@/lib/routing";
 import { cn } from "@/lib/utils";
 import type { LinkAnalytics } from "@/server/services/analytics.service";
 import { alignPrevious, compareValue } from "../compare";
@@ -16,6 +16,7 @@ import { ConversionsPanel } from "./conversions-panel";
 import { Heatmap } from "./heatmap";
 import { Delta, KpiCard } from "./kpi-card";
 import { RangePicker } from "./range-picker";
+import { VariantsPanel } from "./variants-panel";
 
 export function AnalyticsCard({
   title,
@@ -101,12 +102,15 @@ export function AnalyticsView({
   aside,
   compare = false,
   compareControl = false,
+  routingRules,
 }: {
   data: LinkAnalytics;
   /** Show change against the previous period (needs `data.previousDimensions`). */
   compare?: boolean;
   /** Offer the "compare to previous period" switch (the live page does, the demo does not). */
   compareControl?: boolean;
+  /** The link's smart-routing rules, to show the results of an A/B split. */
+  routingRules?: RoutingRule[];
   range: AnalyticsRange;
   includeBots: boolean;
   from?: string;
@@ -313,6 +317,14 @@ export function AnalyticsView({
           </AnalyticsCard>
         </Tabs>
       </div>
+
+      {routingRules?.find((rule) => (rule.variants?.length ?? 0) > 0) ? (
+        <VariantsPanel
+          rule={routingRules.find((rule) => (rule.variants?.length ?? 0) > 0) as RoutingRule}
+          routes={d.routed_by}
+          conversions={data.conversions?.byRoute}
+        />
+      ) : null}
 
       {routes.length > 0 ? (
         <AnalyticsCard title="Smart routing" description="Where visitors were sent by this link's rules">

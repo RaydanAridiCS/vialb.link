@@ -18,6 +18,7 @@ import type { CardDesign } from "@/lib/social-card";
 import type { LinkKind } from "@/server/domain/types";
 import { v7 as uuidv7 } from "uuid";
 import { user } from "./auth";
+import { folders } from "./folders";
 import { workspaces } from "./workspaces";
 
 export const links = pgTable(
@@ -36,6 +37,8 @@ export const links = pgTable(
     /** Who may see and change the link. `null` only for anonymous links nobody has claimed. */
     workspaceId: uuid("workspace_id").references(() => workspaces.id, { onDelete: "cascade" }),
     title: text("title"),
+    /** The folder the link is filed in; `null` = none. Deleting the folder clears it. */
+    folderId: uuid("folder_id").references(() => folders.id, { onDelete: "set null" }),
     /** Normalized (lowercase) labels used to group and filter links in the dashboard. */
     tags: text("tags")
       .array()
@@ -84,6 +87,7 @@ export const links = pgTable(
     index("links_user_created_idx").on(t.userId, t.createdAt.desc()),
     index("links_workspace_created_idx").on(t.workspaceId, t.createdAt.desc()),
     index("links_expires_at_idx").on(t.expiresAt),
+    index("links_folder_idx").on(t.folderId),
     index("links_tags_idx").using("gin", t.tags),
     uniqueIndex("links_stats_token_unique")
       .on(t.statsToken)

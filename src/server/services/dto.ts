@@ -40,6 +40,8 @@ export interface LinkDto {
   destinationUrl: string;
   title: string | null;
   tags: string[];
+  /** The folder the link is filed in. */
+  folder: { id: string; name: string } | null;
   routingRules: RoutingRule[];
   cardDesign: CardDesign | null;
   pixels: LinkPixels | null;
@@ -85,7 +87,13 @@ export function cardUrlFor(siteUrl: string, link: Pick<Link, "code" | "cardDesig
   return `${shortUrlFor(siteUrl, link.code)}/card${version}`;
 }
 
-export function toLinkDto(link: Link, siteUrl: string, now: Date, health: LinkHealth | null = null): LinkDto {
+export function toLinkDto(
+  link: Link,
+  siteUrl: string,
+  now: Date,
+  health: LinkHealth | null = null,
+  folder: { id: string; name: string } | null = null,
+): LinkDto {
   return {
     id: link.id,
     code: link.code,
@@ -93,6 +101,7 @@ export function toLinkDto(link: Link, siteUrl: string, now: Date, health: LinkHe
     destinationUrl: link.destinationUrl,
     title: link.title,
     tags: link.tags,
+    folder,
     routingRules: link.routingRules,
     cardDesign: link.cardDesign,
     pixels: link.pixels,

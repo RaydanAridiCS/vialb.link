@@ -128,12 +128,12 @@ describe("column mapping", () => {
   });
 
   it.each([
-    [["url", "title", "custom_code", "tags"], { url: 0, title: 1, code: 2, tags: 3 }],
-    [["Destination", "Name", "Slug", "Labels"], { url: 0, title: 1, code: 2, tags: 3 }],
-    [["long_url", "Short URL", "Back Half", "Tag"], { url: 0, title: null, code: 2, tags: 3 }],
-    [["LINK", "Keyword"], { url: 0, title: null, code: 1, tags: null }],
-    [["Target", "Short_Code", "TITLE"], { url: 0, title: 2, code: 1, tags: null }],
-    [["foo", "bar"], { url: null, title: null, code: null, tags: null }],
+    [["url", "title", "custom_code", "tags"], { url: 0, title: 1, code: 2, tags: 3, folder: null }],
+    [["Destination", "Name", "Slug", "Labels"], { url: 0, title: 1, code: 2, tags: 3, folder: null }],
+    [["long_url", "Short URL", "Back Half", "Tag"], { url: 0, title: null, code: 2, tags: 3, folder: null }],
+    [["LINK", "Keyword"], { url: 0, title: null, code: 1, tags: null, folder: null }],
+    [["Target", "Short_Code", "TITLE"], { url: 0, title: 2, code: 1, tags: null, folder: null }],
+    [["foo", "bar"], { url: null, title: null, code: null, tags: null, folder: null }],
   ])("detects columns in %j", (headers, expected) => {
     expect(detectMapping(headers)).toEqual(expected);
   });
@@ -181,14 +181,14 @@ describe("column mapping", () => {
     );
     const rows = extractRows(records, detectMapping(records[0]?.cells ?? []), true);
     expect(rows).toEqual([
-      { row: 2, url: "https://a.example", title: "A", code: "promo-a", tags: ["x", "y"] },
-      { row: 4, url: "=https://b.example", title: "", code: "", tags: [] },
+      { row: 2, url: "https://a.example", title: "A", code: "promo-a", tags: ["x", "y"], folder: "" },
+      { row: 4, url: "=https://b.example", title: "", code: "", tags: [], folder: "" },
     ]);
   });
 
   it("extracts every record when the file has no header, and tolerates short rows", () => {
     const { records } = parseCsv("https://a.example\nhttps://b.example,extra");
-    const rows = extractRows(records, { url: 0, title: 1, code: null, tags: null }, false);
+    const rows = extractRows(records, { url: 0, title: 1, code: null, tags: null, folder: null }, false);
     expect(rows.map((r) => [r.row, r.url, r.title])).toEqual([
       [1, "https://a.example", ""],
       [2, "https://b.example", "extra"],
@@ -203,6 +203,7 @@ describe("validateRows", () => {
     title: "",
     code: "",
     tags: [],
+    folder: "",
     ...over,
   });
   const issues = (over: Parameters<typeof row>[0]) => validateRows([row(over)])[0]?.issues ?? [];
@@ -270,11 +271,11 @@ describe("validateRows", () => {
 
 describe("applyCodeCheck", () => {
   const base = validateRows([
-    { row: 2, url: "https://a.example", title: "", code: "free", tags: [] },
-    { row: 3, url: "https://b.example", title: "", code: "taken1", tags: [] },
-    { row: 4, url: "https://c.example", title: "", code: "mine", tags: [] },
-    { row: 5, url: "https://d.example", title: "", code: "", tags: [] },
-    { row: 6, url: "https://e.example", title: "", code: "ab", tags: [] },
+    { row: 2, url: "https://a.example", title: "", code: "free", tags: [], folder: "" },
+    { row: 3, url: "https://b.example", title: "", code: "taken1", tags: [], folder: "" },
+    { row: 4, url: "https://c.example", title: "", code: "mine", tags: [], folder: "" },
+    { row: 5, url: "https://d.example", title: "", code: "", tags: [], folder: "" },
+    { row: 6, url: "https://e.example", title: "", code: "ab", tags: [], folder: "" },
   ]);
 
   it("turns taken codes into issues and marks identical own links as already imported", () => {
@@ -298,11 +299,12 @@ describe("error CSV", () => {
         title: "A, B",
         code: "dup",
         tags: ["x", "y"],
+        folder: "",
         reason: "Code is already taken",
       },
     ]);
-    expect(csv.split("\r\n")[0]).toBe("url,title,custom_code,tags,error,original_row");
-    expect(csv).toContain('https://a.example,"A, B",dup,x y,Code is already taken,7');
+    expect(csv.split("\r\n")[0]).toBe("url,title,custom_code,tags,folder,error,original_row");
+    expect(csv).toContain('https://a.example,"A, B",dup,x y,,Code is already taken,7');
   });
 
   it("guards formula-looking cells and can be re-imported without them", () => {
@@ -313,6 +315,7 @@ describe("error CSV", () => {
         title: "+evil",
         code: "",
         tags: [],
+        folder: "",
         reason: "Enter a valid http:// or https:// URL",
       },
     ]);
@@ -321,7 +324,7 @@ describe("error CSV", () => {
 
     const parsed = parseCsv(csv);
     const mapping = detectMapping(parsed.records[0]?.cells ?? []);
-    expect(mapping).toEqual({ url: 0, title: 1, code: 2, tags: 3 });
+    expect(mapping).toEqual({ url: 0, title: 1, code: 2, tags: 3, folder: 4 });
     const [reimported] = extractRows(parsed.records, mapping, true);
     expect(reimported).toMatchObject({ url: "=cmd|' /C calc'!A0", title: "+evil" });
   });
@@ -332,5 +335,53 @@ describe("error CSV", () => {
     expect(errorCsvFilename("C:\\temp\\a b.txt")).toBe("import-errors-C-temp-a-b.csv");
     expect(errorCsvFilename("日本語.csv")).toBe("import-errors.csv");
     expect(errorCsvFilename("x".repeat(200) + ".csv").length).toBeLessThanOrEqual(60);
+  });
+});
+
+describe("import: folder column", () => {
+  it("detects the column by its usual names and reads it", () => {
+    for (const header of ["folder", "Folder Name", "group", "Collection"]) {
+      expect(detectMapping(["url", header]).folder, header).toBe(1);
+    }
+    const { records } = parseCsv("url,folder\nhttps://a.example,  Spring   sale \n");
+    const rows = extractRows(records, detectMapping(records[0]?.cells ?? []), true);
+    expect(rows[0]?.folder).toBe("Spring   sale");
+  });
+
+  it("normalizes the name and rejects unusable ones with a row issue", () => {
+    const row = (folder: string) => ({
+      row: 2,
+      url: "https://a.example",
+      title: "",
+      code: "",
+      tags: [],
+      folder,
+    });
+    const [spaced, blank, long, control] = validateRows([
+      row("  Spring   sale "),
+      row("   "),
+      row("x".repeat(41)),
+      row("bad\u0007name"),
+    ]);
+    expect(spaced).toMatchObject({ folder: "Spring sale", issues: [] });
+    expect(blank).toMatchObject({ folder: "", issues: [] });
+    expect(long?.issues[0]).toMatchObject({ field: "folder" });
+    expect(control?.issues[0]).toMatchObject({ field: "folder" });
+  });
+
+  it("travels in the error CSV so a corrected file can be uploaded again", () => {
+    const csv = buildErrorCsv([
+      {
+        row: 4,
+        url: "https://a.example",
+        title: "",
+        code: "",
+        tags: [],
+        folder: "Spring sale",
+        reason: "nope",
+      },
+    ]);
+    expect(csv.split("\r\n")[0]).toBe("url,title,custom_code,tags,folder,error,original_row");
+    expect(csv).toContain("Spring sale,nope,4");
   });
 });

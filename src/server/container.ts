@@ -23,6 +23,7 @@ import { DrizzleBioRepository } from "@/server/repositories/drizzle/bio.reposito
 import { DrizzleApiKeyRepository } from "@/server/repositories/drizzle/api-key.repository.drizzle";
 import { DrizzleClickRepository } from "@/server/repositories/drizzle/click.repository.drizzle";
 import { DrizzleConversionRepository } from "@/server/repositories/drizzle/conversion.repository.drizzle";
+import { DrizzleFolderRepository } from "@/server/repositories/drizzle/folder.repository.drizzle";
 import { DrizzleHealthRepository } from "@/server/repositories/drizzle/health.repository.drizzle";
 import { DrizzleJobRepository } from "@/server/repositories/drizzle/job.repository.drizzle";
 import { DrizzleEmailDeliveryRepository } from "@/server/repositories/drizzle/email-delivery.repository.drizzle";
@@ -36,6 +37,7 @@ import { AbuseService } from "@/server/services/abuse.service";
 import { AdminService } from "@/server/services/admin.service";
 import { AnalyticsService } from "@/server/services/analytics.service";
 import { BioService } from "@/server/services/bio.service";
+import { FolderService } from "@/server/services/folder.service";
 import { HealthMonitorService } from "@/server/services/health-monitor.service";
 import { JobRunner, type Job } from "@/server/jobs/job-runner";
 import { CardService } from "@/server/services/card.service";
@@ -48,6 +50,7 @@ import { RetentionService } from "@/server/services/retention.service";
 import { RedirectService } from "@/server/services/redirect.service";
 import { SettingsService } from "@/server/services/settings.service";
 import { WorkspaceService } from "@/server/services/workspace.service";
+import { DailySaltProvider } from "@/server/lib/daily-salt";
 import { collectConfigWarnings } from "@/server/startup-checks";
 
 /**
@@ -79,6 +82,7 @@ function buildContainer() {
     preferences: new DrizzleUserPreferencesRepository(db),
     deliveries: new DrizzleEmailDeliveryRepository(db),
     conversions: new DrizzleConversionRepository(db),
+    folders: new DrizzleFolderRepository(db),
   };
 
   let limiter: RateLimiter = new MemoryRateLimiter();
@@ -110,6 +114,7 @@ function buildContainer() {
         })
       : new ConsoleMailer();
 
+  const salts = new DailySaltProvider(repos.settings);
   const settings = new SettingsService(repos.settings, {
     allowAnonymousLinks: env.ALLOW_ANONYMOUS_LINKS,
     allowSignups: env.ALLOW_SIGNUPS,
@@ -148,6 +153,8 @@ function buildContainer() {
     siteUrl,
     ipPepper: env.BETTER_AUTH_SECRET,
     health: repos.linkHealth,
+    folders: repos.folders,
+    workspaces: repos.workspaces,
   });
 
   const workspaces = new WorkspaceService({
@@ -239,6 +246,7 @@ function buildContainer() {
     healthMonitor,
     reports,
     retention,
+    folders: new FolderService({ folders: repos.folders }),
     workspaces,
     settings,
     abuse,
@@ -253,6 +261,7 @@ function buildContainer() {
       forwardQueryParams: env.FORWARD_QUERY_PARAMS,
       geo,
       pixelsEnabled: async () => (await settings.get()).pixelsEnabled,
+      salts,
     }),
     analytics: new AnalyticsService({
       clicks: repos.clicks,
@@ -262,6 +271,7 @@ function buildContainer() {
       clock,
       logger,
       limiter,
+      salts,
       conversions: repos.conversions,
     }),
     conversions: new ConversionService({

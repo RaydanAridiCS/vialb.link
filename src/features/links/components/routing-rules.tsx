@@ -1,11 +1,12 @@
 "use client";
 
-import { ArrowDown, ArrowUp, ChevronDown, Plus, X } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronDown, Plus, Split, X } from "lucide-react";
 import { useId, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { LIMITS } from "@/lib/constants";
 import {
   describeRule,
@@ -16,6 +17,8 @@ import {
   ROUTING_PLATFORMS,
   type RoutingPlatform,
   type RoutingRule,
+  type RoutingVariant,
+  VARIANT_LETTERS,
   type Visitor,
 } from "@/lib/routing";
 
@@ -81,6 +84,43 @@ export function RoutingRules({ initial, onChange, destinationUrl, errors = [], e
     commit(next);
   }
 
+  /** Turns a rule's split on (two even destinations, the first being the rule's URL) or off (keeping the first). */
+  function setSplit(id: number, on: boolean) {
+    const row = rows.find((r) => r.id === id);
+    if (!row) return;
+    if (on) {
+      patch(id, {
+        variants: [
+          { url: row.rule.url, weight: 50 },
+          { url: "", weight: 50 },
+        ],
+      });
+    } else {
+      const { variants, ...rest } = row.rule;
+      commit(
+        rows.map((r) => (r.id === id ? { ...r, rule: { ...rest, url: variants?.[0]?.url ?? rest.url } } : r)),
+      );
+    }
+  }
+
+  /** Changes one destination of a split; the rule's own URL always follows the first one. */
+  function patchVariant(id: number, variantIndex: number, change: Partial<RoutingVariant>) {
+    const row = rows.find((r) => r.id === id);
+    if (!row?.rule.variants) return;
+    const variants = row.rule.variants.map((v, i) => (i === variantIndex ? { ...v, ...change } : v));
+    patch(id, { variants, url: variants[0]?.url ?? row.rule.url });
+  }
+
+  function setVariants(id: number, variants: RoutingVariant[]) {
+    patch(id, { variants, url: variants[0]?.url ?? "" });
+  }
+
+  /** Equal shares that add up to exactly 100 (the first destinations take the remainder). */
+  function evenShares(count: number): number[] {
+    const base = Math.floor(100 / count);
+    return Array.from({ length: count }, (_, i) => base + (i < 100 - base * count ? 1 : 0));
+  }
+
   const hasPreset = (platform: RoutingPlatform) =>
     rows.some((row) => row.rule.platform === platform && !row.rule.countries?.length);
   const usesCountries = rows.some((row) => (row.rule.countries?.length ?? 0) > 0);
@@ -132,6 +172,22 @@ export function RoutingRules({ initial, onChange, destinationUrl, errors = [], e
           </Button>
           <Button type="button" size="sm" variant="outline" onClick={() => add({ countries: [], url: "" })}>
             <Plus className="size-4" aria-hidden /> Add a rule
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() =>
+              add({
+                url: "",
+                variants: [
+                  { url: "", weight: 50 },
+                  { url: "", weight: 50 },
+                ],
+              })
+            }
+          >
+            <Split className="size-4" aria-hidden /> A/B test
           </Button>
         </div>
 
@@ -209,18 +265,65 @@ export function RoutingRules({ initial, onChange, destinationUrl, errors = [], e
                   />
                 </div>
 
-                <div className="space-y-1.5">
-                  <Label htmlFor={`${idPrefix}-url-${row.id}`}>Send them to</Label>
-                  <Input
-                    id={`${idPrefix}-url-${row.id}`}
-                    type="url"
-                    placeholder="https://apps.apple.com/app/…"
-                    autoComplete="off"
-                    value={row.rule.url}
-                    aria-label={`Destination for rule ${index + 1}`}
-                    onChange={(event) => patch(row.id, { url: event.target.value })}
+                <div className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2">
+                  <Label htmlFor={`${idPrefix}-split-${row.id}`} className="font-normal">
+                    Split these visitors between several destinations (A/B test)
+                  </Label>
+                  <Switch
+                    id={`${idPrefix}-split-${row.id}`}
+                    aria-label={`Split traffic for rule ${index + 1}`}
+                    checked={row.rule.variants !== undefined}
+                    onCheckedChange={(on) => setSplit(row.id, on)}
                   />
                 </div>
+
+                {row.rule.variants ? (
+                  <SplitEditor
+                    ruleNumber={index + 1}
+                    variants={row.rule.variants}
+                    idPrefix={`${idPrefix}-v${row.id}`}
+                    onChange={(variantIndex, change) => patchVariant(row.id, variantIndex, change)}
+                    onAdd={() => {
+                      const current = row.rule.variants ?? [];
+                      if (current.length >= LIMITS.routingVariantsMax) return;
+                      const shares = evenShares(current.length + 1);
+                      setVariants(row.id, [
+                        ...current.map((v, i) => ({ ...v, weight: shares[i] ?? v.weight })),
+                        { url: "", weight: shares[current.length] ?? 0 },
+                      ]);
+                    }}
+                    onRemove={(variantIndex) => {
+                      const current = (row.rule.variants ?? []).filter((_, i) => i !== variantIndex);
+                      if (current.length < 2) return;
+                      const shares = evenShares(current.length);
+                      setVariants(
+                        row.id,
+                        current.map((v, i) => ({ ...v, weight: shares[i] ?? v.weight })),
+                      );
+                    }}
+                    onEven={() => {
+                      const current = row.rule.variants ?? [];
+                      const shares = evenShares(current.length);
+                      setVariants(
+                        row.id,
+                        current.map((v, i) => ({ ...v, weight: shares[i] ?? v.weight })),
+                      );
+                    }}
+                  />
+                ) : (
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`${idPrefix}-url-${row.id}`}>Send them to</Label>
+                    <Input
+                      id={`${idPrefix}-url-${row.id}`}
+                      type="url"
+                      placeholder="https://apps.apple.com/app/…"
+                      autoComplete="off"
+                      value={row.rule.url}
+                      aria-label={`Destination for rule ${index + 1}`}
+                      onChange={(event) => patch(row.id, { url: event.target.value })}
+                    />
+                  </div>
+                )}
                 {errors[index] ? (
                   <p role="alert" className="text-sm text-destructive">
                     {errors[index]}
@@ -280,9 +383,17 @@ export function RoutingRules({ initial, onChange, destinationUrl, errors = [], e
             <p className="text-sm" data-testid="routing-test-result" aria-live="polite">
               {match ? (
                 <>
-                  Goes to{" "}
-                  <span className="font-mono break-all">{match.rule.url || "(rule has no URL yet)"}</span>{" "}
-                  <span className="text-muted-foreground">(rule {match.index + 1})</span>
+                  Goes to <span className="font-mono break-all">{match.url || "(rule has no URL yet)"}</span>{" "}
+                  <span className="text-muted-foreground">
+                    (rule {match.index + 1}
+                    {match.rule.variants
+                      ? `; this is variant A of a split, other visitors get ${match.rule.variants
+                          .slice(1)
+                          .map((v, i) => `${VARIANT_LETTERS[i + 1]} (${v.weight}%)`)
+                          .join(", ")}`
+                      : ""}
+                    )
+                  </span>
                 </>
               ) : (
                 <>
@@ -329,6 +440,123 @@ function CountriesField({
           onChange(parseCountries(event.target.value));
         }}
       />
+    </div>
+  );
+}
+
+/** The destinations of one split: a letter, a URL, an optional name and a share each, adding up to 100%. */
+function SplitEditor({
+  ruleNumber,
+  variants,
+  idPrefix,
+  onChange,
+  onAdd,
+  onRemove,
+  onEven,
+}: {
+  ruleNumber: number;
+  variants: RoutingVariant[];
+  idPrefix: string;
+  onChange: (index: number, change: Partial<RoutingVariant>) => void;
+  onAdd: () => void;
+  onRemove: (index: number) => void;
+  onEven: () => void;
+}) {
+  const total = variants.reduce((sum, v) => sum + (Number.isFinite(v.weight) ? v.weight : 0), 0);
+  return (
+    <div className="space-y-3" data-testid={`split-editor-${ruleNumber}`}>
+      <ul className="space-y-2" aria-label={`Destinations of rule ${ruleNumber}`}>
+        {variants.map((variant, i) => {
+          const letter = VARIANT_LETTERS[i] ?? "?";
+          return (
+            <li key={i} className="grid grid-cols-[auto_1fr_5.5rem_auto] items-end gap-2">
+              <span
+                className="grid size-9 place-items-center rounded-lg bg-accent font-mono text-sm font-medium text-accent-foreground"
+                aria-hidden
+              >
+                {letter}
+              </span>
+              <div className="space-y-1.5">
+                <Label htmlFor={`${idPrefix}-url-${i}`} className="sr-only">
+                  Destination {letter}
+                </Label>
+                <Input
+                  id={`${idPrefix}-url-${i}`}
+                  type="url"
+                  autoComplete="off"
+                  placeholder={i === 0 ? "https://example.com/current-page" : "https://example.com/new-page"}
+                  value={variant.url}
+                  aria-label={`Destination ${letter} for rule ${ruleNumber}`}
+                  onChange={(event) => onChange(i, { url: event.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor={`${idPrefix}-w-${i}`} className="sr-only">
+                  Share of {letter}
+                </Label>
+                <div className="relative">
+                  <Input
+                    id={`${idPrefix}-w-${i}`}
+                    type="number"
+                    min={1}
+                    max={100}
+                    step={1}
+                    inputMode="numeric"
+                    className="pr-7"
+                    value={Number.isFinite(variant.weight) ? variant.weight : ""}
+                    aria-label={`Share of ${letter} for rule ${ruleNumber}`}
+                    onChange={(event) =>
+                      onChange(i, {
+                        weight: event.target.value === "" ? Number.NaN : Number(event.target.value),
+                      })
+                    }
+                  />
+                  <span className="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 text-sm text-muted-foreground">
+                    %
+                  </span>
+                </div>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-label={`Remove destination ${letter} from rule ${ruleNumber}`}
+                disabled={variants.length <= 2}
+                onClick={() => onRemove(i)}
+              >
+                <X className="size-4" aria-hidden />
+              </Button>
+            </li>
+          );
+        })}
+      </ul>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex gap-2">
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={variants.length >= LIMITS.routingVariantsMax}
+            onClick={onAdd}
+          >
+            <Plus className="size-4" aria-hidden /> Add a destination
+          </Button>
+          <Button type="button" size="sm" variant="ghost" onClick={onEven}>
+            Even split
+          </Button>
+        </div>
+        <p
+          className={total === 100 ? "text-sm text-muted-foreground" : "text-sm text-destructive"}
+          role={total === 100 ? undefined : "alert"}
+          data-testid={`split-total-${ruleNumber}`}
+        >
+          {total === 100 ? "Shares add up to 100%" : `Shares add up to ${total}%; they must add up to 100%`}
+        </p>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Each visitor is sent to the same destination all day (no cookie needed), and analytics shows how many
+        went to each. Destination A is the control.
+      </p>
     </div>
   );
 }

@@ -12,6 +12,16 @@ export async function loadTagSuggestions(): Promise<string[]> {
   return getContainer().links.listTags(actor);
 }
 
+/** The workspace's folders, for the link form's folder picker. */
+export async function loadFolders(): Promise<{ id: string; name: string; linkCount: number }[]> {
+  const { actor } = await requireSession();
+  return (await getContainer().folders.list(actor)).map((f) => ({
+    id: f.id,
+    name: f.name,
+    linkCount: f.linkCount,
+  }));
+}
+
 /** Pages that create or change links: read-only roles are sent back to the list instead of a form that fails. */
 export async function requireLinkWriterPage(): Promise<void> {
   const { actor } = await requireSession();

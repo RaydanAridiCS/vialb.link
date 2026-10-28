@@ -23,6 +23,7 @@ import type {
 import {
   ConflictError,
   DomainError,
+  ForbiddenError,
   NotFoundError,
   UniqueViolationError,
   ValidationError,
@@ -51,7 +52,10 @@ import { assertCanManageLink, isAdmin, requireLinkWriter, requireUser } from "./
 import type { Permission } from "@/lib/permissions";
 import { toLinkDto, type LinkDto } from "./dto";
 import type { SettingsService } from "./settings.service";
+import type { IWorkspaceRepository } from "@/server/repositories/workspace.repository";
+import type { IFolderRepository } from "@/server/repositories/folder.repository";
 import type { ILinkHealthRepository } from "@/server/repositories/link-health.repository";
+import { folderNameProblem, normalizeFolderName } from "@/lib/folders";
 
 export interface ExpirationInput {
   preset: ExpirationPreset;
@@ -63,6 +67,8 @@ export interface CreateLinkCommand {
   customCode?: string;
   title?: string | null;
   tags?: string[];
+  /** File the new link in this folder (must belong to the actor's workspace). */
+  folderId?: string | null;
   routingRules?: RoutingRule[];
   cardDesign?: CardDesign | null;
   pixels?: LinkPixels | null;
@@ -84,6 +90,8 @@ export interface UpdateLinkCommand {
   title?: string | null;
   /** `undefined` keeps the current tags; an array replaces them. */
   tags?: string[];
+  /** `undefined` keeps the folder, `null` takes the link out of its folder. */
+  folderId?: string | null;
   /** `true` turns the public stats page on (keeping its address), `false` turns it off. */
   publicStats?: boolean;
   /** Turns conversion tracking (the `vclid` added to the destination) on or off. */
@@ -117,6 +125,8 @@ export interface ImportRowCommand {
   customCode?: string;
   title?: string | null;
   tags?: string[];
+  /** Folder name; created in the workspace when it does not exist yet. */
+  folder?: string | null;
 }
 
 export type ImportRowResult =
@@ -148,6 +158,7 @@ export interface ListLinksInput {
   scope?: "mine" | "all";
   search?: string;
   tag?: string;
+  folder?: string;
   health?: "attention";
   status?: LinkStatusFilter;
   sort?: LinkSort;
@@ -167,6 +178,9 @@ export interface LinkServiceDeps {
   ipPepper: string;
   /** Destination-check records; without it links carry no health information. */
   health?: ILinkHealthRepository;
+  folders: IFolderRepository;
+  /** Needed to check the actor's role in the workspace they move links to. */
+  workspaces: Pick<IWorkspaceRepository, "getRole" | "findById">;
 }
 
 export function isReservedCode(code: string): boolean {
@@ -182,9 +196,54 @@ export class LinkService {
 
   /** DTOs for a page of links, with their health records fetched in one query. */
   private async dtos(items: readonly Link[]): Promise<LinkDto[]> {
-    const records = this.deps.health ? await this.deps.health.findMany(items.map((l) => l.id)) : [];
+    const folderIds = [...new Set(items.flatMap((l) => (l.folderId ? [l.folderId] : [])))];
+    const [records, folders] = await Promise.all([
+      this.deps.health ? this.deps.health.findMany(items.map((l) => l.id)) : Promise.resolve([]),
+      this.deps.folders.findManyByIds(folderIds),
+    ]);
     const byLink = new Map(records.map((record) => [record.linkId, record]));
-    return items.map((link) => this.dto(link, byLink.get(link.id) ?? null));
+    const byFolder = new Map(folders.map((f) => [f.id, { id: f.id, name: f.name }]));
+    return items.map((link) =>
+      toLinkDto(
+        link,
+        this.deps.siteUrl,
+        this.deps.clock.now(),
+        byLink.get(link.id) ?? null,
+        link.folderId ? (byFolder.get(link.folderId) ?? null) : null,
+      ),
+    );
+  }
+
+  /** A folder the new or edited link may be filed in: it must belong to the link's workspace. */
+  private async assertFolder(workspaceId: string | null, folderId: string): Promise<void> {
+    const folder = await this.deps.folders.findById(folderId);
+    if (!folder || workspaceId === null || folder.workspaceId !== workspaceId) {
+      throw new ValidationError("Folder not found", { field: "folderId" });
+    }
+  }
+
+  /** The id of the workspace's folder with this name, created when it is new (imports). */
+  private async folderIdForName(workspaceId: string, raw: string | null | undefined): Promise<string | null> {
+    if (raw === null || raw === undefined) return null;
+    const name = normalizeFolderName(raw);
+    if (name === null) return null;
+    const problem = folderNameProblem(name);
+    if (problem) throw new ValidationError(problem, { field: "folder" });
+    const existing = await this.deps.folders.findByName(workspaceId, name);
+    if (existing) return existing.id;
+    if ((await this.deps.folders.count(workspaceId)) >= LIMITS.foldersPerWorkspaceMax) {
+      throw new ValidationError(`A workspace can have at most ${LIMITS.foldersPerWorkspaceMax} folders`, {
+        field: "folder",
+      });
+    }
+    try {
+      return (await this.deps.folders.create(workspaceId, name)).id;
+    } catch (error) {
+      if (!(error instanceof UniqueViolationError)) throw error;
+      const raced = await this.deps.folders.findByName(workspaceId, name);
+      if (raced) return raced.id;
+      throw error;
+    }
   }
 
   async create(actor: Actor, cmd: CreateLinkCommand, ctx: RequestContext): Promise<CreatedLink> {
@@ -215,9 +274,14 @@ export class LinkService {
       expiresAt = earliest(expiresAt, new Date(now.getTime() + settings.anonLinkTtlHours * 3_600_000));
     }
 
+    if (cmd.folderId) {
+      if (anonymous) throw new ValidationError("Sign in to use folders");
+      await this.assertFolder(actor.kind === "user" ? actor.workspace.id : null, cmd.folderId);
+    }
     const { base, claimToken } = await this.buildLink(actor, cmd, expiresAt, ctx);
     const link = await this.insertWithCode(cmd.customCode, base);
-    return { link: this.dto(link), claimToken };
+    const [dto] = await this.dtos([link]);
+    return { link: dto as LinkDto, claimToken };
   }
 
   /**
@@ -267,6 +331,7 @@ export class LinkService {
       workspaceId: actor.kind === "user" ? actor.workspace.id : null,
       title: cmd.title?.trim() || null,
       tags: this.cleanTags(cmd.tags),
+      folderId: cmd.folderId ?? null,
       routingRules: await this.cleanRouting(cmd.routingRules, [], assertDestination),
       cardDesign: this.cleanCard(cmd.cardDesign),
       pixels: this.cleanPixels(cmd.pixels, Boolean(cmd.password)),
@@ -349,9 +414,10 @@ export class LinkService {
       }
     }
 
+    const folderId = await this.folderIdForName(workspaceId, row.folder);
     const { base } = await this.buildLink(
       actor,
-      { destinationUrl, title: row.title, tags: row.tags },
+      { destinationUrl, title: row.title, tags: row.tags, folderId },
       null,
       { ip: null },
       assertDestination,
@@ -468,27 +534,38 @@ export class LinkService {
         throw new ValidationError("Unknown device in a routing rule", { field: "routingRules" });
       }
       const countries = normalizeCountries(rule.countries ?? []);
+      const variants = rule.variants?.map((v) => ({
+        url: v.url.trim(),
+        weight: v.weight,
+        ...(v.label?.trim() ? { label: v.label.trim() } : {}),
+      }));
       return {
         ...(rule.platform === undefined ? {} : { platform: rule.platform }),
         ...(countries.length > 0 ? { countries } : {}),
-        url: rule.url.trim(),
+        // The first variant is the control, so `url` always agrees with it.
+        url: variants?.[0]?.url ?? rule.url.trim(),
+        ...(variants ? { variants } : {}),
       };
     });
     const problem = routingProblem(rules);
     if (problem) throw new ValidationError(problem, { field: "routingRules" });
 
-    const checked = new Set(existing.map((rule) => rule.url));
+    const checked = new Set(
+      existing.flatMap((rule) => [rule.url, ...(rule.variants?.map((v) => v.url) ?? [])]),
+    );
     for (const [index, rule] of rules.entries()) {
-      if (checked.has(rule.url)) continue;
-      checked.add(rule.url);
-      try {
-        await assertDestination(rule.url);
-      } catch (error) {
-        // Say which rule, so the form can show the message next to it.
-        if (error instanceof ValidationError) {
-          throw new ValidationError(`Rule ${index + 1}: ${error.message}`, { field: "routingRules" });
+      for (const target of new Set([rule.url, ...(rule.variants?.map((v) => v.url) ?? [])])) {
+        if (checked.has(target)) continue;
+        checked.add(target);
+        try {
+          await assertDestination(target);
+        } catch (error) {
+          // Say which rule, so the form can show the message next to it.
+          if (error instanceof ValidationError) {
+            throw new ValidationError(`Rule ${index + 1}: ${error.message}`, { field: "routingRules" });
+          }
+          throw error;
         }
-        throw error;
       }
     }
     return rules;
@@ -583,6 +660,10 @@ export class LinkService {
     }
     if (cmd.title !== undefined) patch.title = cmd.title?.trim() || null;
     if (cmd.tags !== undefined) patch.tags = this.cleanTags(cmd.tags);
+    if (cmd.folderId !== undefined) {
+      if (cmd.folderId !== null) await this.assertFolder(link.workspaceId, cmd.folderId);
+      patch.folderId = cmd.folderId;
+    }
     if (cmd.cardDesign !== undefined) patch.cardDesign = this.cleanCard(cmd.cardDesign);
     // Pixels and a password exclude each other, so check the result of this edit, not just the new field.
     const willHavePassword = cmd.password === undefined ? link.passwordHash !== null : cmd.password !== null;
@@ -657,6 +738,71 @@ export class LinkService {
     });
   }
 
+  /** Files links in a folder of their workspace, or takes them out of any folder (`folderId = null`). */
+  async moveToFolder(actor: Actor, ids: readonly string[], folderId: string | null): Promise<number> {
+    const owned = await this.loadAllOwned(actor, ids);
+    if (folderId !== null) {
+      const folder = await this.deps.folders.findById(folderId);
+      if (!folder) throw new ValidationError("Folder not found", { field: "folderId" });
+      if (owned.some((link) => link.workspaceId !== folder.workspaceId)) {
+        throw new ValidationError("Links can only be filed in a folder of their own workspace", {
+          field: "folderId",
+        });
+      }
+    }
+    return this.deps.links.setFolder(
+      owned.map((l) => l.id),
+      folderId,
+    );
+  }
+
+  /**
+   * Moves links to another workspace. The actor must be an owner or admin of **both** workspaces (instance admins
+   * excepted); viewers and editors cannot, and neither can someone who is not a member of the target. The links
+   * keep their codes, clicks, stats address and health; they leave their folder (folders belong to a workspace).
+   * API keys of the old workspace stop seeing them. Bio-page buttons cannot be moved.
+   */
+  async moveToWorkspace(actor: Actor, ids: readonly string[], targetWorkspaceId: string): Promise<number> {
+    const user = requireUser(actor);
+    const unique = [...new Set(ids)];
+    if (unique.length === 0) throw new ValidationError("Select at least one link");
+    if (unique.length > LIMITS.moveLinksMax) {
+      throw new ValidationError(`At most ${LIMITS.moveLinksMax} links can be moved at once`);
+    }
+    const owned = await this.loadAllOwned(actor, unique);
+    if (owned.some((link) => link.kind !== "link")) {
+      throw new ValidationError("Bio page buttons cannot be moved");
+    }
+    const sources = new Set(owned.map((link) => link.workspaceId));
+    const [source] = [...sources];
+    if (sources.size !== 1 || !source) {
+      throw new ValidationError("Links can only be moved from one workspace at a time");
+    }
+    if (source === targetWorkspaceId) throw new ValidationError("The links are already in that workspace");
+    if (!(await this.deps.workspaces.findById(targetWorkspaceId))) {
+      throw new ValidationError("Workspace not found", { field: "workspaceId" });
+    }
+
+    if (user.role !== "admin") {
+      const mayManage = (role: string | null) => role === "owner" || role === "admin";
+      const [fromRole, toRole] = await Promise.all([
+        this.deps.workspaces.getRole(source, user.userId),
+        this.deps.workspaces.getRole(targetWorkspaceId, user.userId),
+      ]);
+      if (!mayManage(fromRole) || !mayManage(toRole)) {
+        throw new ForbiddenError(
+          "You need to be an owner or admin of both workspaces to move links between them",
+        );
+      }
+    }
+    const moved = await this.deps.links.moveToWorkspace(
+      owned.map((l) => l.id),
+      source,
+      targetWorkspaceId,
+    );
+    return moved;
+  }
+
   async delete(actor: Actor, ids: readonly string[]): Promise<number> {
     const owned = await this.loadAllOwned(actor, ids);
     return this.deps.links.softDelete(
@@ -681,6 +827,7 @@ export class LinkService {
       kind: all ? "any" : "link",
       search: input.search,
       tag: input.tag ? normalizeTag(input.tag) : undefined,
+      folder: input.folder,
       health: input.health,
       status: input.status ?? "all",
       sort: input.sort ?? "created_desc",
@@ -701,12 +848,14 @@ export class LinkService {
     actor: Actor,
     cursor: string | null,
     limit: number,
+    filter: { tag?: string; folder?: string } = {},
   ): Promise<{ items: LinkDto[]; nextCursor: string | null }> {
     const user = requireUser(actor);
     const page = await this.deps.links.listByCursor(
       user.workspace.id,
       cursor,
       Math.min(100, Math.max(1, limit)),
+      { tag: filter.tag ? normalizeTag(filter.tag) : undefined, folder: filter.folder },
     );
     return { items: await this.dtos(page.items), nextCursor: page.nextCursor };
   }

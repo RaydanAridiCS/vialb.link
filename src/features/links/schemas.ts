@@ -103,6 +103,16 @@ export const routingRuleSchema = z.object({
     .max(LIMITS.routingCountriesMax, `At most ${LIMITS.routingCountriesMax} countries per rule`)
     .optional(),
   url: destinationUrlSchema,
+  variants: z
+    .array(
+      z.object({
+        url: destinationUrlSchema,
+        weight: z.number().int().min(1, "Each share is at least 1%").max(100),
+        label: z.string().trim().max(LIMITS.routingVariantLabelMax).optional(),
+      }),
+    )
+    .max(LIMITS.routingVariantsMax, `At most ${LIMITS.routingVariantsMax} destinations in a split`)
+    .optional(),
 });
 
 export const routingRulesSchema = z
@@ -172,6 +182,8 @@ const linkFieldsShape = {
   destinationUrl: destinationUrlSchema,
   title: optionalText(LIMITS.titleMax),
   tags: tagsSchema,
+  /** A folder id, or an empty string for none. */
+  folderId: z.string().max(50).optional(),
   routingRules: routingRulesSchema.optional(),
   cardDesign: cardDesignSchema.nullable().optional(),
   pixels: pixelsSchema.nullable().optional(),
@@ -266,6 +278,19 @@ export const linkIdsSchema = z.object({ ids: z.array(z.uuid()).min(1).max(500) }
 export const setEnabledSchema = linkIdsSchema.extend({ enabled: z.boolean() });
 export const linkIdSchema = z.object({ id: z.uuid() });
 
+export const folderNameSchema = z.object({ name: z.string().max(LIMITS.folderNameMax * 3) });
+export const renameFolderSchema = folderNameSchema.extend({ id: z.uuid() });
+export const moveToFolderSchema = z.object({
+  ids: z.array(z.uuid()).min(1).max(500),
+  /** A folder id, or `null` to take the links out of their folder. */
+  folderId: z.uuid().nullable(),
+});
+
+export const moveToWorkspaceSchema = z.object({
+  ids: z.array(z.uuid()).min(1).max(LIMITS.moveLinksMax),
+  workspaceId: z.uuid(),
+});
+
 export const conversionsSchema = z.object({ id: z.uuid(), enabled: z.boolean() });
 
 export const publicStatsSchema = z.object({
@@ -280,6 +305,7 @@ export const linkListParamsSchema = z.object({
   tag: z.string().trim().max(LIMITS.tagMaxLength).optional().catch(undefined),
   status: z.enum(["all", "active", "expired", "disabled", "protected"]).optional().catch(undefined),
   health: z.literal("attention").optional().catch(undefined),
+  folder: z.string().max(50).optional().catch(undefined),
   sort: z.enum(["created_desc", "created_asc", "clicks_desc", "clicks_asc"]).optional().catch(undefined),
   page: z.coerce.number().int().min(1).max(100000).optional().catch(undefined),
   pageSize: z.coerce.number().int().min(5).max(LIMITS.pageSizeMax).optional().catch(undefined),
@@ -290,6 +316,7 @@ export const DEFAULT_LINK_FORM: CreateLinkFormValues = {
   customCode: "",
   title: "",
   tags: [],
+  folderId: "",
   routingRules: [],
   cardDesign: null,
   pixels: null,
@@ -331,6 +358,10 @@ const importRowShape = z.object({
   title: z.string().max(LIMITS.titleMax * 5),
   code: z.string().max(200),
   tags: z.array(z.string().max(200)).max(LIMITS.tagsPerLinkMax * 5),
+  folder: z
+    .string()
+    .max(LIMITS.folderNameMax * 3)
+    .optional(),
 });
 
 export const importLinksSchema = z.object({

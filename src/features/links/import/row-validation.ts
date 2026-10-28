@@ -1,4 +1,5 @@
 import { LIMITS } from "@/lib/constants";
+import { folderNameProblem, normalizeFolderName } from "@/lib/folders";
 import { isValidTag, normalizeTags } from "@/lib/tags";
 import { customCodeSchema, destinationUrlSchema } from "../schemas";
 import type { ImportField, ImportRowInput } from "./column-mapping";
@@ -15,6 +16,8 @@ export interface ValidatedRow {
   code: string;
   /** Normalized, de-duplicated tags (invalid ones are dropped and reported as an issue). */
   tags: string[];
+  /** Normalized folder name, or an empty string for none. */
+  folder: string;
   issues: RowIssue[];
   /** The code already belongs to an identical link of the same owner: importing would skip it. */
   alreadyImported: boolean;
@@ -66,12 +69,19 @@ export function validateRows(rows: readonly ImportRowInput[]): ValidatedRow[] {
       issues.push({ field: "tags", message: `More than ${LIMITS.tagsPerLinkMax} tags` });
     }
 
+    const folder = normalizeFolderName(input.folder);
+    if (folder !== null) {
+      const folderProblem = folderNameProblem(folder);
+      if (folderProblem) issues.push({ field: "folder", message: folderProblem });
+    }
+
     return {
       row: input.row,
       url: input.url,
       title: input.title,
       code: input.code,
       tags: valid,
+      folder: folder ?? "",
       issues,
       alreadyImported: false,
     };

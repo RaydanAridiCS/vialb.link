@@ -77,6 +77,10 @@ their claim token (and land in the workspace being shown when claimed).
 `links.user_id` now means "created by" and becomes empty if that person's account is deleted; ownership is
 `links.workspace_id`.
 
+## Moving links between workspaces
+
+Owners and admins of two workspaces can move links from one to the other: see [Folders and moving links](folders.md).
+
 ## REST API
 
 No new endpoints. A key acts in its workspace, so `GET /api/v1/links` lists that workspace's links, and a

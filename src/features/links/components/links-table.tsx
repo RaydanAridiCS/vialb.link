@@ -5,6 +5,7 @@ import {
   BarChart3,
   Copy,
   Download,
+  Folder,
   Link2,
   Lock,
   MoreHorizontal,
@@ -54,9 +55,12 @@ import type { LinkDto, LinkStatus } from "@/server/services/dto";
 import {
   deleteLinksAction,
   dismissLinkHealthAction,
+  moveToFolderAction,
+  moveToWorkspaceAction,
   recheckLinkHealthAction,
   setLinksEnabledAction,
 } from "../actions";
+import { FoldersDialog, type FolderOption } from "./folders-dialog";
 import { QrDialog } from "./qr-dialog";
 import { TagBadge } from "./tag-badge";
 
@@ -119,6 +123,10 @@ export interface LinksTableProps {
   readOnly?: boolean;
   /** The instance runs the health monitor: show the health filter and re-check / dismiss actions. */
   healthEnabled?: boolean;
+  /** The workspace's folders, for the filter, the bulk "Move to folder" and the manage dialog. */
+  folders?: FolderOption[];
+  /** Other workspaces where the person is an owner or admin: where links can be moved to. */
+  moveTargets?: { id: string; name: string }[];
 }
 
 export function LinksTable({
@@ -130,6 +138,8 @@ export function LinksTable({
   admin = false,
   readOnly = false,
   healthEnabled = false,
+  folders = [],
+  moveTargets = [],
 }: LinksTableProps) {
   const router = useRouter();
   const [qrLink, setQrLink] = useState<LinkDto | null>(null);
@@ -151,6 +161,22 @@ export function LinksTable({
     onError: ({ error }) => toast.error(error.serverError ?? "Could not update"),
   });
 
+  const move = useAction(moveToFolderAction, {
+    onSuccess: ({ data }) => {
+      toast.success(`Moved ${data?.moved ?? 0} link${data?.moved === 1 ? "" : "s"}`);
+      table.resetRowSelection();
+      router.refresh();
+    },
+    onError: ({ error }) => toast.error(error.serverError ?? "Could not move the links"),
+  });
+  const moveWorkspace = useAction(moveToWorkspaceAction, {
+    onSuccess: ({ data }) => {
+      toast.success(`Moved ${data?.moved ?? 0} link${data?.moved === 1 ? "" : "s"} to the other workspace`);
+      table.resetRowSelection();
+      router.refresh();
+    },
+    onError: ({ error }) => toast.error(error.serverError ?? "Could not move the links"),
+  });
   const recheck = useAction(recheckLinkHealthAction, {
     onSuccess: ({ data }) => {
       if (data?.health.needsAttention) toast.warning(describeHealthReason(data.health.reason));
@@ -221,6 +247,14 @@ export function LinksTable({
                 <p className="truncate text-xs text-muted-foreground" title={link.destinationUrl}>
                   {link.destinationUrl}
                 </p>
+                {link.folder ? (
+                  <p
+                    className="flex items-center gap-1 text-xs text-muted-foreground"
+                    data-testid="link-folder"
+                  >
+                    <Folder className="size-3" aria-hidden /> {link.folder.name}
+                  </p>
+                ) : null}
                 {link.tags.length > 0 ? <TagList tags={link.tags} /> : null}
               </div>
             );
@@ -356,7 +390,7 @@ export function LinksTable({
 
   return (
     <div className="space-y-4">
-      <Toolbar tags={tags} healthEnabled={healthEnabled} />
+      <Toolbar tags={tags} healthEnabled={healthEnabled} folders={folders} readOnly={readOnly} />
 
       {selected.length > 0 ? (
         <div
@@ -365,6 +399,45 @@ export function LinksTable({
           aria-label="Bulk actions"
         >
           <span className="font-medium">{selected.length} selected</span>
+          {readOnly || folders.length === 0 ? null : (
+            <Select
+              value=""
+              onValueChange={(value) =>
+                move.execute({ ids: selected.map((l) => l.id), folderId: value === "none" ? null : value })
+              }
+            >
+              <SelectTrigger size="sm" className="w-44 bg-background" aria-label="Move to folder">
+                <SelectValue placeholder="Move to folder…" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">No folder</SelectItem>
+                {folders.map((folder) => (
+                  <SelectItem key={folder.id} value={folder.id}>
+                    {folder.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          {readOnly || moveTargets.length === 0 ? null : (
+            <Select
+              value=""
+              onValueChange={(workspaceId) =>
+                moveWorkspace.execute({ ids: selected.map((l) => l.id), workspaceId })
+              }
+            >
+              <SelectTrigger size="sm" className="w-52 bg-background" aria-label="Move to workspace">
+                <SelectValue placeholder="Move to workspace…" />
+              </SelectTrigger>
+              <SelectContent>
+                {moveTargets.map((target) => (
+                  <SelectItem key={target.id} value={target.id}>
+                    {target.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           {readOnly ? null : (
             <>
               <Button
@@ -493,7 +566,17 @@ function useUrlParams() {
   return { searchParams, set, pending };
 }
 
-function Toolbar({ tags, healthEnabled }: { tags: string[]; healthEnabled: boolean }) {
+function Toolbar({
+  tags,
+  healthEnabled,
+  folders,
+  readOnly,
+}: {
+  tags: string[];
+  healthEnabled: boolean;
+  folders: FolderOption[];
+  readOnly: boolean;
+}) {
   const { searchParams, set, pending } = useUrlParams();
   const [query, setQuery] = useState(searchParams.get("q") ?? "");
 
@@ -540,6 +623,26 @@ function Toolbar({ tags, healthEnabled }: { tags: string[]; healthEnabled: boole
           <SelectItem value="protected">Password protected</SelectItem>
         </SelectContent>
       </Select>
+      {folders.length > 0 || searchParams.has("folder") ? (
+        <Select
+          value={searchParams.get("folder") ?? "all"}
+          onValueChange={(v) => set({ folder: v === "all" ? null : v })}
+        >
+          <SelectTrigger className="w-full data-[size=default]:h-10 sm:w-44" aria-label="Filter by folder">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All folders</SelectItem>
+            <SelectItem value="none">No folder</SelectItem>
+            {folders.map((folder) => (
+              <SelectItem key={folder.id} value={folder.id}>
+                {folder.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      ) : null}
+      {readOnly ? null : <FoldersDialog folders={folders} />}
       {healthEnabled || searchParams.has("health") ? (
         <Select
           value={searchParams.get("health") ?? "all"}
@@ -663,6 +766,7 @@ function EmptyState() {
     searchParams.has("q") ||
     searchParams.has("status") ||
     searchParams.has("tag") ||
+    searchParams.has("folder") ||
     searchParams.has("health");
   return (
     <div className="mx-auto flex max-w-sm flex-col items-center gap-3 text-muted-foreground">

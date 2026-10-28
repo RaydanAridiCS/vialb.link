@@ -13,6 +13,7 @@ export function makeLinkDto(overrides: Partial<LinkDto> = {}): LinkDto {
     destinationUrl: `https://example.com/${code}`,
     title: null,
     tags: [],
+    folder: null,
     routingRules: [],
     cardDesign: null,
     pixels: null,

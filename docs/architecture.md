@@ -112,6 +112,8 @@ erDiagram
   user ||--o| bio_profiles : "has one page"
   user ||--o{ bio_buttons : owns
   links ||--o| bio_buttons : "behind"
+  workspaces ||--o{ folders : groups
+  folders ||--o{ links : files
   links ||--o{ clicks : records
   clicks ||--o| conversions : "may convert once"
   links {
@@ -121,6 +123,7 @@ erDiagram
     uuid workspace_id FK "owner; null only for unclaimed anonymous links"
     text user_id FK "creator (set null when they leave)"
     text kind "link or bio_button (hidden from lists)"
+    uuid folder_id FK "at most one folder; set null when it is deleted"
     text_array tags "normalized labels, GIN indexed"
     jsonb routing_rules "ordered smart-routing rules, [] by default"
     jsonb card_design "social card: template, palette, text; null = none"
@@ -155,6 +158,11 @@ erDiagram
     timestamptz occurred_at
     bigint value_minor "cents, optional"
     text currency
+  }
+  folders {
+    uuid id PK "uuidv7"
+    uuid workspace_id FK
+    text name "unique per workspace, case-insensitive"
   }
   bio_profiles {
     text user_id PK "one page per user"
@@ -196,6 +204,10 @@ Links and API keys belong to a **workspace** (`workspaces`, `workspace_members(r
 Everyone has a personal workspace, created the first time they sign in; teams are extra workspaces. Who may touch
 a link is decided in one place, `assertCanManageLink`, from the actor's workspace role (`src/lib/permissions.ts`).
 `links.user_id` is only the creator. See [Teams](teams.md).
+
+Folders ([Folders and moving links](folders.md)) are a flat, per-workspace grouping: `links.folder_id` points at one,
+and deleting a folder just clears it. A/B splits live inside the `routing_rules` JSON ([Smart routing](smart-routing.md)),
+so they need no table.
 
 Conversions ([Conversion tracking](conversions.md)) hold no personal data and cascade from their click, which is how
 [retention](retention.md) removes them. Comparison and unique-visitor semantics are in [Analytics](analytics.md).

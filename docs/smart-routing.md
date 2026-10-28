@@ -27,6 +27,26 @@ A rule says _if the visitor is on this device and/or in these countries, send th
 - Expiry, access limits and password protection apply to the link, not to a rule. One visit uses one
   access whichever destination it goes to, and a password is asked before any routing happens.
 
+## A/B tests and percentage splits
+
+A rule can **split** its visitors between 2 to 5 destinations by weight, for example 70% to the current page and
+30% to a new one. Turn on "Split these visitors…" in a rule (or use the **A/B test** button, which adds a rule
+that applies to everyone). The shares are whole numbers that must add up to 100%; destination A is the control.
+A rule with a split may have no device or country condition (a plain A/B test), or combine with them ("iPhone
+visitors in France: 50/50").
+
+- **Which visitor gets which page** is decided without any cookie: a hash of the visitor's address, browser, that
+  UTC day's random salt, the link and the rule gives a number from 0 to 99, and the weights are laid end to end
+  over it (70/30: 0-69 is A, 70-99 is B). So a visitor sees the same page all day, the split over many visitors
+  follows the weights, and a new day reshuffles. It has the same limits as [unique visitors](analytics.md): not
+  stable across days or devices. When the server cannot see the visitor's address it draws at random.
+- **Analytics** records the variant with the click (`variant:A`, `ios+variant:B`), shows "Variant B" in the
+  Smart routing card, and has an **A/B test** table: planned share, clicks, actual share and, with
+  [conversion tracking](conversions.md), conversions and rate per destination. Small samples are noisy.
+- Every destination is checked like any other routing target (blocklist, Safe Browsing, and the
+  [health monitor](link-health.md)).
+- REST: `routingRules[].variants: [{ url, weight, label? }]`. `url` is replaced by the first variant's URL.
+
 ## How the device is detected
 
 From the `User-Agent` header:

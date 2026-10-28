@@ -240,8 +240,8 @@ describe("ImportFlow: importing", () => {
     expect(importAction).toHaveBeenCalledTimes(1);
     expect(importAction).toHaveBeenCalledWith({
       rows: [
-        { row: 2, url: "https://a.example/1", title: "One", code: "one-code", tags: ["x", "y"] },
-        { row: 3, url: "https://a.example/2", title: "", code: "", tags: [] },
+        { row: 2, url: "https://a.example/1", title: "One", code: "one-code", tags: ["x", "y"], folder: "" },
+        { row: 3, url: "https://a.example/2", title: "", code: "", tags: [], folder: "" },
       ],
     });
     expect(router.refresh).toHaveBeenCalled();
@@ -330,9 +330,9 @@ describe("ImportFlow: importing", () => {
     expect(filename).toBe("import-errors-links.csv");
     expect(type).toMatch(/text\/csv/);
     const lines = String(text).split("\r\n");
-    expect(lines[0]).toBe("url,title,custom_code,tags,error,original_row");
+    expect(lines[0]).toBe("url,title,custom_code,tags,folder,error,original_row");
     expect(lines).toContain(
-      "https://a.example/bad,Bad one,,promo,This domain is not allowed on this instance,3",
+      "https://a.example/bad,Bad one,,promo,,This domain is not allowed on this instance,3",
     );
     expect(lines.some((line) => line.startsWith("not-a-url,Local failure"))).toBe(true);
   });

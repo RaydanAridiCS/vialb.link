@@ -37,6 +37,8 @@ export interface Link {
   /** The workspace the link belongs to; `null` only for anonymous links nobody has claimed. */
   workspaceId: string | null;
   title: string | null;
+  /** The folder it is filed in, if any. */
+  folderId: string | null;
   tags: string[];
   /** Ordered smart-routing rules; the first match replaces `destinationUrl`. */
   routingRules: RoutingRule[];
@@ -76,6 +78,7 @@ export type NewLink = Pick<Link, "code" | "destinationUrl"> &
       | "userId"
       | "workspaceId"
       | "title"
+      | "folderId"
       | "tags"
       | "routingRules"
       | "cardDesign"
@@ -106,6 +109,7 @@ export type LinkPatch = Partial<
     Link,
     | "destinationUrl"
     | "title"
+    | "folderId"
     | "tags"
     | "routingRules"
     | "cardDesign"
@@ -167,6 +171,17 @@ export interface LinkHealth {
   history: HealthCheckEntry[];
 }
 
+export interface Folder {
+  id: string;
+  workspaceId: string;
+  name: string;
+  createdAt: Date;
+}
+
+export interface FolderWithCount extends Folder {
+  linkCount: number;
+}
+
 export type LinkStatusFilter = "all" | "active" | "expired" | "disabled" | "protected";
 export type LinkSort = "created_desc" | "created_asc" | "clicks_desc" | "clicks_asc";
 
@@ -176,6 +191,8 @@ export interface LinkListQuery {
   search?: string;
   /** Only links carrying this (normalized) tag. */
   tag?: string;
+  /** A folder id, or `none` for links that are in no folder. */
+  folder?: string;
   /** `attention` = flagged by the health monitor and not dismissed. */
   health?: "attention";
   /** Defaults to `link`: bio page buttons are hidden unless `any` is asked for (admin review). */

@@ -59,7 +59,15 @@ function analyse(records: readonly CsvRecord[], mapping: ColumnMapping, hasHeade
 }
 
 function toFailure(row: ValidatedRow, reason: string): FailedImportRow {
-  return { row: row.row, url: row.url, title: row.title, code: row.code, tags: row.tags, reason };
+  return {
+    row: row.row,
+    url: row.url,
+    title: row.title,
+    code: row.code,
+    tags: row.tags,
+    folder: row.folder,
+    reason,
+  };
 }
 
 export function ImportFlow({
@@ -256,6 +264,7 @@ export function ImportFlow({
         title: row.title,
         code: row.code,
         tags: row.tags,
+        folder: row.folder,
       })),
     });
     if (response?.data) return response.data.results;

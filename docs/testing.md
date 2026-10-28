@@ -126,20 +126,28 @@ batch, skip the rate limit, drop the badge-text escaping, make blocked designs d
 Mutation log for the retention work (link health, reports, public stats): each of these was applied, a test
 failed, and it was restored.
 
-| Breakage                                                           | Caught by                                                 |
-| ------------------------------------------------------------------ | --------------------------------------------------------- |
-| Remove `10.0.0.0/8` from the address guard                         | `ip-guard.test.ts` (4 tests)                              |
-| Flag at `>` instead of `>=` the failure threshold                  | `health-state.test.ts` (3 tests)                          |
-| Skip the per-hop address check on redirects                        | `url-probe.test.ts` (private redirect target)             |
-| Let a sent email be claimed again after the stale timeout          | `report.service.test.ts` (**survived first**; test added) |
-| Count bots on the public stats page                                | `public-stats.test.ts`                                    |
-| Ignore "the scheduled hour has not come yet" in the schedule maths | `report.service.test.ts`                                  |
-| Accept three decimals in a conversion amount                       | `conversions-lib.test.ts`                                 |
-| Drop the conversion time window                                    | `conversions.test.ts`                                     |
-| `append` instead of `set` for the `vclid` (forged ids survive)     | `conversions-lib.test.ts`                                 |
-| Flip the sign of a period-over-period delta                        | `analytics-compare.test.ts` (5 tests)                     |
-| Retention deletes at `<=` the cutoff instead of `<`                | `retention.service.test.ts`                               |
-| Accept conversions on disabled links / from bot clicks             | `conversions.test.ts` (one each)                          |
+| Breakage                                                                | Caught by                                                 |
+| ----------------------------------------------------------------------- | --------------------------------------------------------- |
+| Remove `10.0.0.0/8` from the address guard                              | `ip-guard.test.ts` (4 tests)                              |
+| Flag at `>` instead of `>=` the failure threshold                       | `health-state.test.ts` (3 tests)                          |
+| Skip the per-hop address check on redirects                             | `url-probe.test.ts` (private redirect target)             |
+| Let a sent email be claimed again after the stale timeout               | `report.service.test.ts` (**survived first**; test added) |
+| Count bots on the public stats page                                     | `public-stats.test.ts`                                    |
+| Ignore "the scheduled hour has not come yet" in the schedule maths      | `report.service.test.ts`                                  |
+| Accept three decimals in a conversion amount                            | `conversions-lib.test.ts`                                 |
+| Drop the conversion time window                                         | `conversions.test.ts`                                     |
+| `append` instead of `set` for the `vclid` (forged ids survive)          | `conversions-lib.test.ts`                                 |
+| Flip the sign of a period-over-period delta                             | `analytics-compare.test.ts` (5 tests)                     |
+| Retention deletes at `<=` the cutoff instead of `<`                     | `retention.service.test.ts`                               |
+| Accept conversions on disabled links / from bot clicks                  | `conversions.test.ts` (one each)                          |
+| `pickVariant` uses `<=` so a boundary bucket lands in the wrong variant | `ab-splits.test.ts` (3 tests)                             |
+| Bucket computed modulo 99 instead of 100                                | `ab-splits.test.ts`                                       |
+| Accept shares that add up to less than 100%                             | `ab-splits.test.ts` (2 tests)                             |
+| Ignore the role in the source / target workspace when moving links      | `move-links.test.ts` (one each)                           |
+| Let a link be filed in a folder of another workspace                    | `folders.test.ts`                                         |
+| Let anyone change another workspace's folders                           | `folders.test.ts`                                         |
+| Do not collapse whitespace in folder names                              | `folders.test.ts` (3 tests)                               |
+| A/B random fallback always gives bucket 0                               | `ab-splits.test.ts`                                       |
 
 ## Coverage
 

@@ -32,6 +32,7 @@ These were consciously left out of the first release or only partially done:
 - Smart device and geo routing
 - Retargeting pixels (Meta, Google) behind a consent page
 - Team workspaces with roles and invitations
+- Folders, REST bulk import and tag/folder filters, A/B splits, moving links between workspaces
 - Period comparison, per-day unique visitors, conversion goals, click retention
 - Link health monitor, weekly report and broken-links emails, public stats pages, in-process job scheduler
 - Social card studio (designed preview cards and app mock-ups)
@@ -39,14 +40,11 @@ These were consciously left out of the first release or only partially done:
 
 ## Next
 
-- Folders for links (tags and tag filtering shipped)
-- REST endpoint for bulk import (`POST /api/v1/links/import` or a batch create); the dashboard import is shipped
 - Centre logo on QR codes (needs a safe upload and storage story; error correction `H` is already the default)
-- Filter links by tag in `GET /api/v1/links`
 - Webhooks on click thresholds, expiry, limit reached
 - "Preview before redirect" interstitial option
 - Bio pages: REST API, page-view counts, uploaded pictures (with the QR centre logo and image-upload story below), a sitemap, admin moderation tools
-- Smart routing: more conditions (language, time), A/B and percentage splits, CSV import columns
+- Smart routing: more conditions (language, time), CSV import columns
 - Social cards: uploaded images, free colours and logos, a designed preview image for bio pages
 - Sentry in the browser (needs a build-time public DSN that fits the prebuilt image), Turnstile on sign-up and sign-in
 - Custom 404 / gone page branding per instance
@@ -54,6 +52,6 @@ These were consciously left out of the first release or only partially done:
 ## Later
 
 - Custom domains (multiple short domains per instance, per-user domains)
-- Teams: per-workspace settings, moving links between workspaces, audit log, SSO
+- Teams: per-workspace settings, audit log, SSO
 - Internationalisation of the UI
 - Aggregated rollups for very large instances (measured: not needed yet, see docs/retention.md)

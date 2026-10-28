@@ -4,7 +4,12 @@ import { LinkForm } from "@/features/links/components/link-form";
 import { ConversionsCard } from "@/features/links/components/conversions-card";
 import { LinkHealthCard } from "@/features/links/components/link-health-card";
 import { PublicStatsCard } from "@/features/links/components/public-stats-card";
-import { loadOwnedLink, loadTagSuggestions, requireLinkWriterPage } from "@/features/links/queries";
+import {
+  loadFolders,
+  loadOwnedLink,
+  loadTagSuggestions,
+  requireLinkWriterPage,
+} from "@/features/links/queries";
 import { env } from "@/lib/env";
 import { getContainer } from "@/server/container";
 
@@ -13,10 +18,11 @@ export const metadata: Metadata = { title: "Edit link" };
 export default async function EditLinkPage({ params }: PageProps<"/dashboard/links/[id]/edit">) {
   const { id } = await params;
   await requireLinkWriterPage();
-  const [link, tagSuggestions, settings] = await Promise.all([
+  const [link, tagSuggestions, settings, folders] = await Promise.all([
     loadOwnedLink(id),
     loadTagSuggestions(),
     getContainer().settings.get(),
+    loadFolders(),
   ]);
   return (
     <>
@@ -26,6 +32,7 @@ export default async function EditLinkPage({ params }: PageProps<"/dashboard/lin
         siteUrl={env.SITE_URL}
         pixelsEnabled={settings.pixelsEnabled}
         tagSuggestions={tagSuggestions}
+        folders={folders}
       />
       <div className="mx-auto mt-6 max-w-3xl space-y-6">
         {settings.healthMonitorEnabled ? <LinkHealthCard link={link} /> : null}

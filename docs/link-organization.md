@@ -79,6 +79,8 @@ parameter.
 Existing databases get the column from the `0001_link_tags` migration; current links
 start with an empty tag list. Migrations run automatically on container start.
 
+Links can also be filed in [folders](folders.md) (one per link), which the dashboard and the REST API filter by.
+
 ## UTM campaign builder
 
 A collapsible **Campaign tracking (UTM)** card in the link form adds

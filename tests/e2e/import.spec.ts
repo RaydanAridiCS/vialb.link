@@ -101,9 +101,9 @@ test.describe("CSV import", () => {
     expect(download.suggestedFilename()).toBe("import-errors-import-errors.csv");
     const csv = readFileSync(await download.path(), "utf8");
     const lines = csv.split("\r\n");
-    expect(lines[0]).toBe("url,title,custom_code,tags,error,original_row");
+    expect(lines[0]).toBe("url,title,custom_code,tags,folder,error,original_row");
     expect(lines.filter((l) => l !== "")).toHaveLength(6);
-    expect(csv).toContain("not a url,Broken URL,,,");
+    expect(csv).toContain("not a url,Broken URL,,,,");
     expect(csv).toContain("This code is reserved");
     expect(csv).toContain("Same code as row 6");
   });

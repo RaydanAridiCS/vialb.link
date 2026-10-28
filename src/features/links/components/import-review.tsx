@@ -134,13 +134,14 @@ export function ImportReview({
                 <TableHead>URL</TableHead>
                 <TableHead>Code</TableHead>
                 <TableHead>Tags</TableHead>
+                <TableHead>Folder</TableHead>
                 <TableHead>Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {shown.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="h-16 text-center text-muted-foreground">
+                  <TableCell colSpan={6} className="h-16 text-center text-muted-foreground">
                     {onlyProblems ? "No problems found." : "No rows."}
                   </TableCell>
                 </TableRow>
@@ -153,6 +154,7 @@ export function ImportReview({
                     </TableCell>
                     <TableCell className="font-mono text-xs">{row.code || "—"}</TableCell>
                     <TableCell className="text-xs">{row.tags.join(", ") || "—"}</TableCell>
+                    <TableCell className="text-xs">{row.folder || "—"}</TableCell>
                     <TableCell className="text-xs">
                       {row.issues.length > 0 ? (
                         <ul className="space-y-0.5 text-destructive">
