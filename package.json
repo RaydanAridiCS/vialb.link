@@ -30,7 +30,7 @@
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "^9.1.0",
     "@better-auth/api-key": "^1.7.10",
-    "@hookform/resolvers": "^5.9.2",
+    "@hookform/resolvers": "^6.0.0",
     "@maxmind/geoip2-node": "^7.1.0",
     "@node-rs/argon2": "^2.2.2",
     "@scalar/nextjs-api-reference": "^0.12.11",
