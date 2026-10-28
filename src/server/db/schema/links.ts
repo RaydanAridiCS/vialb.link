@@ -69,6 +69,8 @@ export const links = pgTable(
     createdIpHash: text("created_ip_hash"),
     /** sha256 of the one-time claim token handed to anonymous creators. */
     claimTokenHash: text("claim_token_hash"),
+    /** Unguessable token of the opt-in public stats page (`/stats/<token>`); `null` = no public page. */
+    statsToken: text("stats_token"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
@@ -81,6 +83,9 @@ export const links = pgTable(
     index("links_workspace_created_idx").on(t.workspaceId, t.createdAt.desc()),
     index("links_expires_at_idx").on(t.expiresAt),
     index("links_tags_idx").using("gin", t.tags),
+    uniqueIndex("links_stats_token_unique")
+      .on(t.statsToken)
+      .where(sql`${t.statsToken} is not null`),
     index("links_claim_token_idx")
       .on(t.claimTokenHash)
       .where(sql`${t.claimTokenHash} is not null`),

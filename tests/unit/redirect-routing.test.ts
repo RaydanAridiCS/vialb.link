@@ -299,6 +299,7 @@ describe("LinkService routing rules", () => {
 
   it("asks Safe Browsing about rule targets too", async () => {
     const safety: UrlSafetyChecker = {
+      isConfigured: true,
       check: vi.fn(async (url: string) => ({ safe: !url.includes("phish") })),
     };
     const { result } = await create([{ platform: "ios", url: "https://phish.example/" }], { safety });
@@ -322,7 +323,7 @@ describe("LinkService routing rules", () => {
 
   it("only re-checks targets that are new when a link is edited", async () => {
     const check = vi.fn(async () => ({ safe: true }));
-    const f = buildFixture({ safety: { check } });
+    const f = buildFixture({ safety: { isConfigured: true, check } });
     const { link } = await f.links.create(
       users.alice,
       { destinationUrl: WEBSITE, routingRules: appRules },

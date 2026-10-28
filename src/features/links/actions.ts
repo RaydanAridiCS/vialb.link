@@ -9,7 +9,9 @@ import {
   createLinkSchema,
   emptyToNull,
   importLinksSchema,
+  linkIdSchema,
   linkIdsSchema,
+  publicStatsSchema,
   qrOptionsSchema,
   quickCreateSchema,
   resolveMaxClicks,
@@ -128,6 +130,34 @@ export const setLinksEnabledAction = authActionClient
     revalidateDashboard();
     revalidatePath("/admin", "layout");
     return { updated };
+  });
+
+/** "Re-check now": asks the server to request the destination again and returns the fresh state. */
+export const recheckLinkHealthAction = authActionClient
+  .metadata({ name: "recheck-link-health" })
+  .inputSchema(linkIdSchema)
+  .action(async ({ parsedInput, ctx }) => {
+    const health = await getContainer().healthMonitor.checkNow(ctx.actor, parsedInput.id);
+    revalidateDashboard();
+    return { health };
+  });
+
+export const dismissLinkHealthAction = authActionClient
+  .metadata({ name: "dismiss-link-health" })
+  .inputSchema(linkIdSchema)
+  .action(async ({ parsedInput, ctx }) => {
+    await getContainer().healthMonitor.dismiss(ctx.actor, parsedInput.id);
+    revalidateDashboard();
+    return { ok: true };
+  });
+
+export const setPublicStatsAction = authActionClient
+  .metadata({ name: "set-public-stats" })
+  .inputSchema(publicStatsSchema)
+  .action(async ({ parsedInput, ctx }) => {
+    const link = await getContainer().links.setPublicStats(ctx.actor, parsedInput.id, parsedInput.mode);
+    revalidateDashboard();
+    return { statsUrl: link.statsUrl };
   });
 
 export const saveQrOptionsAction = authActionClient

@@ -34,6 +34,7 @@ These were consciously left out of the first release or only partially done:
 - Smart device and geo routing
 - Retargeting pixels (Meta, Google) behind a consent page
 - Team workspaces with roles and invitations
+- Link health monitor, weekly report and broken-links emails, public stats pages, in-process job scheduler
 - Social card studio (designed preview cards and app mock-ups)
 - Launch hardening: pool settings, startup config warnings, Redis fail-open, Sentry (opt-in), encrypted backups
 
@@ -57,4 +58,3 @@ These were consciously left out of the first release or only partially done:
 - Teams: per-workspace settings, moving links between workspaces, audit log, SSO
 - Internationalisation of the UI
 - Click retention policies and aggregated rollups for very large instances
-- Public, read-only stats pages per link (opt-in)

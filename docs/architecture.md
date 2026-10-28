@@ -187,6 +187,11 @@ Everyone has a personal workspace, created the first time they sign in; teams ar
 a link is decided in one place, `assertCanManageLink`, from the actor's workspace role (`src/lib/permissions.ts`).
 `links.user_id` is only the creator. See [Teams](teams.md).
 
+Scheduled work runs in-process ([Background jobs](jobs.md)): `job_runs` holds each job's lease, `link_health`
+the latest destination check of a link ([Link health](link-health.md)), `email_deliveries` the idempotency ledger
+for scheduled emails and `user_preferences` the per-person opt-outs ([Reports](reports.md)). `links.stats_token`
+is the opt-in [public stats](public-stats.md) address.
+
 Plus `instance_settings` (single row of admin overrides on top of env
 defaults), `daily_salts` (one random salt per UTC day) and Better Auth's tables.
 Migrations are committed SQL in `src/server/db/migrations` (generated with

@@ -52,6 +52,10 @@ describe("DrizzleSettingsRepository", () => {
       anonLinkTtlHours: null,
       blockedDomains: ["evil.example"],
       pixelsEnabled: true,
+      healthMonitorEnabled: null,
+      weeklyReportEnabled: null,
+      reportSendDay: null,
+      reportSendHourUtc: null,
     });
     await repo.upsert({ allowAnonymousLinks: null });
     expect((await repo.get())?.allowAnonymousLinks).toBeNull();

@@ -50,6 +50,11 @@ export function proxy(request: NextRequest) {
 
   const response = NextResponse.next({ request: { headers: requestHeaders } });
   response.headers.set("Content-Security-Policy", csp);
+  // Public stats pages are for whoever holds the address: no indexing, and the address must not leak in Referer.
+  if (request.nextUrl.pathname.startsWith("/stats/")) {
+    response.headers.set("X-Robots-Tag", "noindex, nofollow");
+    response.headers.set("Referrer-Policy", "no-referrer");
+  }
   return withSecurityHeaders(response, { isDev, siteUrl });
 }
 

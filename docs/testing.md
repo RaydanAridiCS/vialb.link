@@ -123,6 +123,18 @@ the code, confirm a test goes red, then restore it. During the import and QR wor
 21 deliberate breakages (for example: stop undoing the CSV formula guard, accept one row too many per
 batch, skip the rate limit, drop the badge-text escaping, make blocked designs downloadable).
 
+Mutation log for the retention work (link health, reports, public stats): each of these was applied, a test
+failed, and it was restored.
+
+| Breakage                                                           | Caught by                                                 |
+| ------------------------------------------------------------------ | --------------------------------------------------------- |
+| Remove `10.0.0.0/8` from the address guard                         | `ip-guard.test.ts` (4 tests)                              |
+| Flag at `>` instead of `>=` the failure threshold                  | `health-state.test.ts` (3 tests)                          |
+| Skip the per-hop address check on redirects                        | `url-probe.test.ts` (private redirect target)             |
+| Let a sent email be claimed again after the stale timeout          | `report.service.test.ts` (**survived first**; test added) |
+| Count bots on the public stats page                                | `public-stats.test.ts`                                    |
+| Ignore "the scheduled hour has not come yet" in the schedule maths | `report.service.test.ts`                                  |
+
 ## Coverage
 
 `npm run test:coverage` measures `src/server/**` and enforces 80% lines/functions/statements and

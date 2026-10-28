@@ -9,6 +9,10 @@ export interface ConfigSnapshot {
   TRUST_PROXY: boolean;
   SENTRY_DSN?: string;
   PIXELS_ENABLED?: boolean;
+  HEALTH_ALLOW_PRIVATE_TARGETS?: boolean;
+  WEEKLY_REPORT_ENABLED?: boolean;
+  SMTP_HOST?: string;
+  SMTP_FROM?: string;
 }
 
 /**
@@ -35,6 +39,17 @@ export function collectConfigWarnings(config: ConfigSnapshot): string[] {
   if (config.PIXELS_ENABLED && !config.SITE_URL.startsWith("https://")) {
     warnings.push(
       "PIXELS_ENABLED is on but SITE_URL is not https: the consent cookie cannot be marked Secure. Use https before sending visitors through ad pixels.",
+    );
+  }
+
+  if (config.HEALTH_ALLOW_PRIVATE_TARGETS && config.NODE_ENV === "production") {
+    warnings.push(
+      "HEALTH_ALLOW_PRIVATE_TARGETS is on: the link health monitor can request private and internal addresses. Only use it on a private deployment where every user is trusted.",
+    );
+  }
+  if (config.WEEKLY_REPORT_ENABLED && !(config.SMTP_HOST && config.SMTP_FROM)) {
+    warnings.push(
+      "WEEKLY_REPORT_ENABLED is on but SMTP_HOST / SMTP_FROM are not set: no report emails can be sent.",
     );
   }
 

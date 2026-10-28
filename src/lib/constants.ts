@@ -63,6 +63,7 @@ export const RESERVED_CODES: ReadonlySet<string> = new Set(
     "new",
     "qr",
     "demo",
+    "stats",
     ".well-known",
   ].map((c) => c.toLowerCase()),
 );
@@ -222,6 +223,12 @@ export const RATE_LIMITS = {
   passwordPerIpCode: { limit: 10, windowMs: 15 * 60 * 1000 },
   passwordPerCode: { limit: 100, windowMs: 15 * 60 * 1000 },
   apiKey: { limit: 120, windowMs: 60 * 1000 },
+  /** The dashboard "Re-check" button; each press makes outbound requests. */
+  healthRecheck: { limit: 20, windowMs: 10 * 60 * 1000 },
+  /** "Send me a preview" of the weekly report. */
+  reportPreview: { limit: 5, windowMs: 60 * 60 * 1000 },
+  /** Opening public stats pages, per visitor address. */
+  publicStats: { limit: 120, windowMs: 60 * 1000 },
 } as const;
 
 export const API_KEY_PREFIX = "tw_";

@@ -47,6 +47,14 @@ export default defineConfig({
       ALLOW_SIGNUPS: "true",
       // Lets the pixel specs send visitors through the consent page.
       PIXELS_ENABLED: "true",
+      // The destination health monitor, aimed at a throwaway server on 127.0.0.1 inside the specs. The
+      // scheduler stays off so no background pass ever contacts the example.com destinations other specs use.
+      HEALTH_MONITOR_ENABLED: "true",
+      HEALTH_ALLOW_PRIVATE_TARGETS: "true",
+      JOBS_ENABLED: "false",
+      // Never send real email from a test run, whatever the developer's .env says.
+      SMTP_HOST: "",
+      SMTP_FROM: "",
       LOG_LEVEL: "warn",
       NEXT_TELEMETRY_DISABLED: "1",
     },

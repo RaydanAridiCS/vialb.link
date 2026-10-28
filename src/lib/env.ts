@@ -41,6 +41,17 @@ export const env = createEnv({
     ALLOW_SIGNUPS: bool(true),
     ANON_LINK_TTL_HOURS: z.coerce.number().int().min(1).max(8760).default(720),
     PIXELS_ENABLED: bool(false),
+    /** Runs the in-process job scheduler. Turn off on all but one replica. */
+    JOBS_ENABLED: bool(true),
+    HEALTH_MONITOR_ENABLED: bool(false),
+    WEEKLY_REPORT_ENABLED: bool(false),
+    /** 0 = Sunday … 6 = Saturday, UTC. */
+    REPORT_SEND_DAY: z.coerce.number().int().min(0).max(6).default(1),
+    REPORT_SEND_HOUR_UTC: z.coerce.number().int().min(0).max(23).default(8),
+    HEALTH_CHECK_INTERVAL_HOURS: z.coerce.number().int().min(1).max(168).default(24),
+    HEALTH_FAILURE_THRESHOLD: z.coerce.number().int().min(1).max(20).default(3),
+    /** Lets the health monitor reach private addresses (intranet deployments, local tests). */
+    HEALTH_ALLOW_PRIVATE_TARGETS: bool(false),
     ADMIN_EMAIL: z.email().optional(),
 
     REDIRECT_STATUS: z

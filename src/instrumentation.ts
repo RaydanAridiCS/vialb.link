@@ -6,8 +6,13 @@ import type { Instrumentation } from "next";
  * which does not fit a prebuilt self-hosted image.
  */
 export async function register() {
+  if (process.env.NEXT_RUNTIME !== "nodejs") return;
+  // Not awaited: `register` must finish before the server accepts requests.
+  if (process.env.NEXT_PHASE !== "phase-production-build") {
+    void import("@/server/jobs/start").then(({ startJobs }) => startJobs());
+  }
   const dsn = process.env.SENTRY_DSN;
-  if (!dsn || process.env.NEXT_RUNTIME !== "nodejs") return;
+  if (!dsn) return;
   const [Sentry, { scrubEvent }] = await Promise.all([
     import("@sentry/nextjs"),
     import("@/lib/sentry-scrub"),

@@ -202,6 +202,7 @@ describe("LinkService.importLinks", () => {
     const seen: string[] = [];
     const f = buildFixture({
       safety: {
+        isConfigured: true,
         check: async (url) => {
           seen.push(url);
           return { safe: !url.includes("malware") };

@@ -13,6 +13,7 @@ import {
 } from "@/server/adapters/external-checks";
 import { ChainGeoResolver, HeaderGeoResolver, MaxMindGeoResolver } from "@/server/adapters/geo";
 import { ConsoleMailer, SmtpMailer } from "@/server/adapters/mailers";
+import { HttpUrlProbe } from "@/server/adapters/url-probe";
 import { MemoryRateLimiter, RedisRateLimiter } from "@/server/adapters/rate-limiters";
 import { db } from "@/server/db/client";
 import type { GeoResolver } from "@/server/ports/geo-resolver";
@@ -22,6 +23,10 @@ import { DrizzleBioRepository } from "@/server/repositories/drizzle/bio.reposito
 import { DrizzleApiKeyRepository } from "@/server/repositories/drizzle/api-key.repository.drizzle";
 import { DrizzleClickRepository } from "@/server/repositories/drizzle/click.repository.drizzle";
 import { DrizzleHealthRepository } from "@/server/repositories/drizzle/health.repository.drizzle";
+import { DrizzleJobRepository } from "@/server/repositories/drizzle/job.repository.drizzle";
+import { DrizzleEmailDeliveryRepository } from "@/server/repositories/drizzle/email-delivery.repository.drizzle";
+import { DrizzleLinkHealthRepository } from "@/server/repositories/drizzle/link-health.repository.drizzle";
+import { DrizzleUserPreferencesRepository } from "@/server/repositories/drizzle/user-preferences.repository.drizzle";
 import { DrizzleLinkRepository } from "@/server/repositories/drizzle/link.repository.drizzle";
 import { DrizzleSettingsRepository } from "@/server/repositories/drizzle/settings.repository.drizzle";
 import { DrizzleUserRepository } from "@/server/repositories/drizzle/user.repository.drizzle";
@@ -30,10 +35,13 @@ import { AbuseService } from "@/server/services/abuse.service";
 import { AdminService } from "@/server/services/admin.service";
 import { AnalyticsService } from "@/server/services/analytics.service";
 import { BioService } from "@/server/services/bio.service";
+import { HealthMonitorService } from "@/server/services/health-monitor.service";
+import { JobRunner, type Job } from "@/server/jobs/job-runner";
 import { CardService } from "@/server/services/card.service";
 import { ApiKeyService } from "@/server/services/api-key.service";
 import { LinkService } from "@/server/services/link.service";
 import { QrService } from "@/server/services/qr.service";
+import { ReportService } from "@/server/services/report.service";
 import { RedirectService } from "@/server/services/redirect.service";
 import { SettingsService } from "@/server/services/settings.service";
 import { WorkspaceService } from "@/server/services/workspace.service";
@@ -63,6 +71,10 @@ function buildContainer() {
     health: new DrizzleHealthRepository(db),
     bio: new DrizzleBioRepository(db),
     workspaces: new DrizzleWorkspaceRepository(db),
+    jobs: new DrizzleJobRepository(db),
+    linkHealth: new DrizzleLinkHealthRepository(db),
+    preferences: new DrizzleUserPreferencesRepository(db),
+    deliveries: new DrizzleEmailDeliveryRepository(db),
   };
 
   let limiter: RateLimiter = new MemoryRateLimiter();
@@ -100,15 +112,20 @@ function buildContainer() {
     anonLinkTtlHours: env.ANON_LINK_TTL_HOURS,
     blockedDomains: [],
     pixelsEnabled: env.PIXELS_ENABLED,
+    healthMonitorEnabled: env.HEALTH_MONITOR_ENABLED,
+    weeklyReportEnabled: env.WEEKLY_REPORT_ENABLED,
+    reportSendDay: env.REPORT_SEND_DAY,
+    reportSendHourUtc: env.REPORT_SEND_HOUR_UTC,
   });
 
+  const safety = env.SAFE_BROWSING_API_KEY
+    ? new SafeBrowsingChecker(env.SAFE_BROWSING_API_KEY)
+    : new NoopUrlSafetyChecker();
   const abuse = new AbuseService({
     settings,
     limiter,
     siteHost,
-    safety: env.SAFE_BROWSING_API_KEY
-      ? new SafeBrowsingChecker(env.SAFE_BROWSING_API_KEY)
-      : new NoopUrlSafetyChecker(),
+    safety,
     captcha:
       env.TURNSTILE_SITE_KEY && env.TURNSTILE_SECRET_KEY
         ? new TurnstileVerifier(env.TURNSTILE_SITE_KEY, env.TURNSTILE_SECRET_KEY)
@@ -125,6 +142,7 @@ function buildContainer() {
     settings,
     siteUrl,
     ipPepper: env.BETTER_AUTH_SECRET,
+    health: repos.linkHealth,
   });
 
   const workspaces = new WorkspaceService({
@@ -137,11 +155,74 @@ function buildContainer() {
     siteName: APP_NAME,
   });
 
+  const healthIntervalMs = env.HEALTH_CHECK_INTERVAL_HOURS * 3_600_000;
+  const healthMonitor = new HealthMonitorService({
+    health: repos.linkHealth,
+    links,
+    probe: new HttpUrlProbe({
+      userAgent: `${APP_NAME}-LinkHealth/1.0 (+${siteUrl})`,
+      allowPrivate: env.HEALTH_ALLOW_PRIVATE_TARGETS,
+    }),
+    safety,
+    abuse,
+    settings,
+    clock,
+    logger,
+    policy: {
+      failureThreshold: env.HEALTH_FAILURE_THRESHOLD,
+      intervalMs: healthIntervalMs,
+      retryMs: Math.min(healthIntervalMs, 3_600_000),
+    },
+  });
+
+  const reports = new ReportService({
+    clicks: repos.clicks,
+    workspaces: repos.workspaces,
+    users: repos.users,
+    preferences: repos.preferences,
+    deliveries: repos.deliveries,
+    health: repos.linkHealth,
+    abuse,
+    mailer,
+    settings,
+    clock,
+    logger,
+    siteUrl,
+    siteName: APP_NAME,
+  });
+
+  // Scheduled work. Each pass picks up whatever is due, so the intervals here only bound how late it can be.
+  const jobList: Job[] = [
+    {
+      name: "link-health",
+      intervalMs: 5 * 60_000,
+      isEnabled: () => healthMonitor.isEnabled(),
+      run: () => healthMonitor.runDue(),
+    },
+    // These two run often but only act inside the configured send window, once per person and week.
+    {
+      name: "weekly-report",
+      intervalMs: 15 * 60_000,
+      isEnabled: () => reports.isEnabled(),
+      run: () => reports.runWeekly(),
+    },
+    {
+      name: "broken-links-digest",
+      intervalMs: 15 * 60_000,
+      isEnabled: () => reports.isBrokenLinksEnabled(),
+      run: () => reports.runBrokenLinks(),
+    },
+  ];
+  const jobRunner = new JobRunner({ clock, repo: repos.jobs, jobs: jobList, logger });
+
   return {
     clock,
     limiter,
     mailer,
     repos,
+    jobRunner,
+    healthMonitor,
+    reports,
     workspaces,
     settings,
     abuse,
@@ -164,6 +245,7 @@ function buildContainer() {
       geo,
       clock,
       logger,
+      limiter,
     }),
     bio: new BioService({
       bio: repos.bio,

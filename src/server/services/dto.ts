@@ -2,9 +2,35 @@ import type { LinkPixels } from "@/lib/pixels";
 import type { QrEcc, QrFrame } from "@/lib/qr-options";
 import type { RoutingRule } from "@/lib/routing";
 import { cardVersion, type CardDesign } from "@/lib/social-card";
-import type { ApiKey, Link } from "@/server/domain/types";
+import type { ApiKey, HealthReason, HealthState, Link, LinkHealth } from "@/server/domain/types";
+import { needsAttention } from "@/server/lib/health-state";
 
 export type LinkStatus = "active" | "expired" | "limit_reached" | "disabled";
+
+/** What the dashboard and API show about the last destination checks. */
+export interface LinkHealthDto {
+  state: HealthState;
+  /** Flagged and not dismissed: the dashboard shows a "needs attention" badge. */
+  needsAttention: boolean;
+  dismissed: boolean;
+  lastCheckedAt: string | null;
+  reason: HealthReason | null;
+  statusCode: number | null;
+  /** Which URL failed: the destination or a routing target. */
+  failingTarget: string | null;
+}
+
+export function toHealthDto(health: LinkHealth): LinkHealthDto {
+  return {
+    state: health.state,
+    needsAttention: needsAttention(health),
+    dismissed: health.state === "flagged" && health.dismissedAt !== null,
+    lastCheckedAt: health.lastCheckedAt?.toISOString() ?? null,
+    reason: health.lastReason,
+    statusCode: health.lastStatusCode,
+    failingTarget: health.failingTarget,
+  };
+}
 
 /** Serializable link shape shared by server actions, pages and the REST API. */
 export interface LinkDto {
@@ -18,6 +44,8 @@ export interface LinkDto {
   cardDesign: CardDesign | null;
   pixels: LinkPixels | null;
   hasPassword: boolean;
+  /** Address of the public, read-only stats page; `null` while the owner keeps it private. */
+  statsUrl: string | null;
   expiresAt: string | null;
   maxClicks: number | null;
   clickCount: number;
@@ -31,6 +59,8 @@ export interface LinkDto {
   qrEcc: QrEcc;
   qrFrame: QrFrame;
   qrFrameText: string | null;
+  /** `null` when the link was never checked (or the monitor is off). */
+  health: LinkHealthDto | null;
   ownerId: string | null;
   createdAt: string;
   updatedAt: string;
@@ -53,7 +83,7 @@ export function cardUrlFor(siteUrl: string, link: Pick<Link, "code" | "cardDesig
   return `${shortUrlFor(siteUrl, link.code)}/card${version}`;
 }
 
-export function toLinkDto(link: Link, siteUrl: string, now: Date): LinkDto {
+export function toLinkDto(link: Link, siteUrl: string, now: Date, health: LinkHealth | null = null): LinkDto {
   return {
     id: link.id,
     code: link.code,
@@ -65,6 +95,7 @@ export function toLinkDto(link: Link, siteUrl: string, now: Date): LinkDto {
     cardDesign: link.cardDesign,
     pixels: link.pixels,
     hasPassword: link.passwordHash !== null,
+    statsUrl: link.statsToken ? `${siteUrl}/stats/${link.statsToken}` : null,
     expiresAt: link.expiresAt?.toISOString() ?? null,
     maxClicks: link.maxClicks,
     clickCount: link.clickCount,
@@ -78,6 +109,7 @@ export function toLinkDto(link: Link, siteUrl: string, now: Date): LinkDto {
     qrEcc: link.qrEcc,
     qrFrame: link.qrFrame,
     qrFrameText: link.qrFrameText,
+    health: health ? toHealthDto(health) : null,
     ownerId: link.userId,
     createdAt: link.createdAt.toISOString(),
     updatedAt: link.updatedAt.toISOString(),

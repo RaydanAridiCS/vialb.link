@@ -12,8 +12,11 @@ import {
   Plus,
   Power,
   QrCode,
+  RefreshCw,
   Search,
+  ShieldCheck,
   Trash2,
+  TriangleAlert,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -45,9 +48,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { csvField } from "@/lib/csv";
 import { downloadText } from "@/lib/download";
-import { formatDate, formatNumber } from "@/lib/format";
+import { formatDate, formatNumber, formatRelative } from "@/lib/format";
+import { describeHealthReason } from "@/lib/link-health";
 import type { LinkDto, LinkStatus } from "@/server/services/dto";
-import { deleteLinksAction, setLinksEnabledAction } from "../actions";
+import {
+  deleteLinksAction,
+  dismissLinkHealthAction,
+  recheckLinkHealthAction,
+  setLinksEnabledAction,
+} from "../actions";
 import { QrDialog } from "./qr-dialog";
 import { TagBadge } from "./tag-badge";
 
@@ -108,6 +117,8 @@ export interface LinksTableProps {
   admin?: boolean;
   /** Viewers: no editing, enabling, disabling or deleting. */
   readOnly?: boolean;
+  /** The instance runs the health monitor: show the health filter and re-check / dismiss actions. */
+  healthEnabled?: boolean;
 }
 
 export function LinksTable({
@@ -118,6 +129,7 @@ export function LinksTable({
   tags = [],
   admin = false,
   readOnly = false,
+  healthEnabled = false,
 }: LinksTableProps) {
   const router = useRouter();
   const [qrLink, setQrLink] = useState<LinkDto | null>(null);
@@ -137,6 +149,24 @@ export function LinksTable({
       router.refresh();
     },
     onError: ({ error }) => toast.error(error.serverError ?? "Could not update"),
+  });
+
+  const recheck = useAction(recheckLinkHealthAction, {
+    onSuccess: ({ data }) => {
+      if (data?.health.needsAttention) toast.warning(describeHealthReason(data.health.reason));
+      else if (data?.health.state === "failing")
+        toast.warning("The last check failed; it will be retried soon");
+      else toast.success("The destination is reachable");
+      router.refresh();
+    },
+    onError: ({ error }) => toast.error(error.serverError ?? "Could not check this link"),
+  });
+  const dismiss = useAction(dismissLinkHealthAction, {
+    onSuccess: () => {
+      toast.success("Warning dismissed");
+      router.refresh();
+    },
+    onError: ({ error }) => toast.error(error.serverError ?? "Could not dismiss"),
   });
 
   const columns = useMemo(
@@ -201,11 +231,33 @@ export function LinksTable({
           header: "Status",
           cell: ({ row }) => {
             const s = STATUS_STYLES[row.original.status];
+            const health = row.original.health;
             return (
-              <Badge variant={s.variant}>
-                <span aria-hidden className={`size-1.5 rounded-full ${s.dot}`} />
-                {s.label}
-              </Badge>
+              <div className="flex flex-col items-start gap-1.5">
+                <Badge variant={s.variant}>
+                  <span aria-hidden className={`size-1.5 rounded-full ${s.dot}`} />
+                  {s.label}
+                </Badge>
+                {healthEnabled && health?.needsAttention ? (
+                  <>
+                    <Badge
+                      variant="destructive"
+                      data-testid="needs-attention"
+                      title={`${describeHealthReason(health.reason)}${
+                        health.failingTarget && health.failingTarget !== row.original.destinationUrl
+                          ? ` (${health.failingTarget})`
+                          : ""
+                      }${health.lastCheckedAt ? `. Last checked ${formatRelative(health.lastCheckedAt)}.` : ""}`}
+                    >
+                      <TriangleAlert aria-hidden /> Needs attention
+                    </Badge>
+                    <span className="max-w-[12rem] text-xs text-muted-foreground">
+                      {describeHealthReason(health.reason)}
+                      {health.lastCheckedAt ? ` · checked ${formatRelative(health.lastCheckedAt)}` : ""}
+                    </span>
+                  </>
+                ) : null}
+              </div>
             );
           },
         }),
@@ -263,6 +315,16 @@ export function LinksTable({
                   </DropdownMenuItem>
                   {readOnly ? null : (
                     <>
+                      {healthEnabled && link.status === "active" && !link.hasPassword ? (
+                        <DropdownMenuItem onSelect={() => recheck.execute({ id: link.id })}>
+                          <RefreshCw className="size-4" /> Re-check destination
+                        </DropdownMenuItem>
+                      ) : null}
+                      {healthEnabled && link.health?.needsAttention ? (
+                        <DropdownMenuItem onSelect={() => dismiss.execute({ id: link.id })}>
+                          <ShieldCheck className="size-4" /> Dismiss warning
+                        </DropdownMenuItem>
+                      ) : null}
                       <DropdownMenuItem asChild>
                         <Link href={`/dashboard/links/${link.id}/edit`}>
                           <Pencil className="size-4" /> Edit
@@ -286,7 +348,7 @@ export function LinksTable({
         }),
       ]),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- action executors are stable
-    [admin, readOnly],
+    [admin, readOnly, healthEnabled],
   );
 
   const table = useTable({ features, columns, data: links, getRowId: (row) => row.id });
@@ -294,7 +356,7 @@ export function LinksTable({
 
   return (
     <div className="space-y-4">
-      <Toolbar tags={tags} />
+      <Toolbar tags={tags} healthEnabled={healthEnabled} />
 
       {selected.length > 0 ? (
         <div
@@ -431,7 +493,7 @@ function useUrlParams() {
   return { searchParams, set, pending };
 }
 
-function Toolbar({ tags }: { tags: string[] }) {
+function Toolbar({ tags, healthEnabled }: { tags: string[]; healthEnabled: boolean }) {
   const { searchParams, set, pending } = useUrlParams();
   const [query, setQuery] = useState(searchParams.get("q") ?? "");
 
@@ -478,6 +540,23 @@ function Toolbar({ tags }: { tags: string[] }) {
           <SelectItem value="protected">Password protected</SelectItem>
         </SelectContent>
       </Select>
+      {healthEnabled || searchParams.has("health") ? (
+        <Select
+          value={searchParams.get("health") ?? "all"}
+          onValueChange={(v) => set({ health: v === "all" ? null : v })}
+        >
+          <SelectTrigger
+            className="w-full data-[size=default]:h-10 sm:w-48"
+            aria-label="Filter by destination health"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Any destination health</SelectItem>
+            <SelectItem value="attention">Needs attention</SelectItem>
+          </SelectContent>
+        </Select>
+      ) : null}
       {tags.length > 0 || searchParams.has("tag") ? (
         <Select
           value={searchParams.get("tag") ?? "all"}
@@ -580,7 +659,11 @@ function Pagination({ total, page, pageSize }: { total: number; page: number; pa
 
 function EmptyState() {
   const searchParams = useSearchParams();
-  const filtered = searchParams.has("q") || searchParams.has("status") || searchParams.has("tag");
+  const filtered =
+    searchParams.has("q") ||
+    searchParams.has("status") ||
+    searchParams.has("tag") ||
+    searchParams.has("health");
   return (
     <div className="mx-auto flex max-w-sm flex-col items-center gap-3 text-muted-foreground">
       <span className="grid size-12 place-items-center rounded-2xl bg-accent text-accent-foreground">

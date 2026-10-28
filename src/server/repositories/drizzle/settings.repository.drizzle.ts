@@ -7,18 +7,25 @@ import type { ISettingsRepository } from "@/server/repositories/settings.reposit
 
 const SETTINGS_ID = 1;
 
+/** Every override column the repository returns (everything except the id and timestamp). */
+const OVERRIDE_COLUMNS = {
+  allowAnonymousLinks: instanceSettings.allowAnonymousLinks,
+  allowSignups: instanceSettings.allowSignups,
+  anonLinkTtlHours: instanceSettings.anonLinkTtlHours,
+  blockedDomains: instanceSettings.blockedDomains,
+  pixelsEnabled: instanceSettings.pixelsEnabled,
+  healthMonitorEnabled: instanceSettings.healthMonitorEnabled,
+  weeklyReportEnabled: instanceSettings.weeklyReportEnabled,
+  reportSendDay: instanceSettings.reportSendDay,
+  reportSendHourUtc: instanceSettings.reportSendHourUtc,
+};
+
 export class DrizzleSettingsRepository implements ISettingsRepository {
   constructor(private readonly db: Database) {}
 
   async get(): Promise<InstanceSettingsOverride | null> {
     const [row] = await this.db
-      .select({
-        allowAnonymousLinks: instanceSettings.allowAnonymousLinks,
-        allowSignups: instanceSettings.allowSignups,
-        anonLinkTtlHours: instanceSettings.anonLinkTtlHours,
-        blockedDomains: instanceSettings.blockedDomains,
-        pixelsEnabled: instanceSettings.pixelsEnabled,
-      })
+      .select(OVERRIDE_COLUMNS)
       .from(instanceSettings)
       .where(eq(instanceSettings.id, SETTINGS_ID))
       .limit(1);
@@ -30,13 +37,7 @@ export class DrizzleSettingsRepository implements ISettingsRepository {
       .insert(instanceSettings)
       .values({ id: SETTINGS_ID, ...patch })
       .onConflictDoUpdate({ target: instanceSettings.id, set: { ...patch, updatedAt: new Date() } })
-      .returning({
-        allowAnonymousLinks: instanceSettings.allowAnonymousLinks,
-        allowSignups: instanceSettings.allowSignups,
-        anonLinkTtlHours: instanceSettings.anonLinkTtlHours,
-        blockedDomains: instanceSettings.blockedDomains,
-        pixelsEnabled: instanceSettings.pixelsEnabled,
-      });
+      .returning(OVERRIDE_COLUMNS);
     if (!row) throw new Error("Upsert returned no row");
     return row;
   }

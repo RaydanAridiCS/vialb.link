@@ -234,4 +234,115 @@ describe("migrations", () => {
     expect(keys).toEqual([{ workspace_id: alice?.id }]);
     expect(nullable).toEqual([{ is_nullable: "NO" }]);
   });
+  it("add link health and job tables without touching existing links or the instance settings", async () => {
+    const url = await freshDatabase();
+    await applyAll(url, truncatedFolder(8));
+
+    const before = postgres(url, { max: 1, onnotice: () => {} });
+    const tables = await before<{ table_name: string }[]>`
+      select table_name from information_schema.tables where table_name in ('link_health', 'job_runs')`;
+    await before`insert into links (id, code, destination_url) values ('00000000-0000-4000-8000-0000000000d1', 'before-health', 'https://old.example')`;
+    await before`insert into instance_settings (id, pixels_enabled) values (1, true)`;
+    await before.end();
+    expect(tables).toEqual([]);
+
+    await applyAll(url);
+
+    const check = postgres(url, { max: 1, onnotice: () => {} });
+    const [settings] = await check<
+      { pixels_enabled: boolean | null; health_monitor_enabled: boolean | null }[]
+    >`
+      select pixels_enabled, health_monitor_enabled from instance_settings`;
+    const [counted] = await check<{ count: number }[]>`select count(*)::int as count from link_health`;
+    await check`insert into link_health (link_id) values ('00000000-0000-4000-8000-0000000000d1')`;
+    const [row] = await check<{ state: string; consecutive_failures: number; history: unknown }[]>`
+      select state, consecutive_failures, history from link_health`;
+    await check`delete from links where code = 'before-health'`;
+    const [left] = await check<{ remaining: number }[]>`select count(*)::int as remaining from link_health`;
+    await check.end();
+
+    expect(settings).toEqual({ pixels_enabled: true, health_monitor_enabled: null });
+    expect(counted?.count).toBe(0);
+    expect(row).toEqual({ state: "ok", consecutive_failures: 0, history: [] });
+    expect(left?.remaining).toBe(0); // the row goes away with its link
+  });
+  it("add email preferences and the delivery ledger, leaving instance settings and users alone", async () => {
+    const url = await freshDatabase();
+    await applyAll(url, truncatedFolder(9));
+
+    const before = postgres(url, { max: 1, onnotice: () => {} });
+    await before`insert into "user" (id, name, email) values ('u-old', 'Old', 'old@x.io')`;
+    await before`insert into instance_settings (id, allow_signups, health_monitor_enabled) values (1, false, true)`;
+    await before.end();
+
+    await applyAll(url);
+
+    const check = postgres(url, { max: 1, onnotice: () => {} });
+    const [settings] = await check<
+      {
+        allow_signups: boolean | null;
+        health_monitor_enabled: boolean | null;
+        weekly_report_enabled: boolean | null;
+        report_send_day: number | null;
+        report_send_hour_utc: number | null;
+      }[]
+    >`select allow_signups, health_monitor_enabled, weekly_report_enabled, report_send_day, report_send_hour_utc from instance_settings`;
+    // Nobody has a preferences row yet; the application treats a missing row as "everything on".
+    const [prefs] = await check<{ n: number }[]>`select count(*)::int as n from user_preferences`;
+    await check`insert into user_preferences (user_id) values ('u-old')`;
+    const [row] = await check<{ weekly_report: boolean; broken_links_email: boolean }[]>`
+      select weekly_report, broken_links_email from user_preferences`;
+    await check`insert into workspaces (id, name) values ('00000000-0000-4000-8000-0000000000e1', 'Team')`;
+    await check`insert into email_deliveries (kind, workspace_id, user_id, period_key)
+      values ('weekly_report', '00000000-0000-4000-8000-0000000000e1', 'u-old', '2026-06-01T08')`;
+    const duplicate = await check`insert into email_deliveries (kind, workspace_id, user_id, period_key)
+      values ('weekly_report', '00000000-0000-4000-8000-0000000000e1', 'u-old', '2026-06-01T08')
+      on conflict do nothing returning kind`;
+    await check`delete from "user" where id = 'u-old'`;
+    const [left] = await check<{ n: number }[]>`
+      select (select count(*) from user_preferences)::int + (select count(*) from email_deliveries)::int as n`;
+    await check.end();
+
+    expect(settings).toEqual({
+      allow_signups: false,
+      health_monitor_enabled: true,
+      weekly_report_enabled: null,
+      report_send_day: null,
+      report_send_hour_utc: null,
+    });
+    expect(prefs?.n).toBe(0);
+    expect(row).toEqual({ weekly_report: true, broken_links_email: true });
+    expect(duplicate).toHaveLength(0); // the primary key is the idempotency guard
+    expect(left?.n).toBe(0); // both go away with the account
+  });
+  it("give existing links no public stats page", async () => {
+    const url = await freshDatabase();
+    await applyAll(url, truncatedFolder(10));
+    expect(await columnsOfLinks(url)).not.toContain("stats_token");
+
+    const before = postgres(url, { max: 1, onnotice: () => {} });
+    await before`insert into links (id, code, destination_url) values
+      ('00000000-0000-4000-8000-0000000000f1', 'old-1', 'https://a.example'),
+      ('00000000-0000-4000-8000-0000000000f2', 'old-2', 'https://b.example')`;
+    await before.end();
+
+    await applyAll(url);
+
+    const check = postgres(url, { max: 1, onnotice: () => {} });
+    const rows = await check<
+      { code: string; stats_token: string | null }[]
+    >`select code, stats_token from links order by code`;
+    // Tokens are unique when present, but any number of links may have none.
+    await check`update links set stats_token = 'tok-1' where code = 'old-1'`;
+    const clash = await check`update links set stats_token = 'tok-1' where code = 'old-2'`.catch(
+      (e: { code?: string }) => e.code,
+    );
+    await check.end();
+
+    expect(rows).toEqual([
+      { code: "old-1", stats_token: null },
+      { code: "old-2", stats_token: null },
+    ]);
+    expect(clash).toBe("23505");
+  });
 });

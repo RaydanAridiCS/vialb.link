@@ -18,7 +18,7 @@ import {
   type SQL,
 } from "drizzle-orm";
 import type { Database } from "@/server/db/client";
-import { clicks, links } from "@/server/db/schema";
+import { clicks, linkHealth, links } from "@/server/db/schema";
 import type {
   CursorPage,
   Link,
@@ -77,6 +77,15 @@ export class DrizzleLinkRepository implements ILinkRepository {
     return row ?? null;
   }
 
+  async findByStatsToken(token: string): Promise<Link | null> {
+    const [row] = await this.db
+      .select()
+      .from(links)
+      .where(and(eq(links.statsToken, token), isNull(links.deletedAt)))
+      .limit(1);
+    return row ?? null;
+  }
+
   async findCodeHolders(codes: readonly string[]): Promise<CodeHolder[]> {
     if (codes.length === 0) return [];
     return this.db
@@ -105,6 +114,11 @@ export class DrizzleLinkRepository implements ILinkRepository {
     }
 
     if (query.tag) conditions.push(arrayContains(links.tags, [query.tag]));
+    if (query.health === "attention") {
+      conditions.push(
+        sql`exists (select 1 from ${linkHealth} where ${linkHealth.linkId} = ${links.id} and ${linkHealth.state} = 'flagged' and ${linkHealth.dismissedAt} is null)`,
+      );
+    }
 
     const limitReached = and(isNotNull(links.maxClicks), sql`${links.clickCount} >= ${links.maxClicks}`);
     const expired = and(isNotNull(links.expiresAt), lte(links.expiresAt, query.now));

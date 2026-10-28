@@ -6,11 +6,12 @@ import { withSession } from "@/server/http/session-route";
 /** "Export my data": profile, links and API key metadata as JSON (GDPR-style portability). */
 export const GET = withSession<Record<string, never>>(async (_request, actor) => {
   const session = await getSession();
-  const { links, apiKeys, workspaces } = getContainer();
-  const [allLinks, keys, memberships] = await Promise.all([
+  const { links, apiKeys, workspaces, reports } = getContainer();
+  const [allLinks, keys, memberships, emailSettings] = await Promise.all([
     links.exportForUser(actor),
     apiKeys.listAll(actor),
     workspaces.exportMemberships(actor.userId),
+    reports.emailSettings(actor),
   ]);
   const body = {
     exportedAt: new Date().toISOString(),
@@ -25,6 +26,10 @@ export const GET = withSession<Record<string, never>>(async (_request, actor) =>
         }
       : null,
     workspaces: memberships,
+    emailPreferences: {
+      weeklyReport: emailSettings.preferences.weeklyReport,
+      brokenLinksEmail: emailSettings.preferences.brokenLinksEmail,
+    },
     links: allLinks,
     apiKeys: keys,
   };

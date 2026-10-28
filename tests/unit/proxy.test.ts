@@ -25,6 +25,16 @@ describe("proxy content-security-policy", () => {
     }
   });
 
+  it("keeps public stats pages out of search results and out of Referer headers, under the page CSP", () => {
+    const response = get("/stats/Zm9vYmFyYmF6cXV4MTIzNA");
+    expect(response.headers.get("x-robots-tag")).toBe("noindex, nofollow");
+    expect(response.headers.get("referrer-policy")).toBe("no-referrer");
+    expect(response.headers.get("content-security-policy")).toMatch(/script-src 'self' 'nonce-/);
+    expect(response.headers.get("content-security-policy")).toContain("frame-ancestors 'none'");
+    // Other pages are untouched.
+    expect(get("/dashboard").headers.get("x-robots-tag")).toBeNull();
+  });
+
   it("still protects bio pages, which also have a single path segment", () => {
     expect(get("/@alice").headers.get("content-security-policy")).toMatch(/nonce-/);
   });

@@ -113,6 +113,10 @@ export const apiUpdateLinkSchema = z
     maxClicks: maxClicks.nullable().optional().meta({ description: "null removes the limit" }),
     password: password.nullable().optional().meta({ description: "null removes the password" }),
     isEnabled: z.boolean().optional(),
+    publicStats: z.boolean().optional().meta({
+      description:
+        "`true` turns on the public, read-only stats page (the address is returned as `statsUrl`); `false` turns it off and the old address stops working.",
+    }),
     ogTitle: z.string().trim().max(LIMITS.ogTitleMax).nullable().optional(),
     ogDescription: z.string().trim().max(LIMITS.ogDescriptionMax).nullable().optional(),
     ogImageUrl: httpsUrlSchema.nullable().optional(),
@@ -159,6 +163,10 @@ export const linkSchema = z
     cardDesign: cardDesignSchema.nullable(),
     pixels: z.object({ meta: z.string().optional(), google: z.string().optional() }).nullable(),
     hasPassword: z.boolean(),
+    statsUrl: z.url().nullable().meta({
+      description:
+        "Address of the public, read-only stats page, or `null` while it is off. Set `publicStats` to change it.",
+    }),
     expiresAt: z.string().nullable(),
     maxClicks: z.number().int().nullable(),
     clickCount: z.number().int(),
@@ -172,6 +180,21 @@ export const linkSchema = z
     qrEcc: z.enum(QR_ECC_LEVELS),
     qrFrame: z.enum(QR_FRAMES),
     qrFrameText: z.string().nullable(),
+    health: z
+      .object({
+        state: z.enum(["ok", "failing", "flagged"]),
+        needsAttention: z.boolean(),
+        dismissed: z.boolean(),
+        lastCheckedAt: z.string().nullable(),
+        reason: z.string().nullable(),
+        statusCode: z.number().int().nullable(),
+        failingTarget: z.string().nullable(),
+      })
+      .nullable()
+      .meta({
+        description:
+          "Result of the last destination check; `null` when the link was never checked or the instance's health monitor is off.",
+      }),
     ownerId: z.string().nullable(),
     createdAt: z.string(),
     updatedAt: z.string(),
@@ -259,6 +282,7 @@ export function toUpdateCommand(input: z.output<typeof apiUpdateLinkSchema>): Up
     maxClicks: input.maxClicks,
     password: input.password,
     isEnabled: input.isEnabled,
+    publicStats: input.publicStats,
     ogTitle: input.ogTitle,
     ogDescription: input.ogDescription,
     ogImageUrl: input.ogImageUrl,

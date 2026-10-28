@@ -65,6 +65,13 @@ All errors share one shape:
 | `GET`    | `/api/v1/links/{id}/stats?from&to`     | Aggregated stats (humans only, default last 30 days)                 |
 | `GET`    | `/api/v1/links/{id}/qr.png` / `qr.svg` | QR code (`?fg=&bg=&size=512&ecc=H&frame=badge&frameText=Scan%20me`)  |
 
+Two fields on a link come from background features:
+
+- `health`: result of the last destination check (`state`, `needsAttention`, `reason`, `statusCode`,
+  `failingTarget`, `lastCheckedAt`), or `null` when never checked / the monitor is off. See [Link health](link-health.md).
+- `statsUrl`: address of the [public stats page](public-stats.md) or `null`. `PATCH` with
+  `{"publicStats": true}` turns it on (keeping the address), `false` turns it off.
+
 ## Examples
 
 ```bash

@@ -8,8 +8,15 @@ import type { CodeGenerator } from "@/server/ports/code-generator";
 import type { GeoResolver } from "@/server/ports/geo-resolver";
 import type { Mailer, MailMessage } from "@/server/ports/mailer";
 import type { PasswordHasher } from "@/server/ports/password-hasher";
+import type { ProbeResult, UrlProbe } from "@/server/ports/url-probe";
 import type { UrlSafetyChecker } from "@/server/ports/url-safety-checker";
 import { InMemoryBioRepository } from "@/server/repositories/in-memory/bio.repository.memory";
+import { InMemoryJobRepository } from "@/server/repositories/in-memory/job.repository.memory";
+import {
+  InMemoryEmailDeliveryRepository,
+  InMemoryUserPreferencesRepository,
+} from "@/server/repositories/in-memory/reports.repositories.memory";
+import { InMemoryLinkHealthRepository } from "@/server/repositories/in-memory/link-health.repository.memory";
 import { InMemoryLinkRepository } from "@/server/repositories/in-memory/link.repository.memory";
 import { InMemoryWorkspaceRepository } from "@/server/repositories/in-memory/workspace.repository.memory";
 import {
@@ -22,10 +29,12 @@ import { AbuseService } from "@/server/services/abuse.service";
 import { AdminService } from "@/server/services/admin.service";
 import { AnalyticsService } from "@/server/services/analytics.service";
 import { BioService } from "@/server/services/bio.service";
+import { HealthMonitorService, type HealthMonitorDeps } from "@/server/services/health-monitor.service";
 import { CardService } from "@/server/services/card.service";
 import { ApiKeyService } from "@/server/services/api-key.service";
 import { LinkService } from "@/server/services/link.service";
 import { QrService } from "@/server/services/qr.service";
+import { ReportService } from "@/server/services/report.service";
 import { RedirectService } from "@/server/services/redirect.service";
 import { SettingsService } from "@/server/services/settings.service";
 import { WorkspaceService } from "@/server/services/workspace.service";
@@ -68,6 +77,30 @@ export class FakeHasher implements PasswordHasher {
 
 export const SITE_URL = "https://sho.rt";
 
+/** Narrows a possibly-missing value in tests without a non-null assertion. */
+export function defined<T>(value: T | null | undefined, what = "value"): T {
+  if (value === null || value === undefined) throw new Error(`Expected ${what} to be present`);
+  return value;
+}
+
+const OK_PROBE: ProbeResult = { ok: true, status: 200, reason: null, finalUrl: null };
+
+/** Scripted URL probe: answers per URL (default: healthy) and records every call. */
+export class FakeUrlProbe implements UrlProbe {
+  readonly calls: string[] = [];
+  readonly results = new Map<string, ProbeResult>();
+  async probe(url: string): Promise<ProbeResult> {
+    this.calls.push(url);
+    return this.results.get(url) ?? OK_PROBE;
+  }
+  fail(url: string, reason: NonNullable<ProbeResult["reason"]>, status: number | null = null) {
+    this.results.set(url, { ok: false, status, reason, finalUrl: url });
+  }
+  heal(url: string) {
+    this.results.delete(url);
+  }
+}
+
 /** Captures outgoing mail instead of sending it. */
 export class FakeMailer implements Mailer {
   readonly sent: MailMessage[] = [];
@@ -106,6 +139,11 @@ export interface FixtureOptions {
   geo?: GeoResolver;
   forwardQueryParams?: boolean;
   pixelsEnabled?: boolean;
+  healthMonitorEnabled?: boolean;
+  weeklyReportEnabled?: boolean;
+  healthFailureThreshold?: number;
+  /** Batch size, concurrency and per-host pacing of the health monitor (defaults: no pacing). */
+  healthPacing?: Partial<Pick<HealthMonitorDeps, "batchSize" | "concurrency" | "hostGapMs" | "sleep">>;
   /** `false` behaves like an instance without SMTP. */
   mailConfigured?: boolean;
 }
@@ -113,7 +151,12 @@ export interface FixtureOptions {
 export function buildFixture(options: FixtureOptions = {}) {
   const clock = new FakeClock();
   const linkRepo = new InMemoryLinkRepository(() => clock.now());
-  const clickRepo = new InMemoryClickRepository();
+  const healthRepo = new InMemoryLinkHealthRepository(linkRepo);
+  const jobRepo = new InMemoryJobRepository();
+  const preferencesRepo = new InMemoryUserPreferencesRepository();
+  const deliveryRepo = new InMemoryEmailDeliveryRepository();
+  const probe = new FakeUrlProbe();
+  const clickRepo = new InMemoryClickRepository(linkRepo);
   const bioRepo = new InMemoryBioRepository(() => clock.now());
   const settingsRepo = new InMemorySettingsRepository();
   const userRepo = new InMemoryUserRepository();
@@ -133,6 +176,10 @@ export function buildFixture(options: FixtureOptions = {}) {
       anonLinkTtlHours: 24,
       blockedDomains: options.blockedDomains ?? [],
       pixelsEnabled: options.pixelsEnabled ?? false,
+      healthMonitorEnabled: options.healthMonitorEnabled ?? false,
+      weeklyReportEnabled: options.weeklyReportEnabled ?? false,
+      reportSendDay: 1,
+      reportSendHourUtc: 8,
     },
     () => clock.now().getTime(),
   );
@@ -152,6 +199,7 @@ export function buildFixture(options: FixtureOptions = {}) {
     settings,
     siteUrl: SITE_URL,
     ipPepper: "pepper",
+    health: healthRepo,
   });
   const redirect = new RedirectService({
     links: linkRepo,
@@ -171,6 +219,7 @@ export function buildFixture(options: FixtureOptions = {}) {
     geo: options.geo ?? { resolve: async () => ({ country: "FR", region: null, city: "Paris" }) },
     clock,
     logger,
+    limiter,
   });
   const workspaces = new WorkspaceService({
     workspaces: workspaceRepo,
@@ -178,6 +227,40 @@ export function buildFixture(options: FixtureOptions = {}) {
     mailer,
     abuse,
     clock,
+    siteUrl: SITE_URL,
+    siteName: "Vialb",
+  });
+  const safetyChecker = options.safety ?? new NoopUrlSafetyChecker();
+  const healthMonitor = new HealthMonitorService({
+    health: healthRepo,
+    links,
+    probe,
+    safety: safetyChecker,
+    abuse,
+    settings,
+    clock,
+    logger,
+    policy: {
+      failureThreshold: options.healthFailureThreshold ?? 3,
+      intervalMs: 24 * 3_600_000,
+      retryMs: 3_600_000,
+    },
+    hostGapMs: 0,
+    sleep: async () => {},
+    ...options.healthPacing,
+  });
+  const reports = new ReportService({
+    clicks: clickRepo,
+    workspaces: workspaceRepo,
+    users: userRepo,
+    preferences: preferencesRepo,
+    deliveries: deliveryRepo,
+    health: healthRepo,
+    abuse,
+    mailer,
+    settings,
+    clock,
+    logger,
     siteUrl: SITE_URL,
     siteName: "Vialb",
   });
@@ -191,6 +274,13 @@ export function buildFixture(options: FixtureOptions = {}) {
     mailer,
     actAs,
     linkRepo,
+    healthRepo,
+    healthMonitor,
+    reports,
+    preferencesRepo,
+    deliveryRepo,
+    jobRepo,
+    probe,
     clickRepo,
     bioRepo,
     settingsRepo,

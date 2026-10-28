@@ -57,6 +57,27 @@
       "when": 1793038390593,
       "tag": "0007_workspaces",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793170656215,
+      "tag": "0008_link_health",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793171463721,
+      "tag": "0009_weekly_reports",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793172094491,
+      "tag": "0010_public_stats",
+      "breakpoints": true
     }
   ]
 }

@@ -15,7 +15,7 @@ export function connect(): { db: Database; close: () => Promise<void> } {
 /** Wipes all application data between tests (keeps the schema). */
 export async function truncateAll(db: Database) {
   await db.execute(rawSql`
-    truncate table clicks, links, api_keys, daily_salts, instance_settings,
+    truncate table clicks, links, api_keys, daily_salts, instance_settings, job_runs,
                    workspace_invites, workspace_members, workspaces,
                    two_factor, verification, account, session, "user"
     restart identity cascade

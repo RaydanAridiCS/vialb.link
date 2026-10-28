@@ -79,6 +79,32 @@ describe("collectConfigWarnings: pixels", () => {
   });
 });
 
+describe("collectConfigWarnings: scheduled work", () => {
+  it("warns about private health-check targets only in production", () => {
+    expect(collectConfigWarnings({ ...healthy, HEALTH_ALLOW_PRIVATE_TARGETS: true })).toEqual([
+      expect.stringContaining("HEALTH_ALLOW_PRIVATE_TARGETS"),
+    ]);
+    const dev = { ...healthy, NODE_ENV: "development" as const, HEALTH_ALLOW_PRIVATE_TARGETS: true };
+    expect(collectConfigWarnings(dev)).toEqual([]);
+    expect(collectConfigWarnings({ ...healthy, HEALTH_ALLOW_PRIVATE_TARGETS: false })).toEqual([]);
+  });
+
+  it("warns when report emails are on without SMTP", () => {
+    expect(collectConfigWarnings({ ...healthy, WEEKLY_REPORT_ENABLED: true })).toEqual([
+      expect.stringContaining("WEEKLY_REPORT_ENABLED"),
+    ]);
+    expect(
+      collectConfigWarnings({
+        ...healthy,
+        WEEKLY_REPORT_ENABLED: true,
+        SMTP_HOST: "smtp.x",
+        SMTP_FROM: "a@b.c",
+      }),
+    ).toEqual([]);
+    expect(collectConfigWarnings({ ...healthy, WEEKLY_REPORT_ENABLED: false })).toEqual([]);
+  });
+});
+
 describe("RedisRateLimiter", () => {
   it("counts through the Lua script and reports the remaining budget", async () => {
     const redis = { eval: vi.fn().mockResolvedValue([2, 5000]) };

@@ -14,6 +14,8 @@ import { Textarea } from "@/components/ui/textarea";
 import type { InstanceSettings, InstanceSettingsOverride } from "@/server/domain/types";
 import { updateInstanceSettingsAction } from "../actions";
 
+const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"] as const;
+
 type Tri = "default" | "on" | "off";
 const tri = (v: boolean | null): Tri => (v === null ? "default" : v ? "on" : "off");
 
@@ -30,6 +32,10 @@ export function InstanceSettingsForm({
   const [anon, setAnon] = useState<Tri>(tri(overrides.allowAnonymousLinks));
   const [signups, setSignups] = useState<Tri>(tri(overrides.allowSignups));
   const [pixels, setPixels] = useState<Tri>(tri(overrides.pixelsEnabled));
+  const [health, setHealth] = useState<Tri>(tri(overrides.healthMonitorEnabled));
+  const [reports, setReports] = useState<Tri>(tri(overrides.weeklyReportEnabled));
+  const [reportDay, setReportDay] = useState(overrides.reportSendDay?.toString() ?? "");
+  const [reportHour, setReportHour] = useState(overrides.reportSendHourUtc?.toString() ?? "");
   const [ttl, setTtl] = useState(overrides.anonLinkTtlHours?.toString() ?? "");
   const [domainsMode, setDomainsMode] = useState<"default" | "custom">(
     overrides.blockedDomains ? "custom" : "default",
@@ -62,6 +68,10 @@ export function InstanceSettingsForm({
             allowAnonymousLinks: anon,
             allowSignups: signups,
             pixelsEnabled: pixels,
+            healthMonitorEnabled: health,
+            weeklyReportEnabled: reports,
+            reportSendDay: reportDay === "" ? "" : Number(reportDay),
+            reportSendHourUtc: reportHour === "" ? "" : Number(reportHour),
             anonLinkTtlHours: ttl === "" ? "" : Number(ttl),
             blockedDomains: domains,
             blockedDomainsMode: domainsMode,
@@ -112,6 +122,76 @@ export function InstanceSettingsForm({
             <p className="text-xs text-muted-foreground">
               Currently: {onOff(effective.pixelsEnabled)}. When on, links with Meta or Google tags show a
               consent page first. Update your privacy policy before enabling.
+            </p>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="health">Link health monitor</Label>
+            <Select value={health} onValueChange={(v) => setHealth(v as Tri)}>
+              <SelectTrigger id="health" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="default">Default ({onOff(defaults.healthMonitorEnabled)})</SelectItem>
+                <SelectItem value="on">On</SelectItem>
+                <SelectItem value="off">Off</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Currently: {onOff(effective.healthMonitorEnabled)}. When on, the server periodically requests
+              each link&apos;s destination and flags broken ones in the dashboard.
+            </p>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="reports">Weekly report emails</Label>
+            <Select value={reports} onValueChange={(v) => setReports(v as Tri)}>
+              <SelectTrigger id="reports" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="default">Default ({onOff(defaults.weeklyReportEnabled)})</SelectItem>
+                <SelectItem value="on">On</SelectItem>
+                <SelectItem value="off">Off</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Currently: {onOff(effective.weeklyReportEnabled)}. Workspace owners and admins get a summary of
+              the past week (and a list of broken links when the health monitor is on). Needs SMTP; each
+              person can opt out in their settings.
+            </p>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="report-day">Report day and hour (UTC)</Label>
+            <div className="flex gap-2">
+              <Select
+                value={reportDay === "" ? "default" : reportDay}
+                onValueChange={(v) => setReportDay(v === "default" ? "" : v)}
+              >
+                <SelectTrigger id="report-day" className="w-full" aria-label="Report day">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="default">Default ({WEEKDAYS[defaults.reportSendDay]})</SelectItem>
+                  {WEEKDAYS.map((name, index) => (
+                    <SelectItem key={name} value={String(index)}>
+                      {name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Input
+                type="number"
+                min={0}
+                max={23}
+                aria-label="Report hour (UTC)"
+                className="w-24"
+                placeholder={String(defaults.reportSendHourUtc)}
+                value={reportHour}
+                onChange={(e) => setReportHour(e.target.value)}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Currently: {WEEKDAYS[effective.reportSendDay]} at{" "}
+              {String(effective.reportSendHourUtc).padStart(2, "0")}:00 UTC.
             </p>
           </div>
           <div className="space-y-1.5">

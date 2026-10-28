@@ -44,6 +44,21 @@ Booleans accept `true/false`, `1/0`, `yes/no`, `on/off`.
 | `REFERRER_POLICY`       | `strict-origin-when-cross-origin` | Sent with redirects. `unsafe-url` passes the full short URL to destinations.                                                                   |
 | `PUBLIC_QR_ENDPOINT`    | `false`                           | Expose `/{code}/qr?format=svg                                                                                                                  | png` without authentication. |
 
+## Background jobs, link health & report emails
+
+See [Background jobs](jobs.md), [Link health](link-health.md) and [Reports](reports.md). The three switches can also be changed in the admin page, which overrides these defaults.
+
+| Variable                       | Default | Description                                                                                                              |
+| ------------------------------ | ------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `JOBS_ENABLED`                 | `true`  | Run the in-process scheduler on this instance. Set `false` on replicas that should not run jobs.                         |
+| `HEALTH_MONITOR_ENABLED`       | `false` | Default for the link health monitor.                                                                                     |
+| `HEALTH_CHECK_INTERVAL_HOURS`  | `24`    | Gap between checks of a healthy link (1–168). Failing links are retried hourly.                                          |
+| `HEALTH_FAILURE_THRESHOLD`     | `3`     | Consecutive failed checks before a link is flagged (1–20).                                                               |
+| `HEALTH_ALLOW_PRIVATE_TARGETS` | `false` | Let the monitor request private and internal addresses. Disables SSRF protection; only for trusted, private deployments. |
+| `WEEKLY_REPORT_ENABLED`        | `false` | Default for the weekly report and broken-links emails to workspace owners and admins. Needs SMTP.                        |
+| `REPORT_SEND_DAY`              | `1`     | Day of the week the report is sent, `0` = Sunday … `6` = Saturday (UTC).                                                 |
+| `REPORT_SEND_HOUR_UTC`         | `8`     | Hour of that day (0–23, UTC).                                                                                            |
+
 ## Reverse proxy, client IP & headers
 
 | Variable             | Default    | Description                                                                                                                               |

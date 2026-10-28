@@ -1,7 +1,7 @@
 import "server-only";
-import { and, asc, count, desc, eq, gt, gte, lt, min, sql, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, gt, gte, isNotNull, isNull, lt, min, sql, type SQL } from "drizzle-orm";
 import type { Database } from "@/server/db/client";
-import { clicks } from "@/server/db/schema";
+import { clicks, links } from "@/server/db/schema";
 import type {
   AnalyticsDimension,
   AnalyticsSummary,
@@ -12,6 +12,7 @@ import type {
   HeatmapCell,
   NewClick,
   TimeseriesPoint,
+  WorkspaceReport,
 } from "@/server/domain/types";
 import type { IClickRepository } from "@/server/repositories/click.repository";
 
@@ -152,6 +153,94 @@ export class DrizzleClickRepository implements IClickRepository {
       .from(clicks)
       .where(since ? gte(clicks.occurredAt, since) : undefined);
     return row?.total ?? 0;
+  }
+
+  async workspaceReport(workspaceId: string, from: Date, to: Date): Promise<WorkspaceReport> {
+    const previousFrom = new Date(from.getTime() - (to.getTime() - from.getTime()));
+    const fromIso = from.toISOString();
+    const inCurrent = sql`${clicks.occurredAt} >= ${fromIso}::timestamptz`;
+    const inPrevious = sql`${clicks.occurredAt} < ${fromIso}::timestamptz`;
+    const scope = and(
+      eq(links.workspaceId, workspaceId),
+      eq(links.kind, "link"),
+      isNull(links.deletedAt),
+      eq(clicks.isBot, false),
+      gte(clicks.occurredAt, previousFrom),
+      lt(clicks.occurredAt, to),
+    );
+    const currentScope = and(scope, inCurrent);
+    const topBy = async (column: typeof clicks.country | typeof clicks.referrerHost) => {
+      const value = sql<string>`coalesce(nullif(${column}, ''), 'Unknown')`;
+      const rows = await this.db
+        .select({ value, clicks: sql<number>`count(*)::int` })
+        .from(clicks)
+        .innerJoin(links, eq(links.id, clicks.linkId))
+        .where(currentScope)
+        .groupBy(value)
+        .orderBy(sql`count(*) desc`, value)
+        .limit(5);
+      return rows.map((row) => ({ value: row.value, clicks: Number(row.clicks) }));
+    };
+
+    const [totals, topLinks, topReferrers, topCountries] = await Promise.all([
+      this.db
+        .select({
+          clicks: sql<number>`count(*) filter (where ${inCurrent})::int`,
+          previousClicks: sql<number>`count(*) filter (where ${inPrevious})::int`,
+          uniqueVisitors: sql<number>`count(distinct ${clicks.visitorHash}) filter (where ${inCurrent})::int`,
+        })
+        .from(clicks)
+        .innerJoin(links, eq(links.id, clicks.linkId))
+        .where(scope),
+      this.db
+        .select({
+          linkId: links.id,
+          code: links.code,
+          title: links.title,
+          clicks: sql<number>`count(*) filter (where ${inCurrent})::int`,
+          previousClicks: sql<number>`count(*) filter (where ${inPrevious})::int`,
+        })
+        .from(clicks)
+        .innerJoin(links, eq(links.id, clicks.linkId))
+        .where(scope)
+        .groupBy(links.id, links.code, links.title)
+        .having(sql`count(*) filter (where ${inCurrent}) > 0`)
+        .orderBy(sql`count(*) filter (where ${inCurrent}) desc`, links.code)
+        .limit(5),
+      topBy(clicks.referrerHost),
+      topBy(clicks.country),
+    ]);
+    const row = totals[0];
+    return {
+      clicks: Number(row?.clicks ?? 0),
+      previousClicks: Number(row?.previousClicks ?? 0),
+      uniqueVisitors: Number(row?.uniqueVisitors ?? 0),
+      topLinks: topLinks.map((link) => ({
+        ...link,
+        clicks: Number(link.clicks),
+        previousClicks: Number(link.previousClicks),
+      })),
+      topReferrers,
+      topCountries,
+    };
+  }
+
+  async activeWorkspaces(from: Date, to: Date): Promise<string[]> {
+    const rows = await this.db
+      .selectDistinct({ workspaceId: links.workspaceId })
+      .from(clicks)
+      .innerJoin(links, eq(links.id, clicks.linkId))
+      .where(
+        and(
+          isNotNull(links.workspaceId),
+          eq(links.kind, "link"),
+          isNull(links.deletedAt),
+          eq(clicks.isBot, false),
+          gte(clicks.occurredAt, from),
+          lt(clicks.occurredAt, to),
+        ),
+      );
+    return rows.flatMap((row) => (row.workspaceId ? [row.workspaceId] : []));
   }
 
   async firstClickAt(linkId: string): Promise<Date | null> {

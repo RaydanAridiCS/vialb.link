@@ -13,6 +13,7 @@ import {
 import type {
   Actor,
   Link,
+  LinkHealth,
   LinkPatch,
   LinkSort,
   LinkStatusFilter,
@@ -50,6 +51,7 @@ import { assertCanManageLink, isAdmin, requireLinkWriter, requireUser } from "./
 import type { Permission } from "@/lib/permissions";
 import { toLinkDto, type LinkDto } from "./dto";
 import type { SettingsService } from "./settings.service";
+import type { ILinkHealthRepository } from "@/server/repositories/link-health.repository";
 
 export interface ExpirationInput {
   preset: ExpirationPreset;
@@ -82,6 +84,8 @@ export interface UpdateLinkCommand {
   title?: string | null;
   /** `undefined` keeps the current tags; an array replaces them. */
   tags?: string[];
+  /** `true` turns the public stats page on (keeping its address), `false` turns it off. */
+  publicStats?: boolean;
   /** `undefined` keeps the current routing rules; an array (even empty) replaces them. */
   routingRules?: RoutingRule[];
   /** `undefined` keeps the current card, `null` removes it. */
@@ -142,6 +146,7 @@ export interface ListLinksInput {
   scope?: "mine" | "all";
   search?: string;
   tag?: string;
+  health?: "attention";
   status?: LinkStatusFilter;
   sort?: LinkSort;
   page?: number;
@@ -158,6 +163,8 @@ export interface LinkServiceDeps {
   siteUrl: string;
   /** Server-side pepper for hashing creator IPs (abuse tracing). */
   ipPepper: string;
+  /** Destination-check records; without it links carry no health information. */
+  health?: ILinkHealthRepository;
 }
 
 export function isReservedCode(code: string): boolean {
@@ -167,8 +174,15 @@ export function isReservedCode(code: string): boolean {
 export class LinkService {
   constructor(private readonly deps: LinkServiceDeps) {}
 
-  private dto(link: Link): LinkDto {
-    return toLinkDto(link, this.deps.siteUrl, this.deps.clock.now());
+  private dto(link: Link, health: LinkHealth | null = null): LinkDto {
+    return toLinkDto(link, this.deps.siteUrl, this.deps.clock.now(), health);
+  }
+
+  /** DTOs for a page of links, with their health records fetched in one query. */
+  private async dtos(items: readonly Link[]): Promise<LinkDto[]> {
+    const records = this.deps.health ? await this.deps.health.findMany(items.map((l) => l.id)) : [];
+    const byLink = new Map(records.map((record) => [record.linkId, record]));
+    return items.map((link) => this.dto(link, byLink.get(link.id) ?? null));
   }
 
   async create(actor: Actor, cmd: CreateLinkCommand, ctx: RequestContext): Promise<CreatedLink> {
@@ -551,7 +565,8 @@ export class LinkService {
   }
 
   async get(actor: Actor, id: string): Promise<LinkDto> {
-    return this.dto(await this.getOwned(actor, id, "link:read"));
+    const [dto] = await this.dtos([await this.getOwned(actor, id, "link:read")]);
+    return dto as LinkDto;
   }
 
   async update(actor: Actor, id: string, cmd: UpdateLinkCommand): Promise<LinkDto> {
@@ -583,6 +598,9 @@ export class LinkService {
       patch.expiresAt = resolveExpiresAt(cmd.expiration.preset, cmd.expiration.customAt, now);
     }
     if (cmd.maxClicks !== undefined) patch.maxClicks = cmd.maxClicks;
+    if (cmd.publicStats !== undefined) {
+      patch.statsToken = cmd.publicStats ? (link.statsToken ?? randomToken(16)) : null;
+    }
     if (cmd.password !== undefined) {
       patch.passwordHash = cmd.password === null ? null : await this.deps.hasher.hash(cmd.password);
     }
@@ -597,7 +615,31 @@ export class LinkService {
 
     const updated = await this.deps.links.update(link.id, patch);
     if (!updated) throw new NotFoundError("Link not found");
+    // Earlier health results describe the old targets, so they start over.
+    if (patch.destinationUrl !== undefined || patch.routingRules !== undefined) {
+      await this.deps.health?.delete(link.id);
+    }
+    const [dto] = await this.dtos([updated]);
+    return dto as LinkDto;
+  }
+
+  /**
+   * The opt-in public stats page. `enable` keeps an existing address, `rotate` replaces it (the old one
+   * stops working at once), `disable` removes it.
+   */
+  async setPublicStats(actor: Actor, id: string, mode: "enable" | "rotate" | "disable"): Promise<LinkDto> {
+    const link = await this.getOwned(actor, id);
+    if (link.kind !== "link") throw new ValidationError("This link has no stats page");
+    const statsToken =
+      mode === "disable" ? null : mode === "enable" && link.statsToken ? link.statsToken : randomToken(16);
+    const updated = await this.deps.links.update(link.id, { statsToken });
+    if (!updated) throw new NotFoundError("Link not found");
     return this.dto(updated);
+  }
+
+  /** Public lookup by stats token, for the stats page. No authorization: the token is the capability. */
+  async findByStatsToken(token: string): Promise<Link | null> {
+    return this.deps.links.findByStatsToken(token);
   }
 
   private async loadAllOwned(actor: Actor, ids: readonly string[]): Promise<Link[]> {
@@ -636,13 +678,14 @@ export class LinkService {
       kind: all ? "any" : "link",
       search: input.search,
       tag: input.tag ? normalizeTag(input.tag) : undefined,
+      health: input.health,
       status: input.status ?? "all",
       sort: input.sort ?? "created_desc",
       page: Math.max(1, input.page ?? 1),
       pageSize: Math.min(100, Math.max(1, input.pageSize ?? 20)),
       now: this.deps.clock.now(),
     });
-    return { ...page, items: page.items.map((l) => this.dto(l)) };
+    return { ...page, items: await this.dtos(page.items) };
   }
 
   /** Tags in use, for the dashboard filter. Admins listing every link see every tag. */
@@ -662,7 +705,7 @@ export class LinkService {
       cursor,
       Math.min(100, Math.max(1, limit)),
     );
-    return { items: page.items.map((l) => this.dto(l)), nextCursor: page.nextCursor };
+    return { items: await this.dtos(page.items), nextCursor: page.nextCursor };
   }
 
   /** Moves anonymous links into the signed-in user's account using their claim tokens. */

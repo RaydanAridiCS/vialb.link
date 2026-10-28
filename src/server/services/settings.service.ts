@@ -7,6 +7,10 @@ import { requireAdmin } from "./authorization";
 
 const CACHE_TTL_MS = 5_000;
 
+function isIntBetween(value: number, min: number, max: number): boolean {
+  return Number.isInteger(value) && value >= min && value <= max;
+}
+
 export interface SettingsUpdate {
   /** `null` resets a field to its environment default. */
   allowAnonymousLinks?: boolean | null;
@@ -14,6 +18,10 @@ export interface SettingsUpdate {
   anonLinkTtlHours?: number | null;
   blockedDomains?: string[] | null;
   pixelsEnabled?: boolean | null;
+  healthMonitorEnabled?: boolean | null;
+  weeklyReportEnabled?: boolean | null;
+  reportSendDay?: number | null;
+  reportSendHourUtc?: number | null;
 }
 
 /**
@@ -55,6 +63,10 @@ export class SettingsService {
       anonLinkTtlHours: null,
       blockedDomains: null,
       pixelsEnabled: null,
+      healthMonitorEnabled: null,
+      weeklyReportEnabled: null,
+      reportSendDay: null,
+      reportSendHourUtc: null,
     };
     try {
       const override = (await this.repo.get()) ?? fallbackOverride;
@@ -70,6 +82,20 @@ export class SettingsService {
     if (update.allowAnonymousLinks !== undefined) patch.allowAnonymousLinks = update.allowAnonymousLinks;
     if (update.allowSignups !== undefined) patch.allowSignups = update.allowSignups;
     if (update.pixelsEnabled !== undefined) patch.pixelsEnabled = update.pixelsEnabled;
+    if (update.healthMonitorEnabled !== undefined) patch.healthMonitorEnabled = update.healthMonitorEnabled;
+    if (update.weeklyReportEnabled !== undefined) patch.weeklyReportEnabled = update.weeklyReportEnabled;
+    if (update.reportSendDay !== undefined) {
+      if (update.reportSendDay !== null && !isIntBetween(update.reportSendDay, 0, 6)) {
+        throw new ValidationError("The report day must be between 0 (Sunday) and 6 (Saturday)");
+      }
+      patch.reportSendDay = update.reportSendDay;
+    }
+    if (update.reportSendHourUtc !== undefined) {
+      if (update.reportSendHourUtc !== null && !isIntBetween(update.reportSendHourUtc, 0, 23)) {
+        throw new ValidationError("The report hour must be between 0 and 23");
+      }
+      patch.reportSendHourUtc = update.reportSendHourUtc;
+    }
     if (update.anonLinkTtlHours !== undefined) {
       if (
         update.anonLinkTtlHours !== null &&
@@ -107,6 +133,10 @@ export class SettingsService {
       anonLinkTtlHours: override?.anonLinkTtlHours ?? this.defaults.anonLinkTtlHours,
       blockedDomains: override?.blockedDomains ?? this.defaults.blockedDomains,
       pixelsEnabled: override?.pixelsEnabled ?? this.defaults.pixelsEnabled,
+      healthMonitorEnabled: override?.healthMonitorEnabled ?? this.defaults.healthMonitorEnabled,
+      weeklyReportEnabled: override?.weeklyReportEnabled ?? this.defaults.weeklyReportEnabled,
+      reportSendDay: override?.reportSendDay ?? this.defaults.reportSendDay,
+      reportSendHourUtc: override?.reportSendHourUtc ?? this.defaults.reportSendHourUtc,
     };
   }
 }

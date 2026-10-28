@@ -38,6 +38,9 @@
 - 🧭 **Smart routing**: one link, different destinations by device (iPhone, Android, desktop) and country, with analytics on which rule fired ([details](docs/smart-routing.md))
 - 🖼️ **Social card studio**: design the preview image for shared links without uploading anything, and see mock-ups for WhatsApp, iMessage, Slack and X ([details](docs/social-cards.md))
 - 🎯 **Retargeting pixels**: send visitors through a consent page that runs your Meta Pixel or Google tag before forwarding them; off by default, honours Global Privacy Control ([details](docs/retargeting-pixels.md))
+- 🩺 **Link health monitor**: a polite, SSRF-safe background check flags links whose destination broke, with a dashboard filter and re-check; off by default ([details](docs/link-health.md))
+- 📬 **Weekly report**: top links, week-over-week change, referrers and countries by email to workspace owners and admins, with per-person opt-out ([details](docs/reports.md))
+- 🔗 **Public stats page**: an opt-in, revocable, aggregate-only page per link ([details](docs/public-stats.md))
 - 👥 **Teams**: shared workspaces with owner, admin, editor and viewer roles, email invitations, and API keys that act in their workspace ([details](docs/teams.md))
 - 🔑 **REST API**: API keys, per-key rate limits, OpenAPI 3.1 + interactive docs
 - 👥 **Accounts**: email/password, optional GitHub & Google, TOTP 2FA with backup codes, data export, account deletion

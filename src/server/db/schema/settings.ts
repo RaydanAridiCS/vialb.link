@@ -15,6 +15,11 @@ export const instanceSettings = pgTable("instance_settings", {
   anonLinkTtlHours: integer("anon_link_ttl_hours"),
   blockedDomains: text("blocked_domains").array(),
   pixelsEnabled: boolean("pixels_enabled"),
+  healthMonitorEnabled: boolean("health_monitor_enabled"),
+  weeklyReportEnabled: boolean("weekly_report_enabled"),
+  /** 0 = Sunday … 6 = Saturday, UTC. */
+  reportSendDay: integer("report_send_day"),
+  reportSendHourUtc: integer("report_send_hour_utc"),
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .notNull()
     .defaultNow()

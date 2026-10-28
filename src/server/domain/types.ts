@@ -60,6 +60,8 @@ export interface Link {
   qrFrameText: string | null;
   createdIpHash: string | null;
   claimTokenHash: string | null;
+  /** Token in the URL of the public, read-only stats page; `null` when the owner has not turned it on. */
+  statsToken: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -91,6 +93,7 @@ export type NewLink = Pick<Link, "code" | "destinationUrl"> &
       | "qrFrameText"
       | "createdIpHash"
       | "claimTokenHash"
+      | "statsToken"
       | "createdAt"
     >
   >;
@@ -119,8 +122,46 @@ export type LinkPatch = Partial<
     | "userId"
     | "workspaceId"
     | "claimTokenHash"
+    | "statsToken"
   >
 >;
+
+/** `failing` = recent failures below the threshold; `flagged` = shown to the owner as "needs attention". */
+export type HealthState = "ok" | "failing" | "flagged";
+
+export type HealthReason =
+  | "not_found"
+  | "server_error"
+  | "timeout"
+  | "redirect_loop"
+  | "too_many_redirects"
+  | "dns"
+  | "tls"
+  | "blocked_target"
+  | "network"
+  | "unsafe";
+
+export interface HealthCheckEntry {
+  /** ISO timestamp. */
+  at: string;
+  ok: boolean;
+  reason: HealthReason | null;
+  status: number | null;
+}
+
+export interface LinkHealth {
+  linkId: string;
+  state: HealthState;
+  consecutiveFailures: number;
+  lastCheckedAt: Date | null;
+  nextCheckAt: Date;
+  lastReason: HealthReason | null;
+  lastStatusCode: number | null;
+  failingTarget: string | null;
+  flaggedAt: Date | null;
+  dismissedAt: Date | null;
+  history: HealthCheckEntry[];
+}
 
 export type LinkStatusFilter = "all" | "active" | "expired" | "disabled" | "protected";
 export type LinkSort = "created_desc" | "created_asc" | "clicks_desc" | "clicks_asc";
@@ -131,6 +172,8 @@ export interface LinkListQuery {
   search?: string;
   /** Only links carrying this (normalized) tag. */
   tag?: string;
+  /** `attention` = flagged by the health monitor and not dismissed. */
+  health?: "attention";
   /** Defaults to `link`: bio page buttons are hidden unless `any` is asked for (admin review). */
   kind?: LinkKind | "any";
   status?: LinkStatusFilter;
@@ -232,6 +275,23 @@ export type AnalyticsDimension =
   | "language"
   | "routed_by";
 
+/** One workspace's week for the report email: all clicks exclude bots and bio-page buttons. */
+export interface WorkspaceReport {
+  clicks: number;
+  previousClicks: number;
+  /** Visitors counted once per UTC day (see docs/analytics.md), so the same person on two days counts twice. */
+  uniqueVisitors: number;
+  topLinks: { linkId: string; code: string; title: string | null; clicks: number; previousClicks: number }[];
+  topReferrers: DimensionCount[];
+  topCountries: DimensionCount[];
+}
+
+export interface UserPreferences {
+  userId: string;
+  weeklyReport: boolean;
+  brokenLinksEmail: boolean;
+}
+
 export interface UserOverviewStats {
   totalLinks: number;
   clicks7d: number;
@@ -253,6 +313,10 @@ export interface InstanceSettingsOverride {
   anonLinkTtlHours: number | null;
   blockedDomains: string[] | null;
   pixelsEnabled: boolean | null;
+  healthMonitorEnabled: boolean | null;
+  weeklyReportEnabled: boolean | null;
+  reportSendDay: number | null;
+  reportSendHourUtc: number | null;
 }
 
 export interface InstanceSettings {
@@ -262,6 +326,14 @@ export interface InstanceSettings {
   blockedDomains: string[];
   /** Whether links may send visitors through the retargeting-pixel consent page. */
   pixelsEnabled: boolean;
+  /** Whether the background job checks link destinations and flags broken ones. */
+  healthMonitorEnabled: boolean;
+  /** Whether the weekly report (and broken-links digest) emails are sent. */
+  weeklyReportEnabled: boolean;
+  /** Day of the week the report is sent, 0 = Sunday … 6 = Saturday (UTC). */
+  reportSendDay: number;
+  /** Hour of that day (UTC, 0-23). */
+  reportSendHourUtc: number;
 }
 
 export interface ApiKey {

@@ -19,6 +19,8 @@ export interface ILinkRepository {
   findManyByIds(ids: readonly string[]): Promise<Link[]>;
   /** Active (not soft-deleted) link by exact, case-sensitive code. */
   findByCode(code: string): Promise<Link | null>;
+  /** The live link behind a public stats token, if any. */
+  findByStatsToken(token: string): Promise<Link | null>;
   /** Holders of the given codes, soft-deleted links included (their codes stay reserved). */
   findCodeHolders(codes: readonly string[]): Promise<CodeHolder[]>;
   list(query: LinkListQuery): Promise<Page<Link>>;

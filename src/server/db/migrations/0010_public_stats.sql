@@ -1,0 +1,2 @@
+ALTER TABLE "links" ADD COLUMN "stats_token" text;--> statement-breakpoint
+CREATE UNIQUE INDEX "links_stats_token_unique" ON "links" USING btree ("stats_token") WHERE "links"."stats_token" is not null;

@@ -49,3 +49,10 @@ is maintained automatically by
 - Production hardening: `DATABASE_POOL_MAX` / `DATABASE_PREPARE` (PgBouncer), Redis rate limiter that fails open, startup warnings for
   risky configuration, optional server-side error reporting (`SENTRY_DSN`, with query strings, cookies and SQL parameters stripped),
   encrypted daily backups to S3 / Cloudflare R2 (`backup` compose profile), and `no-store` on the legacy `/s/{code}` redirect
+- In-process job scheduler (`job_runs`, compare-and-set leases so restarts and replicas never double-run; `JOBS_ENABLED`) and the link health
+  monitor: SSRF-safe HEAD/GET checks of destinations and routing targets with a per-host gap, concurrency cap, consecutive-failure threshold,
+  Safe Browsing hits, a "Needs attention" badge, filter, re-check and dismiss, `health` on the REST API (off by default); migration `0008_link_health`
+- Weekly report and broken-links emails to workspace owners and admins (instance switch and send day/hour, per-person opt-out in settings,
+  "send me a preview", idempotent `email_deliveries` ledger, HTML and plain text); migration `0009_weekly_reports`
+- Public read-only stats page per link at `/stats/<token>` (opt-in, rotatable, aggregate-only, noindex, `statsUrl` / `publicStats` on the REST API);
+  migration `0010_public_stats`

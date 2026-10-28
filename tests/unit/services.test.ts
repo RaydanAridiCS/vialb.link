@@ -226,6 +226,10 @@ describe("SettingsService + AdminService", () => {
       anonLinkTtlHours: 48,
       blockedDomains: ["bad.test", "evil.example"],
       pixelsEnabled: false,
+      healthMonitorEnabled: false,
+      weeklyReportEnabled: false,
+      reportSendDay: 1,
+      reportSendHourUtc: 8,
     });
     await f.settings.update(users.admin, { allowAnonymousLinks: null });
     expect((await f.settings.get()).allowAnonymousLinks).toBe(false);
@@ -237,6 +241,16 @@ describe("SettingsService + AdminService", () => {
     await expect(f.settings.update(users.admin, { anonLinkTtlHours: 0 })).rejects.toBeInstanceOf(
       ValidationError,
     );
+    for (const bad of [
+      { reportSendDay: 7 },
+      { reportSendDay: -1 },
+      { reportSendHourUtc: 24 },
+      { reportSendHourUtc: 1.5 },
+    ]) {
+      await expect(f.settings.update(users.admin, bad)).rejects.toBeInstanceOf(ValidationError);
+    }
+    await f.settings.update(users.admin, { reportSendDay: 0, reportSendHourUtc: 0 });
+    expect(await f.settings.get()).toMatchObject({ reportSendDay: 0, reportSendHourUtc: 0 });
     expect(() =>
       SettingsService.normalizeDomains(Array.from({ length: 5001 }, (_, i) => `d${i}.test`)),
     ).toThrow();
@@ -260,6 +274,10 @@ describe("SettingsService + AdminService", () => {
       anonLinkTtlHours: 720,
       blockedDomains: [],
       pixelsEnabled: false,
+      healthMonitorEnabled: false,
+      weeklyReportEnabled: false,
+      reportSendDay: 1,
+      reportSendHourUtc: 8,
     };
     const service = new SettingsService(brokenRepo, defaults);
     expect(await service.get()).toEqual(defaults);

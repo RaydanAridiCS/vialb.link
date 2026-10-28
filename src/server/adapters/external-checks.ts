@@ -6,6 +6,7 @@ import type { UrlSafetyChecker, UrlSafetyVerdict } from "@/server/ports/url-safe
 const TIMEOUT_MS = 5000;
 
 export class NoopUrlSafetyChecker implements UrlSafetyChecker {
+  readonly isConfigured = false;
   async check(): Promise<UrlSafetyVerdict> {
     return { safe: true };
   }
@@ -17,6 +18,8 @@ export class NoopUrlSafetyChecker implements UrlSafetyChecker {
  * outage cannot block link creation; failures are logged.
  */
 export class SafeBrowsingChecker implements UrlSafetyChecker {
+  readonly isConfigured = true;
+
   constructor(
     private readonly apiKey: string,
     private readonly fetchImpl: typeof fetch = fetch,

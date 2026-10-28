@@ -14,6 +14,8 @@ import type { CodeHolder, ILinkRepository } from "@/server/repositories/link.rep
 /** In-memory fake for unit tests. Mirrors the Drizzle semantics, not its performance. */
 export class InMemoryLinkRepository implements ILinkRepository {
   readonly rows = new Map<string, Link>();
+  /** Links the health monitor currently flags; kept in sync by the in-memory health repository. */
+  readonly attentionIds = new Set<string>();
 
   constructor(private readonly now: () => Date = () => new Date()) {}
 
@@ -50,6 +52,7 @@ export class InMemoryLinkRepository implements ILinkRepository {
       qrFrameText: input.qrFrameText ?? null,
       createdIpHash: input.createdIpHash ?? null,
       claimTokenHash: input.claimTokenHash ?? null,
+      statsToken: input.statsToken ?? null,
       createdAt: at,
       updatedAt: at,
     };
@@ -70,6 +73,13 @@ export class InMemoryLinkRepository implements ILinkRepository {
   async findByCode(code: string): Promise<Link | null> {
     for (const row of this.rows.values()) {
       if (row.code === code && !row.deletedAt) return { ...row };
+    }
+    return null;
+  }
+
+  async findByStatsToken(token: string): Promise<Link | null> {
+    for (const row of this.rows.values()) {
+      if (row.statsToken === token && !row.deletedAt) return { ...row };
     }
     return null;
   }
@@ -104,6 +114,7 @@ export class InMemoryLinkRepository implements ILinkRepository {
     }
     const { tag } = query;
     if (tag) items = items.filter((l) => l.tags.includes(tag));
+    if (query.health === "attention") items = items.filter((l) => this.attentionIds.has(l.id));
     switch (query.status) {
       case "active":
         items = items.filter((l) => l.isEnabled && !isExpired(l));

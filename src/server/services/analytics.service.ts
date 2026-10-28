@@ -1,4 +1,4 @@
-import { LIMITS, type AnalyticsRange } from "@/lib/constants";
+import { LIMITS, RATE_LIMITS, type AnalyticsRange } from "@/lib/constants";
 import type { Logger } from "@/lib/logger";
 import type {
   Actor,
@@ -11,7 +11,7 @@ import type {
   HeatmapCell,
   TimeRange,
 } from "@/server/domain/types";
-import { ValidationError } from "@/server/errors";
+import { RateLimitedError, ValidationError } from "@/server/errors";
 import { csvRow } from "@/server/lib/csv";
 import { randomToken, utcDay, visitorHash } from "@/server/lib/hashing";
 import { extractUtm } from "@/server/lib/query";
@@ -19,6 +19,7 @@ import { parseReferrer } from "@/server/lib/request";
 import { parseUserAgent, primaryLanguage } from "@/server/lib/user-agent";
 import type { Clock } from "@/server/ports/clock";
 import type { GeoResolver } from "@/server/ports/geo-resolver";
+import type { RateLimiter } from "@/server/ports/rate-limiter";
 import type { IClickRepository } from "@/server/repositories/click.repository";
 import type { ISettingsRepository } from "@/server/repositories/settings.repository";
 import type { LinkService } from "./link.service";
@@ -57,6 +58,24 @@ export type RecentClick = Pick<
   "country" | "city" | "browser" | "os" | "deviceType" | "referrerHost" | "isBot" | "language"
 > & { occurredAt: string };
 
+/** What the public stats page shows: totals and breakdowns only, nothing about individual visitors. */
+export interface PublicLinkStats {
+  label: string;
+  code: string;
+  range: { from: string; to: string };
+  totalClicks: number;
+  /** Counted once per UTC day, so a person who comes back on another day counts again. */
+  uniqueVisitors: number;
+  timeseries: { bucket: string; clicks: number }[];
+  countries: DimensionCount[];
+  referrers: DimensionCount[];
+  devices: DimensionCount[];
+  generatedAt: string;
+}
+
+const PUBLIC_STATS_DAYS = 30;
+const STATS_TOKEN_PATTERN = /^[A-Za-z0-9_-]{16,64}$/;
+
 export interface ClickRecordInput {
   linkId: string;
   ip: string | null;
@@ -73,6 +92,8 @@ export interface AnalyticsServiceDeps {
   geo: GeoResolver;
   clock: Clock;
   logger: Logger;
+  /** Limits how often one address can open public stats pages. */
+  limiter?: RateLimiter;
 }
 
 const DIMENSIONS: AnalyticsDimension[] = [
@@ -232,6 +253,52 @@ export class AnalyticsService {
         isBot: c.isBot,
         language: c.language,
       })),
+    };
+  }
+
+  /**
+   * The public, read-only stats of a link whose owner turned the page on. `null` for an unknown or revoked
+   * token (the caller answers 404 either way). Bots are left out and no per-visitor data is returned.
+   */
+  async getPublicStats(token: string, ip: string | null): Promise<PublicLinkStats | null> {
+    if (this.deps.limiter) {
+      const rule = RATE_LIMITS.publicStats;
+      const result = await this.deps.limiter.consume(
+        `stats:ip:${ip ?? "unknown"}`,
+        rule.limit,
+        rule.windowMs,
+      );
+      if (!result.allowed) {
+        throw new RateLimitedError(Math.max(1, Math.ceil((result.resetAt - Date.now()) / 1000)));
+      }
+    }
+    if (!STATS_TOKEN_PATTERN.test(token)) return null;
+    const link = await this.deps.links.findByStatsToken(token);
+    if (!link) return null;
+
+    // Whole UTC days (today included, so far), which keeps the first bar from being a half day.
+    const to = this.deps.clock.now();
+    const startOfToday = Date.UTC(to.getUTCFullYear(), to.getUTCMonth(), to.getUTCDate());
+    const from = new Date(startOfToday - (PUBLIC_STATS_DAYS - 1) * DAY_MS);
+    const filter: ClickFilter = { linkId: link.id, from, to, includeBots: false };
+    const [summary, timeseries, countries, referrers, devices] = await Promise.all([
+      this.deps.clicks.summary(filter),
+      this.deps.clicks.timeseries(filter, "day"),
+      this.deps.clicks.topDimension(filter, "country", 10),
+      this.deps.clicks.topDimension(filter, "referrer_host", 10),
+      this.deps.clicks.topDimension(filter, "device_type", 6),
+    ]);
+    return {
+      label: link.title ?? `/${link.code}`,
+      code: link.code,
+      range: { from: from.toISOString(), to: to.toISOString() },
+      totalClicks: summary.totalClicks,
+      uniqueVisitors: summary.uniqueVisitors,
+      timeseries: timeseries.map((p) => ({ bucket: p.bucket.toISOString(), clicks: p.clicks })),
+      countries,
+      referrers,
+      devices,
+      generatedAt: to.toISOString(),
     };
   }
 

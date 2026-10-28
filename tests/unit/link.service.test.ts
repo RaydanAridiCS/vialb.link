@@ -85,7 +85,10 @@ describe("LinkService.create", () => {
   it("rejects non-http schemes, self links, credentials, blocked and unsafe domains", async () => {
     const f = buildFixture({
       blockedDomains: ["evil.example"],
-      safety: { check: async (url) => ({ safe: !url.includes("malware"), reason: "MALWARE" }) },
+      safety: {
+        isConfigured: true,
+        check: async (url) => ({ safe: !url.includes("malware"), reason: "MALWARE" }),
+      },
     });
     const bad = [
       "javascript:alert(1)",

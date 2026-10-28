@@ -12,12 +12,14 @@ import type {
   NewClick,
   TimeseriesPoint,
   UserSummary,
+  WorkspaceReport,
 } from "@/server/domain/types";
 import { UniqueViolationError } from "@/server/errors";
 import type { IApiKeyRepository } from "@/server/repositories/api-key.repository";
 import type { IClickRepository } from "@/server/repositories/click.repository";
 import type { ISettingsRepository } from "@/server/repositories/settings.repository";
 import type { IUserRepository } from "@/server/repositories/user.repository";
+import type { InMemoryLinkRepository } from "./link.repository.memory";
 
 const DIMENSION_FIELDS: Record<AnalyticsDimension, keyof NewClick> = {
   country: "country",
@@ -36,6 +38,9 @@ const DIMENSION_FIELDS: Record<AnalyticsDimension, keyof NewClick> = {
 export class InMemoryClickRepository implements IClickRepository {
   readonly rows: Click[] = [];
   private nextId = 1;
+
+  /** Needed only by the workspace-level methods, which have to map clicks to workspaces. */
+  constructor(private readonly linkRepo?: InMemoryLinkRepository) {}
 
   async record(click: NewClick): Promise<void> {
     this.rows.push({ ...click, id: this.nextId++, occurredAt: click.occurredAt ?? new Date() });
@@ -121,6 +126,74 @@ export class InMemoryClickRepository implements IClickRepository {
     return since ? this.rows.filter((c) => c.occurredAt >= since).length : this.rows.length;
   }
 
+  private countedInWorkspace(workspaceId: string, from: Date, to: Date): Click[] {
+    const owned = new Map(
+      [...(this.linkRepo?.rows.values() ?? [])]
+        .filter((l) => l.workspaceId === workspaceId && l.kind === "link" && !l.deletedAt)
+        .map((l) => [l.id, l]),
+    );
+    return this.rows.filter(
+      (c) => owned.has(c.linkId) && !c.isBot && c.occurredAt >= from && c.occurredAt < to,
+    );
+  }
+
+  async workspaceReport(workspaceId: string, from: Date, to: Date): Promise<WorkspaceReport> {
+    const previousFrom = new Date(from.getTime() - (to.getTime() - from.getTime()));
+    const current = this.countedInWorkspace(workspaceId, from, to);
+    const previous = this.countedInWorkspace(workspaceId, previousFrom, from);
+    const tally = (rows: Click[], field: "referrerHost" | "country") => {
+      const counts = new Map<string, number>();
+      for (const c of rows) {
+        const value = c[field] ? (c[field] as string) : "Unknown";
+        counts.set(value, (counts.get(value) ?? 0) + 1);
+      }
+      return [...counts.entries()]
+        .map(([value, clicks]) => ({ value, clicks }))
+        .sort((a, b) => b.clicks - a.clicks || a.value.localeCompare(b.value))
+        .slice(0, 5);
+    };
+    const perLink = new Map<string, { clicks: number; previousClicks: number }>();
+    for (const c of current) {
+      const entry = perLink.get(c.linkId) ?? { clicks: 0, previousClicks: 0 };
+      entry.clicks++;
+      perLink.set(c.linkId, entry);
+    }
+    for (const c of previous) {
+      const entry = perLink.get(c.linkId);
+      if (entry) entry.previousClicks++;
+    }
+    const topLinks = [...perLink.entries()]
+      .map(([linkId, counts]) => {
+        const link = this.linkRepo?.rows.get(linkId);
+        return { linkId, code: link?.code ?? linkId, title: link?.title ?? null, ...counts };
+      })
+      .sort((a, b) => b.clicks - a.clicks || a.code.localeCompare(b.code))
+      .slice(0, 5);
+    return {
+      clicks: current.length,
+      previousClicks: previous.length,
+      uniqueVisitors: new Set(current.map((c) => c.visitorHash)).size,
+      topLinks,
+      topReferrers: tally(current, "referrerHost"),
+      topCountries: tally(current, "country"),
+    };
+  }
+
+  async activeWorkspaces(from: Date, to: Date): Promise<string[]> {
+    const found = new Set<string>();
+    for (const link of this.linkRepo?.rows.values() ?? []) {
+      if (!link.workspaceId || link.kind !== "link" || link.deletedAt) continue;
+      if (this.countedInWorkspaceLink(link.id, from, to)) found.add(link.workspaceId);
+    }
+    return [...found];
+  }
+
+  private countedInWorkspaceLink(linkId: string, from: Date, to: Date): boolean {
+    return this.rows.some(
+      (c) => c.linkId === linkId && !c.isBot && c.occurredAt >= from && c.occurredAt < to,
+    );
+  }
+
   async firstClickAt(linkId: string): Promise<Date | null> {
     const times = this.rows.filter((c) => c.linkId === linkId).map((c) => c.occurredAt.getTime());
     return times.length ? new Date(Math.min(...times)) : null;
@@ -176,6 +249,10 @@ export class InMemorySettingsRepository implements ISettingsRepository {
       anonLinkTtlHours: null,
       blockedDomains: null,
       pixelsEnabled: null,
+      healthMonitorEnabled: null,
+      weeklyReportEnabled: null,
+      reportSendDay: null,
+      reportSendHourUtc: null,
       ...this.current,
       ...patch,
     };

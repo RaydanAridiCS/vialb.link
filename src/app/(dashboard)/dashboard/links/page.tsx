@@ -15,16 +15,18 @@ export default async function LinksPage({ searchParams }: PageProps<"/dashboard/
   const params = linkListParamsSchema.parse(await searchParams);
   const writer = can(actor.workspace.role, "link:write");
   const { links } = getContainer();
-  const [result, tags] = await Promise.all([
+  const [result, tags, settings] = await Promise.all([
     links.list(actor, {
       search: params.q,
       tag: params.tag,
+      health: params.health,
       status: params.status,
       sort: params.sort,
       page: params.page,
       pageSize: params.pageSize ?? 20,
     }),
     links.listTags(actor),
+    getContainer().settings.get(),
   ]);
   return (
     <>
@@ -45,6 +47,7 @@ export default async function LinksPage({ searchParams }: PageProps<"/dashboard/
           pageSize={result.pageSize}
           tags={tags}
           readOnly={!writer}
+          healthEnabled={settings.healthMonitorEnabled}
         />
       </Suspense>
     </>
