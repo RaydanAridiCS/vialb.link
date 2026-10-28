@@ -56,3 +56,11 @@ is maintained automatically by
   "send me a preview", idempotent `email_deliveries` ledger, HTML and plain text); migration `0009_weekly_reports`
 - Public read-only stats page per link at `/stats/<token>` (opt-in, rotatable, aggregate-only, noindex, `statsUrl` / `publicStats` on the REST API);
   migration `0010_public_stats`
+- Analytics: "compare to previous period" (change per row, dashed previous-period line, KPI deltas, `compare=0` to turn off) and unique visitors
+  labelled honestly as per-day, with a per-bucket trend and [docs/analytics.md](docs/analytics.md) on what the number can and cannot say
+- Click retention: `CLICK_RETENTION_DAYS` / admin setting (default keep forever, with a live "would delete N clicks" preview), a daily `retention`
+  job that deletes in batches, daily salts always pruned after two days, BRIN index on `clicks.occurred_at`, a "Background jobs" panel with run-now,
+  and `npm run bench:retention` (no rollup table was needed); migration `0011_click_retention`
+- Conversion goals: opt-in per link, a random per-click `vclid` added to the destination, a browser snippet and a postback endpoint at `/api/convert`
+  (no cookies, one conversion per click, time window, value/currency validation, rate limits), conversions / rate / value in analytics with a
+  breakdown by route, country and device, CSV columns and `conversionsEnabled` on the REST API; migration `0012_conversions`

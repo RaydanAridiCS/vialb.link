@@ -9,6 +9,12 @@ export const analyticsParamsSchema = z.object({
     .optional()
     .catch(undefined)
     .transform((v) => v === "1"),
+  /** Compare with the previous period of equal length. On unless `compare=0`. */
+  compare: z
+    .enum(["0", "1"])
+    .optional()
+    .catch(undefined)
+    .transform((v) => v !== "0"),
   from: z.coerce.date().optional().catch(undefined),
   to: z.coerce.date().optional().catch(undefined),
 });

@@ -40,6 +40,7 @@ describe("RedirectService.resolve", () => {
       linkId: link.id,
       destination: "https://d.example/p?a=1&utm_source=x",
       routedBy: null,
+      clickRef: null,
     });
     expect(f.linkRepo.rows.get(link.id)?.clickCount).toBe(1);
   });
@@ -131,7 +132,12 @@ describe("RedirectService.unlock", () => {
       ip: "1.1.1.1",
       searchParams: new URLSearchParams("x=1"),
     });
-    expect(result).toEqual({ linkId: link.id, destination: "https://s.example/?x=1", routedBy: null });
+    expect(result).toEqual({
+      linkId: link.id,
+      destination: "https://s.example/?x=1",
+      routedBy: null,
+      clickRef: null,
+    });
     expect(f.linkRepo.rows.get(link.id)?.clickCount).toBe(1);
   });
 

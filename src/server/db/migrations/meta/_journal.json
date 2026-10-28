@@ -78,6 +78,20 @@
       "when": 1793172094491,
       "tag": "0010_public_stats",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1793174805000,
+      "tag": "0011_click_retention",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1793175432439,
+      "tag": "0012_conversions",
+      "breakpoints": true
     }
   ]
 }

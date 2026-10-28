@@ -34,9 +34,16 @@ export const unlockLinkAction = publicActionClient
         headers: requestHeaders,
       });
       destination = result.destination;
-      const { linkId, routedBy } = result;
+      const { linkId, routedBy, clickRef } = result;
       after(() =>
-        analytics.recordClick({ linkId, ip: ctx.ip, headers: requestHeaders, searchParams, routedBy }),
+        analytics.recordClick({
+          linkId,
+          ip: ctx.ip,
+          headers: requestHeaders,
+          searchParams,
+          routedBy,
+          clickRef,
+        }),
       );
     } catch (error) {
       if (error instanceof GoneError) {

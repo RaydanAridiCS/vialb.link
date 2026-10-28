@@ -2,6 +2,7 @@ import { Link2, MousePointerClick, Timer, Users } from "lucide-react";
 import type { Metadata } from "next";
 import { PageHeader } from "@/components/app-shell";
 import { InstanceSettingsForm } from "@/features/admin/components/instance-settings-form";
+import { JobsCard } from "@/features/admin/components/jobs-card";
 import { KpiCard } from "@/features/analytics/components/kpi-card";
 import { requireAdminSession } from "@/server/auth/session";
 import { getContainer } from "@/server/container";
@@ -10,8 +11,12 @@ export const metadata: Metadata = { title: "Admin" };
 
 export default async function AdminPage() {
   const { actor } = await requireAdminSession();
-  const { admin, settings } = getContainer();
-  const [stats, detailed] = await Promise.all([admin.stats(actor), settings.getDetailed()]);
+  const { admin, settings, repos } = getContainer();
+  const [stats, detailed, jobs] = await Promise.all([
+    admin.stats(actor),
+    settings.getDetailed(),
+    repos.jobs.list(),
+  ]);
   return (
     <>
       <PageHeader title="Instance" description="Statistics and settings for this Vialb instance." />
@@ -29,6 +34,15 @@ export default async function AdminPage() {
         overrides={detailed.overrides}
         defaults={detailed.defaults}
         effective={detailed.effective}
+      />
+      <JobsCard
+        jobs={jobs.map((job) => ({
+          name: job.name,
+          lastStatus: job.lastStatus,
+          lastFinishedAt: job.lastFinishedAt?.toISOString() ?? null,
+          lastSummary: job.lastSummary,
+          lastError: job.lastError,
+        }))}
       />
     </>
   );

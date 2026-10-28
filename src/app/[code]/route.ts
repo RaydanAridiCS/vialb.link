@@ -19,9 +19,9 @@ export async function GET(request: NextRequest, { params }: RouteContext<"/[code
   const decision = await redirect.resolve({ code, userAgent, searchParams, ip, headers: request.headers });
 
   const noStore = { "Cache-Control": "private, no-store" };
-  const scheduleClick = (linkId: string, routedBy: string | null = null) => {
+  const scheduleClick = (linkId: string, routedBy: string | null = null, clickRef: string | null = null) => {
     const headers = new Headers(request.headers);
-    after(() => analytics.recordClick({ linkId, ip, headers, searchParams, routedBy }));
+    after(() => analytics.recordClick({ linkId, ip, headers, searchParams, routedBy, clickRef }));
   };
 
   switch (decision.kind) {
@@ -68,7 +68,7 @@ export async function GET(request: NextRequest, { params }: RouteContext<"/[code
         mode: decision.consent,
         nonce,
       });
-      scheduleClick(decision.linkId, decision.routedBy);
+      scheduleClick(decision.linkId, decision.routedBy, decision.clickRef);
       // A stored value that cannot be rendered safely must not break the link: plain redirect instead.
       if (html === null) {
         return new Response(null, {
@@ -87,7 +87,7 @@ export async function GET(request: NextRequest, { params }: RouteContext<"/[code
       });
     }
     case "redirect":
-      scheduleClick(decision.linkId, decision.routedBy);
+      scheduleClick(decision.linkId, decision.routedBy, decision.clickRef);
       return new Response(null, {
         status: env.REDIRECT_STATUS,
         headers: { ...noStore, Location: decision.destination, "Referrer-Policy": env.REFERRER_POLICY },

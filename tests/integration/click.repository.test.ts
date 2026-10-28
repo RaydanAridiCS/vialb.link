@@ -124,3 +124,48 @@ describe("DrizzleClickRepository analytics", () => {
     expect(series.every((p) => p.clicks === 0)).toBe(true);
   });
 });
+
+describe("DrizzleClickRepository: comparison helpers", () => {
+  const filter = (linkId: string, includeBots = false) => ({
+    linkId,
+    from: new Date("2026-03-02T00:00:00Z"),
+    to: new Date("2026-03-05T00:00:00Z"),
+    includeBots,
+  });
+
+  it("uniqueTimeseries counts each visitor once per bucket and zero-fills", async () => {
+    const link = await links.create({ code: "uq", destinationUrl: "https://x.example" });
+    await repo.record(click(link.id, "2026-03-02T10:00:00Z", { visitorHash: "a" }));
+    await repo.record(click(link.id, "2026-03-02T11:00:00Z", { visitorHash: "a" }));
+    await repo.record(click(link.id, "2026-03-02T12:00:00Z", { visitorHash: "b" }));
+    await repo.record(click(link.id, "2026-03-04T12:00:00Z", { visitorHash: "a" }));
+    await repo.record(click(link.id, "2026-03-04T12:00:00Z", { visitorHash: "bot", isBot: true }));
+
+    const days = await repo.uniqueTimeseries(filter(link.id), "day");
+    expect(days.map((p) => p.clicks)).toEqual([2, 0, 1]);
+    const withBots = await repo.uniqueTimeseries(filter(link.id, true), "day");
+    expect(withBots.map((p) => p.clicks)).toEqual([2, 0, 2]);
+    const hours = await repo.uniqueTimeseries(
+      { ...filter(link.id), to: new Date("2026-03-02T13:00:00Z"), from: new Date("2026-03-02T10:00:00Z") },
+      "hour",
+    );
+    expect(hours.map((p) => p.clicks)).toEqual([1, 1, 1]);
+  });
+
+  it("dimensionCounts returns only the asked values, with Unknown for empty ones", async () => {
+    const link = await links.create({ code: "dc", destinationUrl: "https://x.example" });
+    await repo.record(click(link.id, "2026-03-02T10:00:00Z", { country: "US" }));
+    await repo.record(click(link.id, "2026-03-02T11:00:00Z", { country: "US" }));
+    await repo.record(click(link.id, "2026-03-02T12:00:00Z", { country: "DE" }));
+    await repo.record(click(link.id, "2026-03-03T12:00:00Z", { country: null }));
+    await repo.record(click(link.id, "2026-03-03T12:00:00Z", { country: "US", isBot: true }));
+
+    const rows = await repo.dimensionCounts(filter(link.id), "country", ["US", "Unknown", "FR"]);
+    expect(rows.sort((a, b) => a.value.localeCompare(b.value))).toEqual([
+      { value: "Unknown", clicks: 1 },
+      { value: "US", clicks: 2 },
+    ]);
+    expect(await repo.dimensionCounts(filter(link.id), "country", [])).toEqual([]);
+    expect((await repo.dimensionCounts(filter(link.id, true), "country", ["US"]))[0]?.clicks).toBe(3);
+  });
+});

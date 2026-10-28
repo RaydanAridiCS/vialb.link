@@ -33,6 +33,7 @@ export default async function LinkAnalyticsPage({
       from: query.from,
       to: query.to,
       includeBots: query.bots,
+      compare: query.compare,
     });
   } catch (error) {
     if (!(error instanceof ValidationError)) throw error;
@@ -40,6 +41,7 @@ export default async function LinkAnalyticsPage({
     data = await getContainer().analytics.getLinkAnalytics(actor, link.id, {
       range: "7d",
       includeBots: query.bots,
+      compare: query.compare,
     });
   }
 
@@ -126,6 +128,8 @@ export default async function LinkAnalyticsPage({
         data={data}
         range={rangeError ? "7d" : query.range}
         includeBots={query.bots}
+        compare={query.compare}
+        compareControl
         from={query.from?.toISOString()}
         to={query.to?.toISOString()}
         notice={

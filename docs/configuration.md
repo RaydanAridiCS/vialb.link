@@ -57,6 +57,8 @@ See [Background jobs](jobs.md), [Link health](link-health.md) and [Reports](repo
 | `HEALTH_ALLOW_PRIVATE_TARGETS` | `false` | Let the monitor request private and internal addresses. Disables SSRF protection; only for trusted, private deployments. |
 | `WEEKLY_REPORT_ENABLED`        | `false` | Default for the weekly report and broken-links emails to workspace owners and admins. Needs SMTP.                        |
 | `REPORT_SEND_DAY`              | `1`     | Day of the week the report is sent, `0` = Sunday … `6` = Saturday (UTC).                                                 |
+| `CLICK_RETENTION_DAYS`         | `0`     | Days to keep individual clicks; `0` keeps them forever. Also set in the admin page. See [Retention](retention.md).       |
+| `CONVERSION_WINDOW_DAYS`       | `30`    | A conversion must be reported within this many days of the click ([Conversions](conversions.md)).                        |
 | `REPORT_SEND_HOUR_UTC`         | `8`     | Hour of that day (0–23, UTC).                                                                                            |
 
 ## Reverse proxy, client IP & headers

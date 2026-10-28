@@ -13,8 +13,6 @@ These were consciously left out of the first release or only partially done:
 - **Better Auth rate-limit storage in Redis.** App rate limits use Redis when
   `REDIS_URL` is set, but Better Auth's own sign-in limiter is still in-memory per
   instance (configure `secondaryStorage`).
-- **Data retention jobs.** Old `daily_salts` rows and very old clicks are never
-  pruned automatically. Add a scheduled cleanup and a retention setting.
 - **E2E coverage for 2FA, OAuth and password reset.** These flows are delegated to
   Better Auth and only manually tested.
 - **Screenshots** in the README (placeholders for now; `npm run seed` generates demo data).
@@ -34,6 +32,7 @@ These were consciously left out of the first release or only partially done:
 - Smart device and geo routing
 - Retargeting pixels (Meta, Google) behind a consent page
 - Team workspaces with roles and invitations
+- Period comparison, per-day unique visitors, conversion goals, click retention
 - Link health monitor, weekly report and broken-links emails, public stats pages, in-process job scheduler
 - Social card studio (designed preview cards and app mock-ups)
 - Launch hardening: pool settings, startup config warnings, Redis fail-open, Sentry (opt-in), encrypted backups
@@ -57,4 +56,4 @@ These were consciously left out of the first release or only partially done:
 - Custom domains (multiple short domains per instance, per-user domains)
 - Teams: per-workspace settings, moving links between workspaces, audit log, SSO
 - Internationalisation of the UI
-- Click retention policies and aggregated rollups for very large instances
+- Aggregated rollups for very large instances (measured: not needed yet, see docs/retention.md)

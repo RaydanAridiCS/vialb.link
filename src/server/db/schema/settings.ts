@@ -20,6 +20,8 @@ export const instanceSettings = pgTable("instance_settings", {
   /** 0 = Sunday … 6 = Saturday, UTC. */
   reportSendDay: integer("report_send_day"),
   reportSendHourUtc: integer("report_send_hour_utc"),
+  /** Days to keep individual clicks; 0 = forever. `null` = use the environment default. */
+  clickRetentionDays: integer("click_retention_days"),
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .notNull()
     .defaultNow()

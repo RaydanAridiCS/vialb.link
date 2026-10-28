@@ -266,6 +266,8 @@ export const linkIdsSchema = z.object({ ids: z.array(z.uuid()).min(1).max(500) }
 export const setEnabledSchema = linkIdsSchema.extend({ enabled: z.boolean() });
 export const linkIdSchema = z.object({ id: z.uuid() });
 
+export const conversionsSchema = z.object({ id: z.uuid(), enabled: z.boolean() });
+
 export const publicStatsSchema = z.object({
   id: z.uuid(),
   mode: z.enum(["enable", "rotate", "disable"]),

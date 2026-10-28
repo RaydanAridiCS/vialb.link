@@ -56,6 +56,7 @@ describe("DrizzleSettingsRepository", () => {
       weeklyReportEnabled: null,
       reportSendDay: null,
       reportSendHourUtc: null,
+      clickRetentionDays: null,
     });
     await repo.upsert({ allowAnonymousLinks: null });
     expect((await repo.get())?.allowAnonymousLinks).toBeNull();

@@ -62,6 +62,8 @@ export interface Link {
   claimTokenHash: string | null;
   /** Token in the URL of the public, read-only stats page; `null` when the owner has not turned it on. */
   statsToken: string | null;
+  /** The redirect adds a `vclid` to the destination so conversions can be reported. */
+  conversionsEnabled: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -94,6 +96,7 @@ export type NewLink = Pick<Link, "code" | "destinationUrl"> &
       | "createdIpHash"
       | "claimTokenHash"
       | "statsToken"
+      | "conversionsEnabled"
       | "createdAt"
     >
   >;
@@ -123,6 +126,7 @@ export type LinkPatch = Partial<
     | "workspaceId"
     | "claimTokenHash"
     | "statsToken"
+    | "conversionsEnabled"
   >
 >;
 
@@ -220,6 +224,8 @@ export interface NewClick {
   isBot: boolean;
   /** Which smart-routing rule sent the visitor (`default`, `ios`, `country:FR`…). `null` for links without rules. */
   routedBy?: string | null;
+  /** The `vclid` handed to the destination; present only for links that track conversions. */
+  clickRef?: string | null;
 }
 
 export interface Click extends NewClick {
@@ -317,6 +323,7 @@ export interface InstanceSettingsOverride {
   weeklyReportEnabled: boolean | null;
   reportSendDay: number | null;
   reportSendHourUtc: number | null;
+  clickRetentionDays: number | null;
 }
 
 export interface InstanceSettings {
@@ -334,6 +341,8 @@ export interface InstanceSettings {
   reportSendDay: number;
   /** Hour of that day (UTC, 0-23). */
   reportSendHourUtc: number;
+  /** How many days individual clicks are kept; 0 keeps them forever. */
+  clickRetentionDays: number;
 }
 
 export interface ApiKey {

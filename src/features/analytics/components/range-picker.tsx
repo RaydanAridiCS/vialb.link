@@ -30,6 +30,8 @@ export function RangePicker({
   to,
   ranges = ANALYTICS_RANGES,
   showBots = true,
+  compare = true,
+  showCompare = false,
 }: {
   range: AnalyticsRange;
   includeBots: boolean;
@@ -37,6 +39,9 @@ export function RangePicker({
   to?: string;
   ranges?: readonly AnalyticsRange[];
   showBots?: boolean;
+  /** Comparison with the previous period is on. */
+  compare?: boolean;
+  showCompare?: boolean;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -132,6 +137,18 @@ export function RangePicker({
           </form>
         ) : null}
       </div>
+      {showCompare && range !== "all" ? (
+        <div className="flex h-9 items-center gap-2">
+          <Switch
+            id="compare"
+            checked={compare}
+            onCheckedChange={(checked) => update({ compare: checked ? null : "0" })}
+          />
+          <Label htmlFor="compare" className="text-sm font-normal text-muted-foreground">
+            Compare to previous period
+          </Label>
+        </div>
+      ) : null}
       {showBots ? (
         <div className="flex h-9 items-center gap-2">
           <Switch

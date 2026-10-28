@@ -47,6 +47,10 @@ export const env = createEnv({
     WEEKLY_REPORT_ENABLED: bool(false),
     /** 0 = Sunday … 6 = Saturday, UTC. */
     REPORT_SEND_DAY: z.coerce.number().int().min(0).max(6).default(1),
+    /** Days to keep individual clicks; 0 keeps them forever. */
+    /** A conversion must be reported within this many days of the click. */
+    CONVERSION_WINDOW_DAYS: z.coerce.number().int().min(1).max(365).default(30),
+    CLICK_RETENTION_DAYS: z.coerce.number().int().min(0).max(3650).default(0),
     REPORT_SEND_HOUR_UTC: z.coerce.number().int().min(0).max(23).default(8),
     HEALTH_CHECK_INTERVAL_HOURS: z.coerce.number().int().min(1).max(168).default(24),
     HEALTH_FAILURE_THRESHOLD: z.coerce.number().int().min(1).max(20).default(3),

@@ -1,5 +1,5 @@
 import "server-only";
-import { eq } from "drizzle-orm";
+import { eq, lt } from "drizzle-orm";
 import type { Database } from "@/server/db/client";
 import { dailySalts, instanceSettings } from "@/server/db/schema";
 import type { InstanceSettingsOverride } from "@/server/domain/types";
@@ -18,6 +18,7 @@ const OVERRIDE_COLUMNS = {
   weeklyReportEnabled: instanceSettings.weeklyReportEnabled,
   reportSendDay: instanceSettings.reportSendDay,
   reportSendHourUtc: instanceSettings.reportSendHourUtc,
+  clickRetentionDays: instanceSettings.clickRetentionDays,
 };
 
 export class DrizzleSettingsRepository implements ISettingsRepository {
@@ -40,6 +41,14 @@ export class DrizzleSettingsRepository implements ISettingsRepository {
       .returning(OVERRIDE_COLUMNS);
     if (!row) throw new Error("Upsert returned no row");
     return row;
+  }
+
+  async deleteSaltsBefore(day: string): Promise<number> {
+    const removed = await this.db
+      .delete(dailySalts)
+      .where(lt(dailySalts.day, day))
+      .returning({ day: dailySalts.day });
+    return removed.length;
   }
 
   async getOrCreateDailySalt(day: string, candidate: string): Promise<string> {

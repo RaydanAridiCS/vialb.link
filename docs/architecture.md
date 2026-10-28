@@ -113,6 +113,7 @@ erDiagram
   user ||--o{ bio_buttons : owns
   links ||--o| bio_buttons : "behind"
   links ||--o{ clicks : records
+  clicks ||--o| conversions : "may convert once"
   links {
     uuid id PK "uuidv7"
     text code UK "case-sensitive"
@@ -145,6 +146,15 @@ erDiagram
     text utm_source
     bool is_bot
     text routed_by "which routing rule fired; null = no rules"
+    text click_ref "random vclid handed to the destination; null unless the link tracks conversions"
+  }
+  conversions {
+    bigint id PK
+    uuid link_id FK
+    bigint click_id FK,UK "one per click, deleted with the click"
+    timestamptz occurred_at
+    bigint value_minor "cents, optional"
+    text currency
   }
   bio_profiles {
     text user_id PK "one page per user"
@@ -186,6 +196,9 @@ Links and API keys belong to a **workspace** (`workspaces`, `workspace_members(r
 Everyone has a personal workspace, created the first time they sign in; teams are extra workspaces. Who may touch
 a link is decided in one place, `assertCanManageLink`, from the actor's workspace role (`src/lib/permissions.ts`).
 `links.user_id` is only the creator. See [Teams](teams.md).
+
+Conversions ([Conversion tracking](conversions.md)) hold no personal data and cascade from their click, which is how
+[retention](retention.md) removes them. Comparison and unique-visitor semantics are in [Analytics](analytics.md).
 
 Scheduled work runs in-process ([Background jobs](jobs.md)): `job_runs` holds each job's lease, `link_health`
 the latest destination check of a link ([Link health](link-health.md)), `email_deliveries` the idempotency ledger

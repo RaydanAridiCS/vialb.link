@@ -20,7 +20,13 @@ import { parseUserAgent, primaryLanguage } from "@/server/lib/user-agent";
 import type { Clock } from "@/server/ports/clock";
 import type { GeoResolver } from "@/server/ports/geo-resolver";
 import type { RateLimiter } from "@/server/ports/rate-limiter";
+import { conversionRate } from "@/lib/conversions";
 import type { IClickRepository } from "@/server/repositories/click.repository";
+import type {
+  ConversionBreakdownRow,
+  ConversionValueTotal,
+  IConversionRepository,
+} from "@/server/repositories/conversion.repository";
 import type { ISettingsRepository } from "@/server/repositories/settings.repository";
 import type { LinkService } from "./link.service";
 
@@ -39,6 +45,28 @@ export interface AnalyticsQuery {
   from?: Date;
   to?: Date;
   includeBots: boolean;
+  /** Also load the previous period's series and breakdowns (the "compare" toggle). Default on. */
+  compare?: boolean;
+}
+
+export interface ConversionRow extends ConversionBreakdownRow {
+  /** Percent, one decimal; `null` without clicks. */
+  rate: number | null;
+}
+
+/** Conversions for a link that tracks them. Cohort by click time: see docs/conversions.md. */
+export interface ConversionAnalytics {
+  conversions: number;
+  /** Counted clicks in the range that were given a click id. */
+  eligibleClicks: number;
+  rate: number | null;
+  /** Per currency; never added across currencies. */
+  values: ConversionValueTotal[];
+  previous: { conversions: number; eligibleClicks: number; rate: number | null } | null;
+  /** By smart-routing label (including A/B variants), country and device. */
+  byRoute: ConversionRow[];
+  byCountry: ConversionRow[];
+  byDevice: ConversionRow[];
 }
 
 export interface LinkAnalytics {
@@ -48,9 +76,17 @@ export interface LinkAnalytics {
   /** % change of total clicks vs. the previous period of equal length (null when previous is 0). */
   changePct: number | null;
   timeseries: { bucket: string; clicks: number }[];
+  /** Visitors per bucket, each counted once per bucket (per day for day buckets). */
+  uniqueTimeseries?: { bucket: string; visitors: number }[];
+  /** The previous period's clicks, bucket by bucket, aligned by position. Absent without comparison. */
+  previousTimeseries?: { bucket: string; clicks: number }[];
   heatmap: HeatmapCell[];
   dimensions: Record<AnalyticsDimension, DimensionCount[]>;
+  /** Previous-period clicks for exactly the values in `dimensions`. Absent without comparison. */
+  previousDimensions?: Record<AnalyticsDimension, DimensionCount[]>;
   recent: RecentClick[];
+  /** Present when the link tracks conversions. */
+  conversions?: ConversionAnalytics;
 }
 
 export type RecentClick = Pick<
@@ -83,6 +119,8 @@ export interface ClickRecordInput {
   searchParams: URLSearchParams;
   /** The smart-routing rule that picked the destination, if the link has rules. */
   routedBy?: string | null;
+  /** The `vclid` handed to the destination (links that track conversions only). */
+  clickRef?: string | null;
 }
 
 export interface AnalyticsServiceDeps {
@@ -94,6 +132,7 @@ export interface AnalyticsServiceDeps {
   logger: Logger;
   /** Limits how often one address can open public stats pages. */
   limiter?: RateLimiter;
+  conversions: IConversionRepository;
 }
 
 const DIMENSIONS: AnalyticsDimension[] = [
@@ -152,6 +191,7 @@ export class AnalyticsService {
         language: primaryLanguage(input.headers.get("accept-language")),
         isBot: ua.isBot,
         routedBy: input.routedBy ?? null,
+        clickRef: input.clickRef ?? null,
       });
     } catch (error) {
       this.deps.logger.warn({ err: error, linkId: input.linkId }, "Failed to record click");
@@ -217,19 +257,47 @@ export class AnalyticsService {
       to: range.from,
     };
 
-    const [summary, previous, timeseries, heatmap, recent, ...dimensionResults] = await Promise.all([
-      this.deps.clicks.summary(filter),
-      this.deps.clicks.summary(previousFilter),
-      this.deps.clicks.timeseries(filter, range.bucket),
-      this.deps.clicks.heatmap(filter),
-      this.deps.clicks.recent(filter, 25),
-      ...DIMENSIONS.map((d) => this.deps.clicks.topDimension(filter, d, 10)),
-    ]);
+    const compare = query.compare !== false && query.range !== "all";
+    const [summary, previous, timeseries, uniqueSeries, heatmap, recent, ...dimensionResults] =
+      await Promise.all([
+        this.deps.clicks.summary(filter),
+        this.deps.clicks.summary(previousFilter),
+        this.deps.clicks.timeseries(filter, range.bucket),
+        this.deps.clicks.uniqueTimeseries(filter, range.bucket),
+        this.deps.clicks.heatmap(filter),
+        this.deps.clicks.recent(filter, 25),
+        ...DIMENSIONS.map((d) => this.deps.clicks.topDimension(filter, d, 10)),
+      ]);
 
     const dimensions = Object.fromEntries(DIMENSIONS.map((d, i) => [d, dimensionResults[i] ?? []])) as Record<
       AnalyticsDimension,
       DimensionCount[]
     >;
+
+    let previousTimeseries: LinkAnalytics["previousTimeseries"];
+    let previousDimensions: LinkAnalytics["previousDimensions"];
+    if (compare) {
+      const [previousSeries, previousCounts] = await Promise.all([
+        this.deps.clicks.timeseries(previousFilter, range.bucket),
+        Promise.all(
+          DIMENSIONS.map((d) =>
+            this.deps.clicks.dimensionCounts(
+              previousFilter,
+              d,
+              dimensions[d].map((row) => row.value),
+            ),
+          ),
+        ),
+      ]);
+      previousTimeseries = previousSeries.map((p) => ({ bucket: p.bucket.toISOString(), clicks: p.clicks }));
+      previousDimensions = Object.fromEntries(
+        DIMENSIONS.map((d, i) => [d, previousCounts[i] ?? []]),
+      ) as Record<AnalyticsDimension, DimensionCount[]>;
+    }
+
+    const conversionStats = link.conversionsEnabled
+      ? await this.conversionAnalytics(filter, compare ? previousFilter : null)
+      : undefined;
 
     return {
       range: { from: range.from.toISOString(), to: range.to.toISOString(), bucket: range.bucket },
@@ -240,8 +308,12 @@ export class AnalyticsService {
           ? null
           : Math.round(((summary.totalClicks - previous.totalClicks) / previous.totalClicks) * 1000) / 10,
       timeseries: timeseries.map((p) => ({ bucket: p.bucket.toISOString(), clicks: p.clicks })),
+      uniqueTimeseries: uniqueSeries.map((p) => ({ bucket: p.bucket.toISOString(), visitors: p.clicks })),
+      previousTimeseries,
       heatmap,
       dimensions,
+      previousDimensions,
+      conversions: conversionStats,
       recent: recent.map((c) => ({
         occurredAt: c.occurredAt.toISOString(),
         country: c.country,
@@ -253,6 +325,36 @@ export class AnalyticsService {
         isBot: c.isBot,
         language: c.language,
       })),
+    };
+  }
+
+  private async conversionAnalytics(
+    filter: ClickFilter,
+    previousFilter: ClickFilter | null,
+  ): Promise<ConversionAnalytics> {
+    const { conversions } = this.deps;
+    const [now, before, byRoute, byCountry, byDevice] = await Promise.all([
+      conversions.summary(filter),
+      previousFilter ? conversions.summary(previousFilter) : Promise.resolve(null),
+      conversions.breakdown(filter, "routed_by", 10),
+      conversions.breakdown(filter, "country", 10),
+      conversions.breakdown(filter, "device_type", 6),
+    ]);
+    const withRate = (rows: ConversionBreakdownRow[]): ConversionRow[] =>
+      rows.map((row) => ({ ...row, rate: conversionRate(row.conversions, row.clicks) }));
+    return {
+      conversions: now.conversions,
+      eligibleClicks: now.eligibleClicks,
+      rate: conversionRate(now.conversions, now.eligibleClicks),
+      values: now.values,
+      previous: before && {
+        conversions: before.conversions,
+        eligibleClicks: before.eligibleClicks,
+        rate: conversionRate(before.conversions, before.eligibleClicks),
+      },
+      byRoute: withRate(byRoute),
+      byCountry: withRate(byCountry),
+      byDevice: withRate(byDevice),
     };
   }
 
@@ -311,11 +413,12 @@ export class AnalyticsService {
       link.createdAt,
     );
     const filter: ClickFilter = { linkId: link.id, from: range.from, to: range.to, includeBots: false };
-    const [summary, timeseries, countries, referrers] = await Promise.all([
+    const [summary, timeseries, countries, referrers, conversionSummary] = await Promise.all([
       this.deps.clicks.summary(filter),
       this.deps.clicks.timeseries(filter, range.bucket),
       this.deps.clicks.topDimension(filter, "country", 10),
       this.deps.clicks.topDimension(filter, "referrer_host", 10),
+      link.conversionsEnabled ? this.deps.conversions.summary(filter) : Promise.resolve(null),
     ]);
     return {
       from: range.from.toISOString(),
@@ -325,6 +428,12 @@ export class AnalyticsService {
       timeseries: timeseries.map((p) => ({ bucket: p.bucket.toISOString(), clicks: p.clicks })),
       countries,
       referrers,
+      conversions: conversionSummary && {
+        count: conversionSummary.conversions,
+        eligibleClicks: conversionSummary.eligibleClicks,
+        rate: conversionRate(conversionSummary.conversions, conversionSummary.eligibleClicks),
+        values: conversionSummary.values,
+      },
     };
   }
 
@@ -366,7 +475,12 @@ export class AnalyticsService {
       "language",
       "is_bot",
       "visitor_hash",
+      "converted",
+      "conversion_value",
+      "conversion_currency",
     ];
+    const trackConversions = link.conversionsEnabled;
+    const conversionsRepo = this.deps.conversions;
 
     return new ReadableStream<Uint8Array>({
       pull: async (controller) => {
@@ -381,6 +495,9 @@ export class AnalyticsService {
           return;
         }
         rows += next.value.length;
+        const won = trackConversions
+          ? await conversionsRepo.forClicks(next.value.map((c) => c.id))
+          : new Map<number, { valueMinor: number | null; currency: string | null }>();
         controller.enqueue(
           encoder.encode(
             next.value
@@ -405,6 +522,9 @@ export class AnalyticsService {
                   c.language,
                   c.isBot,
                   c.visitorHash,
+                  trackConversions ? won.has(c.id) : "",
+                  won.get(c.id)?.valueMinor == null ? "" : (won.get(c.id)?.valueMinor ?? 0) / 100,
+                  won.get(c.id)?.currency ?? "",
                 ]),
               )
               .join(""),

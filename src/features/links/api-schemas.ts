@@ -113,6 +113,9 @@ export const apiUpdateLinkSchema = z
     maxClicks: maxClicks.nullable().optional().meta({ description: "null removes the limit" }),
     password: password.nullable().optional().meta({ description: "null removes the password" }),
     isEnabled: z.boolean().optional(),
+    conversionsEnabled: z.boolean().optional().meta({
+      description: "Turn conversion tracking on or off (see `Link.conversionsEnabled`).",
+    }),
     publicStats: z.boolean().optional().meta({
       description:
         "`true` turns on the public, read-only stats page (the address is returned as `statsUrl`); `false` turns it off and the old address stops working.",
@@ -163,6 +166,10 @@ export const linkSchema = z
     cardDesign: cardDesignSchema.nullable(),
     pixels: z.object({ meta: z.string().optional(), google: z.string().optional() }).nullable(),
     hasPassword: z.boolean(),
+    conversionsEnabled: z.boolean().meta({
+      description:
+        "When on, visitors are sent to the destination with a random `vclid` parameter, which the destination can report back to `/api/convert` to count a conversion.",
+    }),
     statsUrl: z.url().nullable().meta({
       description:
         "Address of the public, read-only stats page, or `null` while it is off. Set `publicStats` to change it.",
@@ -218,6 +225,18 @@ export const linkStatsSchema = z
     timeseries: z.array(z.object({ bucket: z.string(), clicks: z.number().int() })),
     countries: z.array(countSchema),
     referrers: z.array(countSchema),
+    conversions: z
+      .object({
+        count: z.number().int(),
+        eligibleClicks: z.number().int(),
+        rate: z.number().nullable(),
+        values: z.array(
+          z.object({ currency: z.string(), totalMinor: z.number().int(), count: z.number().int() }),
+        ),
+      })
+      .nullable()
+      .optional()
+      .meta({ description: "Only for links with conversion tracking; `rate` is a percent." }),
   })
   .meta({ id: "LinkStats" });
 
@@ -283,6 +302,7 @@ export function toUpdateCommand(input: z.output<typeof apiUpdateLinkSchema>): Up
     password: input.password,
     isEnabled: input.isEnabled,
     publicStats: input.publicStats,
+    conversionsEnabled: input.conversionsEnabled,
     ogTitle: input.ogTitle,
     ogDescription: input.ogDescription,
     ogImageUrl: input.ogImageUrl,

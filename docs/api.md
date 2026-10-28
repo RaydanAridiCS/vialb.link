@@ -69,6 +69,8 @@ Two fields on a link come from background features:
 
 - `health`: result of the last destination check (`state`, `needsAttention`, `reason`, `statusCode`,
   `failingTarget`, `lastCheckedAt`), or `null` when never checked / the monitor is off. See [Link health](link-health.md).
+- `conversionsEnabled`: whether the redirect adds a `vclid` so the destination can report conversions to
+  `/api/convert` (no API key; see [Conversions](conversions.md)). Stats responses then include `conversions`.
 - `statsUrl`: address of the [public stats page](public-stats.md) or `null`. `PATCH` with
   `{"publicStats": true}` turns it on (keeping the address), `false` turns it off.
 

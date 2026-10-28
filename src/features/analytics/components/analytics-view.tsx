@@ -8,9 +8,11 @@ import { countryName, formatDateTime, formatNumber, formatRelative } from "@/lib
 import { describeRoute } from "@/lib/routing";
 import { cn } from "@/lib/utils";
 import type { LinkAnalytics } from "@/server/services/analytics.service";
+import { alignPrevious, compareValue } from "../compare";
 import { deriveInsights, type Insight } from "../insights";
 import { BarList } from "./bar-list";
 import { ClicksChart, DonutChart } from "./charts";
+import { ConversionsPanel } from "./conversions-panel";
 import { Heatmap } from "./heatmap";
 import { Delta, KpiCard } from "./kpi-card";
 import { RangePicker } from "./range-picker";
@@ -97,8 +99,14 @@ export function AnalyticsView({
   showBotsToggle = true,
   notice,
   aside,
+  compare = false,
+  compareControl = false,
 }: {
   data: LinkAnalytics;
+  /** Show change against the previous period (needs `data.previousDimensions`). */
+  compare?: boolean;
+  /** Offer the "compare to previous period" switch (the live page does, the demo does not). */
+  compareControl?: boolean;
   range: AnalyticsRange;
   includeBots: boolean;
   from?: string;
@@ -111,6 +119,12 @@ export function AnalyticsView({
   aside?: ReactNode;
 }) {
   const d = data.dimensions;
+  const prev = compare ? data.previousDimensions : undefined;
+  const chartData = alignPrevious(data.timeseries, compare ? data.previousTimeseries : undefined);
+  const uniqueChange = compare
+    ? compareValue(data.summary.uniqueVisitors, data.previous.uniqueVisitors).pct
+    : undefined;
+  const botChange = compare ? compareValue(data.summary.botClicks, data.previous.botClicks).pct : undefined;
   const total = data.summary.totalClicks;
   const topCountry = d.country.find((c) => c.value !== "Unknown");
   // The KPI strip already names the top country.
@@ -136,6 +150,8 @@ export function AnalyticsView({
           to={to}
           ranges={rangeOptions}
           showBots={showBotsToggle}
+          compare={compare}
+          showCompare={compareControl}
         />
         {notice}
       </div>
@@ -149,10 +165,12 @@ export function AnalyticsView({
           sparkline={data.timeseries.map((p) => p.clicks)}
         />
         <KpiCard
-          label="Unique visitors"
+          label="Unique visitors (per day)"
           value={data.summary.uniqueVisitors}
-          hint="Daily-rotating anonymous IDs"
+          changePct={uniqueChange}
+          hint="Counted once per day: someone back on another day counts again"
           icon={<Users />}
+          sparkline={data.uniqueTimeseries?.map((p) => p.visitors)}
         />
         <KpiCard
           label="Top country"
@@ -167,10 +185,13 @@ export function AnalyticsView({
         <KpiCard
           label="Bot clicks"
           value={data.summary.botClicks}
+          changePct={botChange}
           hint={includeBots ? "Included in totals" : "Filtered out of totals"}
           icon={<Bot />}
         />
       </div>
+
+      {data.conversions ? <ConversionsPanel data={data.conversions} /> : null}
 
       <InsightCards insights={insights} />
 
@@ -187,7 +208,7 @@ export function AnalyticsView({
             </div>
           }
         >
-          <ClicksChart data={data.timeseries} bucket={data.range.bucket} />
+          <ClicksChart data={chartData} bucket={data.range.bucket} />
         </AnalyticsCard>
         {aside}
       </div>
@@ -199,6 +220,7 @@ export function AnalyticsView({
             unknownLabel="Direct or unknown"
             empty="No referrers yet (direct traffic)"
             total={total}
+            previous={prev?.referrer_host}
           />
         </AnalyticsCard>
         <Tabs defaultValue="source" className="gap-0">
@@ -222,7 +244,12 @@ export function AnalyticsView({
           >
             {(["source", "medium", "campaign"] as const).map((key) => (
               <TabsContent key={key} value={key}>
-                <BarList items={utm[key]} empty="No UTM-tagged visits yet" total={total} />
+                <BarList
+                  items={utm[key]}
+                  empty="No UTM-tagged visits yet"
+                  total={total}
+                  previous={prev?.[`utm_${key}` as const]}
+                />
               </TabsContent>
             ))}
           </AnalyticsCard>
@@ -250,13 +277,13 @@ export function AnalyticsView({
             }
           >
             <TabsContent value="country">
-              <BarList items={d.country} kind="country" total={total} />
+              <BarList items={d.country} kind="country" total={total} previous={prev?.country} />
             </TabsContent>
             <TabsContent value="city">
-              <BarList items={d.city} total={total} />
+              <BarList items={d.city} total={total} previous={prev?.city} />
             </TabsContent>
             <TabsContent value="language">
-              <BarList items={d.language} total={total} />
+              <BarList items={d.language} total={total} previous={prev?.language} />
             </TabsContent>
           </AnalyticsCard>
         </Tabs>
@@ -277,10 +304,10 @@ export function AnalyticsView({
                 </TabsTrigger>
               </TabsList>
               <TabsContent value="browser">
-                <BarList items={d.browser.slice(0, 5)} total={total} />
+                <BarList items={d.browser.slice(0, 5)} total={total} previous={prev?.browser} />
               </TabsContent>
               <TabsContent value="os">
-                <BarList items={d.os.slice(0, 5)} total={total} />
+                <BarList items={d.os.slice(0, 5)} total={total} previous={prev?.os} />
               </TabsContent>
             </div>
           </AnalyticsCard>

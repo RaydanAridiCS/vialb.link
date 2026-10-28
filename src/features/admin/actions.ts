@@ -21,6 +21,7 @@ export const updateInstanceSettingsAction = adminActionClient
       weeklyReportEnabled: nullableBool,
       reportSendDay: z.union([z.literal(""), z.coerce.number().int().min(0).max(6)]),
       reportSendHourUtc: z.union([z.literal(""), z.coerce.number().int().min(0).max(23)]),
+      clickRetentionDays: z.union([z.literal(""), z.coerce.number().int().min(0).max(3650)]),
       anonLinkTtlHours: z.union([z.literal(""), z.coerce.number().int().min(1).max(8760)]),
       blockedDomains: z.string().max(200_000),
       blockedDomainsMode: z.enum(["default", "custom"]),
@@ -35,6 +36,7 @@ export const updateInstanceSettingsAction = adminActionClient
       weeklyReportEnabled: parsedInput.weeklyReportEnabled,
       reportSendDay: parsedInput.reportSendDay === "" ? null : parsedInput.reportSendDay,
       reportSendHourUtc: parsedInput.reportSendHourUtc === "" ? null : parsedInput.reportSendHourUtc,
+      clickRetentionDays: parsedInput.clickRetentionDays === "" ? null : parsedInput.clickRetentionDays,
       anonLinkTtlHours: parsedInput.anonLinkTtlHours === "" ? null : parsedInput.anonLinkTtlHours,
       blockedDomains:
         parsedInput.blockedDomainsMode === "default" ? null : parsedInput.blockedDomains.split(/[\s,]+/),
@@ -42,6 +44,25 @@ export const updateInstanceSettingsAction = adminActionClient
     revalidatePath("/admin");
     revalidatePath("/");
     return { settings };
+  });
+
+export const previewRetentionAction = adminActionClient
+  .metadata({ name: "preview-retention" })
+  .inputSchema(z.object({ days: z.coerce.number().int().min(1).max(3650) }))
+  .action(async ({ parsedInput, ctx }) => ({
+    days: parsedInput.days,
+    ...(await getContainer().retention.preview(ctx.actor, parsedInput.days)),
+  }));
+
+export const runJobNowAction = adminActionClient
+  .metadata({ name: "run-job-now" })
+  .inputSchema(
+    z.object({ name: z.enum(["retention", "link-health", "weekly-report", "broken-links-digest"]) }),
+  )
+  .action(async ({ parsedInput }) => {
+    const started = await getContainer().jobRunner.runNow(parsedInput.name);
+    revalidatePath("/admin");
+    return { started };
   });
 
 const userIdSchema = z.object({ userId: z.string().min(1).max(200) });

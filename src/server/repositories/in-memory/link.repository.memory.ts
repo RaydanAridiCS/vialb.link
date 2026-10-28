@@ -53,6 +53,7 @@ export class InMemoryLinkRepository implements ILinkRepository {
       createdIpHash: input.createdIpHash ?? null,
       claimTokenHash: input.claimTokenHash ?? null,
       statsToken: input.statsToken ?? null,
+      conversionsEnabled: input.conversionsEnabled ?? false,
       createdAt: at,
       updatedAt: at,
     };

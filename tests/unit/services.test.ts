@@ -230,6 +230,7 @@ describe("SettingsService + AdminService", () => {
       weeklyReportEnabled: false,
       reportSendDay: 1,
       reportSendHourUtc: 8,
+      clickRetentionDays: 0,
     });
     await f.settings.update(users.admin, { allowAnonymousLinks: null });
     expect((await f.settings.get()).allowAnonymousLinks).toBe(false);
@@ -267,6 +268,9 @@ describe("SettingsService + AdminService", () => {
       getOrCreateDailySalt: async () => {
         throw new Error("DB connection failure");
       },
+      deleteSaltsBefore: async () => {
+        throw new Error("DB connection failure");
+      },
     };
     const defaults = {
       allowAnonymousLinks: true,
@@ -278,6 +282,7 @@ describe("SettingsService + AdminService", () => {
       weeklyReportEnabled: false,
       reportSendDay: 1,
       reportSendHourUtc: 8,
+      clickRetentionDays: 0,
     };
     const service = new SettingsService(brokenRepo, defaults);
     expect(await service.get()).toEqual(defaults);

@@ -78,6 +78,37 @@ export class InMemoryClickRepository implements IClickRepository {
     return points;
   }
 
+  async uniqueTimeseries(filter: ClickFilter, bucket: Bucket): Promise<TimeseriesPoint[]> {
+    const step = bucket === "hour" ? 3_600_000 : 86_400_000;
+    const floor = (d: Date) => Math.floor(d.getTime() / step) * step;
+    const seen = new Map<number, Set<string>>();
+    for (const c of this.inRange(filter)) {
+      const key = floor(c.occurredAt);
+      seen.set(key, (seen.get(key) ?? new Set()).add(c.visitorHash));
+    }
+    const points: TimeseriesPoint[] = [];
+    for (let t = floor(filter.from); t < filter.to.getTime(); t += step) {
+      points.push({ bucket: new Date(t), clicks: seen.get(t)?.size ?? 0 });
+    }
+    return points;
+  }
+
+  async dimensionCounts(
+    filter: ClickFilter,
+    dimension: AnalyticsDimension,
+    values: readonly string[],
+  ): Promise<DimensionCount[]> {
+    const wanted = new Set(values);
+    const field = DIMENSION_FIELDS[dimension];
+    const counts = new Map<string, number>();
+    for (const c of this.inRange(filter)) {
+      const raw = c[field];
+      const value = typeof raw === "string" && raw !== "" ? raw : "Unknown";
+      if (wanted.has(value)) counts.set(value, (counts.get(value) ?? 0) + 1);
+    }
+    return [...counts.entries()].map(([value, clicks]) => ({ value, clicks }));
+  }
+
   async heatmap(filter: ClickFilter): Promise<HeatmapCell[]> {
     const cells = new Map<string, HeatmapCell>();
     for (const c of this.inRange(filter)) {
@@ -124,6 +155,22 @@ export class InMemoryClickRepository implements IClickRepository {
 
   async count(since?: Date): Promise<number> {
     return since ? this.rows.filter((c) => c.occurredAt >= since).length : this.rows.length;
+  }
+
+  async countOlderThan(cutoff: Date): Promise<number> {
+    return this.rows.filter((c) => c.occurredAt < cutoff).length;
+  }
+
+  async deleteOlderThan(cutoff: Date, limit: number): Promise<number> {
+    const doomed = this.rows
+      .filter((c) => c.occurredAt < cutoff)
+      .sort((a, b) => a.occurredAt.getTime() - b.occurredAt.getTime())
+      .slice(0, limit);
+    const ids = new Set(doomed.map((c) => c.id));
+    for (let i = this.rows.length - 1; i >= 0; i--) {
+      if (ids.has(this.rows[i]?.id as number)) this.rows.splice(i, 1);
+    }
+    return doomed.length;
   }
 
   private countedInWorkspace(workspaceId: string, from: Date, to: Date): Click[] {
@@ -253,10 +300,22 @@ export class InMemorySettingsRepository implements ISettingsRepository {
       weeklyReportEnabled: null,
       reportSendDay: null,
       reportSendHourUtc: null,
+      clickRetentionDays: null,
       ...this.current,
       ...patch,
     };
     return { ...this.current };
+  }
+
+  async deleteSaltsBefore(day: string): Promise<number> {
+    let removed = 0;
+    for (const key of [...this.salts.keys()]) {
+      if (key < day) {
+        this.salts.delete(key);
+        removed++;
+      }
+    }
+    return removed;
   }
 
   async getOrCreateDailySalt(day: string, candidate: string): Promise<string> {

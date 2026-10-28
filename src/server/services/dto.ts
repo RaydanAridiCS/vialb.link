@@ -46,6 +46,8 @@ export interface LinkDto {
   hasPassword: boolean;
   /** Address of the public, read-only stats page; `null` while the owner keeps it private. */
   statsUrl: string | null;
+  /** The redirect adds a `vclid` to the destination so it can report conversions. */
+  conversionsEnabled: boolean;
   expiresAt: string | null;
   maxClicks: number | null;
   clickCount: number;
@@ -96,6 +98,7 @@ export function toLinkDto(link: Link, siteUrl: string, now: Date, health: LinkHe
     pixels: link.pixels,
     hasPassword: link.passwordHash !== null,
     statsUrl: link.statsToken ? `${siteUrl}/stats/${link.statsToken}` : null,
+    conversionsEnabled: link.conversionsEnabled,
     expiresAt: link.expiresAt?.toISOString() ?? null,
     maxClicks: link.maxClicks,
     clickCount: link.clickCount,

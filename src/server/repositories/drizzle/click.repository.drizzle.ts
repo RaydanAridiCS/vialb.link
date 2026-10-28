@@ -1,5 +1,20 @@
 import "server-only";
-import { and, asc, count, desc, eq, gt, gte, isNotNull, isNull, lt, min, sql, type SQL } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  gt,
+  gte,
+  inArray,
+  isNotNull,
+  isNull,
+  lt,
+  min,
+  sql,
+  type SQL,
+} from "drizzle-orm";
 import type { Database } from "@/server/db/client";
 import { clicks, links } from "@/server/db/schema";
 import type {
@@ -87,6 +102,46 @@ export class DrizzleClickRepository implements IClickRepository {
       order by s.bucket
     `);
     return [...rows].map((row) => ({ bucket: new Date(row.bucket), clicks: Number(row.clicks) }));
+  }
+
+  async uniqueTimeseries(filter: ClickFilter, bucket: Bucket): Promise<TimeseriesPoint[]> {
+    const unit = bucket === "hour" ? sql.raw("'hour'") : sql.raw("'day'");
+    const step = bucket === "hour" ? sql.raw("interval '1 hour'") : sql.raw("interval '1 day'");
+    const rows = await this.db.execute<{ bucket: Date | string; clicks: number }>(sql`
+      with series as (
+        select generate_series(
+          date_trunc(${unit}, ${filter.from.toISOString()}::timestamptz at time zone 'UTC'),
+          date_trunc(${unit}, (${filter.to.toISOString()}::timestamptz - interval '1 microsecond') at time zone 'UTC'),
+          ${step}
+        ) as bucket
+      ), counts as (
+        select date_trunc(${unit}, ${clicks.occurredAt} at time zone 'UTC') as bucket,
+               count(distinct ${clicks.visitorHash})::int as clicks
+        from ${clicks}
+        where ${rangeWhere(filter)}
+        group by 1
+      )
+      select (s.bucket at time zone 'UTC') as bucket, coalesce(c.clicks, 0)::int as clicks
+      from series s left join counts c on c.bucket = s.bucket
+      order by s.bucket
+    `);
+    return [...rows].map((row) => ({ bucket: new Date(row.bucket), clicks: Number(row.clicks) }));
+  }
+
+  async dimensionCounts(
+    filter: ClickFilter,
+    dimension: AnalyticsDimension,
+    values: readonly string[],
+  ): Promise<DimensionCount[]> {
+    if (values.length === 0) return [];
+    const column = DIMENSION_COLUMNS[dimension];
+    const value = sql<string>`coalesce(nullif(${column}, ''), 'Unknown')`;
+    const rows = await this.db
+      .select({ value, clicks: sql<number>`count(*)::int` })
+      .from(clicks)
+      .where(and(rangeWhere(filter), inArray(value, [...values])))
+      .groupBy(value);
+    return rows.map((row) => ({ value: row.value, clicks: Number(row.clicks) }));
   }
 
   async heatmap(filter: ClickFilter): Promise<HeatmapCell[]> {
@@ -223,6 +278,25 @@ export class DrizzleClickRepository implements IClickRepository {
       topReferrers,
       topCountries,
     };
+  }
+
+  async countOlderThan(cutoff: Date): Promise<number> {
+    const [row] = await this.db.select({ total: count() }).from(clicks).where(lt(clicks.occurredAt, cutoff));
+    return row?.total ?? 0;
+  }
+
+  async deleteOlderThan(cutoff: Date, limit: number): Promise<number> {
+    const oldest = this.db
+      .select({ id: clicks.id })
+      .from(clicks)
+      .where(lt(clicks.occurredAt, cutoff))
+      .orderBy(asc(clicks.occurredAt))
+      .limit(limit);
+    const removed = await this.db
+      .delete(clicks)
+      .where(inArray(clicks.id, oldest))
+      .returning({ id: clicks.id });
+    return removed.length;
   }
 
   async activeWorkspaces(from: Date, to: Date): Promise<string[]> {

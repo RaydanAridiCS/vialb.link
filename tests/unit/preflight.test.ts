@@ -124,3 +124,12 @@ describe("RedisRateLimiter", () => {
     expect(await limiter.consume("k", 3, 10_000)).toMatchObject({ allowed: true, limit: 3, remaining: 3 });
   });
 });
+
+describe("collectConfigWarnings: retention", () => {
+  it("reminds operators that clicks are deleted for good when a period is set", () => {
+    expect(collectConfigWarnings({ ...healthy, CLICK_RETENTION_DAYS: 90 })).toEqual([
+      expect.stringContaining("CLICK_RETENTION_DAYS=90"),
+    ]);
+    expect(collectConfigWarnings({ ...healthy, CLICK_RETENTION_DAYS: 0 })).toEqual([]);
+  });
+});

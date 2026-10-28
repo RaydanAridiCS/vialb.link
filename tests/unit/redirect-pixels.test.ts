@@ -35,6 +35,7 @@ describe("retargeting pixels on the redirect path", () => {
       linkId: link.id,
       destination: WEBSITE,
       routedBy: null,
+      clickRef: null,
       pixels: PIXELS,
       consent: "ask",
     });

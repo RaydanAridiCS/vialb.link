@@ -1,5 +1,7 @@
 import { CountryCode } from "@/components/country-code";
 import { countryName, formatNumber } from "@/lib/format";
+import { cn } from "@/lib/utils";
+import { compareValue, previousFor } from "../compare";
 
 /** Horizontal bar list for top-N dimensions (server-renderable, no JS). */
 export function BarList({
@@ -8,6 +10,7 @@ export function BarList({
   empty = "No data for this period",
   unknownLabel = "Unknown",
   total,
+  previous,
 }: {
   items: { value: string; clicks: number }[];
   kind?: "text" | "country";
@@ -16,6 +19,8 @@ export function BarList({
   unknownLabel?: string;
   /** When set, each row also shows its share of this total. */
   total?: number;
+  /** Previous-period clicks for these values; adds a change chip to each row. */
+  previous?: { value: string; clicks: number }[];
 }) {
   if (items.length === 0)
     return (
@@ -49,6 +54,9 @@ export function BarList({
             </span>
             <span className="relative flex shrink-0 items-baseline gap-2 font-mono text-xs tabular-nums">
               <span className="text-foreground">{formatNumber(item.clicks)}</span>
+              {previous ? (
+                <RowChange current={item.clicks} previous={previousFor(previous, item.value)} />
+              ) : null}
               {total ? (
                 <span className="w-9 text-right text-muted-foreground">
                   {Math.round((item.clicks / total) * 100)}%
@@ -59,5 +67,33 @@ export function BarList({
         );
       })}
     </ul>
+  );
+}
+
+/** `+12`, `-3` or `new` next to a row; `=` when unchanged. Colour is never the only signal. */
+function RowChange({ current, previous }: { current: number; previous: number }) {
+  const change = compareValue(current, previous);
+  const label = change.isNew
+    ? "new"
+    : change.delta === 0
+      ? "="
+      : `${change.delta > 0 ? "+" : "−"}${formatNumber(Math.abs(change.delta))}`;
+  return (
+    <span
+      data-testid="row-change"
+      title={
+        change.pct === null
+          ? "Nothing in the previous period"
+          : `${change.pct > 0 ? "+" : ""}${change.pct}% vs previous period`
+      }
+      className={cn(
+        "min-w-8 text-right",
+        change.delta > 0 && "text-success",
+        change.delta < 0 && "text-destructive",
+        change.delta === 0 && !change.isNew && "text-muted-foreground",
+      )}
+    >
+      {label}
+    </span>
   );
 }

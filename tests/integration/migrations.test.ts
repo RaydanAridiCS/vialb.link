@@ -345,4 +345,63 @@ describe("migrations", () => {
     ]);
     expect(clash).toBe("23505");
   });
+  it("keep all existing clicks and leave retention on its default, adding a time index", async () => {
+    const url = await freshDatabase();
+    await applyAll(url, truncatedFolder(11));
+
+    const before = postgres(url, { max: 1, onnotice: () => {} });
+    await before`insert into links (id, code, destination_url) values ('00000000-0000-4000-8000-0000000000a9', 'ret-old', 'https://a.example')`;
+    await before`insert into clicks (link_id, visitor_hash, occurred_at) values ('00000000-0000-4000-8000-0000000000a9', 'v', '2020-01-01T00:00:00Z')`;
+    await before`insert into instance_settings (id, allow_signups) values (1, false)`;
+    await before.end();
+
+    await applyAll(url);
+
+    const check = postgres(url, { max: 1, onnotice: () => {} });
+    const [clicks] = await check<{ n: number }[]>`select count(*)::int as n from clicks`;
+    const [settings] = await check<{ click_retention_days: number | null; allow_signups: boolean | null }[]>`
+      select click_retention_days, allow_signups from instance_settings`;
+    const [index] = await check<
+      { indexdef: string }[]
+    >`select indexdef from pg_indexes where indexname = 'clicks_occurred_brin'`;
+    await check.end();
+
+    expect(clicks?.n).toBe(1); // nothing is deleted by upgrading
+    expect(settings).toEqual({ click_retention_days: null, allow_signups: false });
+    expect(index?.indexdef).toContain("USING brin (occurred_at)");
+  });
+  it("leave existing links and clicks without conversion tracking", async () => {
+    const url = await freshDatabase();
+    await applyAll(url, truncatedFolder(12));
+
+    const before = postgres(url, { max: 1, onnotice: () => {} });
+    await before`insert into links (id, code, destination_url) values ('00000000-0000-4000-8000-0000000000c9', 'pre-conv', 'https://a.example')`;
+    await before`insert into clicks (link_id, visitor_hash) values ('00000000-0000-4000-8000-0000000000c9', 'v'), ('00000000-0000-4000-8000-0000000000c9', 'w')`;
+    await before.end();
+
+    await applyAll(url);
+
+    const check = postgres(url, { max: 1, onnotice: () => {} });
+    const [link] = await check<{ conversions_enabled: boolean }[]>`select conversions_enabled from links`;
+    const refs = await check<{ click_ref: string | null }[]>`select click_ref from clicks`;
+    // Many clicks may have no id, but an id is unique.
+    await check`update clicks set click_ref = 'AAAAAAAAAAAAAAAA' where visitor_hash = 'v'`;
+    const clash =
+      await check`update clicks set click_ref = 'AAAAAAAAAAAAAAAA' where visitor_hash = 'w'`.catch(
+        (e: { code?: string }) => e.code,
+      );
+    const [clickId] = await check<{ id: number }[]>`select id from clicks where visitor_hash = 'v'`;
+    await check`insert into conversions (link_id, click_id, value_minor, currency) values ('00000000-0000-4000-8000-0000000000c9', ${clickId?.id ?? 0}, 100, 'USD')`;
+    const second =
+      await check`insert into conversions (link_id, click_id) values ('00000000-0000-4000-8000-0000000000c9', ${clickId?.id ?? 0}) on conflict do nothing returning id`;
+    await check`delete from clicks where visitor_hash = 'v'`;
+    const [left] = await check<{ n: number }[]>`select count(*)::int as n from conversions`;
+    await check.end();
+
+    expect(link).toEqual({ conversions_enabled: false });
+    expect(refs).toEqual([{ click_ref: null }, { click_ref: null }]);
+    expect(clash).toBe("23505");
+    expect(second).toHaveLength(0);
+    expect(left?.n).toBe(0); // the conversion went with its click
+  });
 });

@@ -229,6 +229,9 @@ export const RATE_LIMITS = {
   reportPreview: { limit: 5, windowMs: 60 * 60 * 1000 },
   /** Opening public stats pages, per visitor address. */
   publicStats: { limit: 120, windowMs: 60 * 1000 },
+  /** Conversion reports: per sending address, and in total per link. */
+  convertPerIp: { limit: 120, windowMs: 60 * 1000 },
+  convertPerLink: { limit: 1200, windowMs: 60 * 1000 },
 } as const;
 
 export const API_KEY_PREFIX = "tw_";

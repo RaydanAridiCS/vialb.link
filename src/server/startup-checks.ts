@@ -11,6 +11,7 @@ export interface ConfigSnapshot {
   PIXELS_ENABLED?: boolean;
   HEALTH_ALLOW_PRIVATE_TARGETS?: boolean;
   WEEKLY_REPORT_ENABLED?: boolean;
+  CLICK_RETENTION_DAYS?: number;
   SMTP_HOST?: string;
   SMTP_FROM?: string;
 }
@@ -50,6 +51,12 @@ export function collectConfigWarnings(config: ConfigSnapshot): string[] {
   if (config.WEEKLY_REPORT_ENABLED && !(config.SMTP_HOST && config.SMTP_FROM)) {
     warnings.push(
       "WEEKLY_REPORT_ENABLED is on but SMTP_HOST / SMTP_FROM are not set: no report emails can be sent.",
+    );
+  }
+
+  if (config.CLICK_RETENTION_DAYS && config.CLICK_RETENTION_DAYS > 0) {
+    warnings.push(
+      `CLICK_RETENTION_DAYS=${config.CLICK_RETENTION_DAYS}: clicks older than that are deleted for good every day. Make sure backups cover anything you need to keep.`,
     );
   }
 

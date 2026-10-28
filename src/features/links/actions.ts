@@ -6,6 +6,7 @@ import { authActionClient, publicActionClient } from "@/server/http/safe-action"
 import {
   checkImportCodesSchema,
   claimSchema,
+  conversionsSchema,
   createLinkSchema,
   emptyToNull,
   importLinksSchema,
@@ -149,6 +150,15 @@ export const dismissLinkHealthAction = authActionClient
     await getContainer().healthMonitor.dismiss(ctx.actor, parsedInput.id);
     revalidateDashboard();
     return { ok: true };
+  });
+
+export const setConversionsAction = authActionClient
+  .metadata({ name: "set-conversions" })
+  .inputSchema(conversionsSchema)
+  .action(async ({ parsedInput, ctx }) => {
+    await getContainer().links.update(ctx.actor, parsedInput.id, { conversionsEnabled: parsedInput.enabled });
+    revalidateDashboard();
+    return { enabled: parsedInput.enabled };
   });
 
 export const setPublicStatsAction = authActionClient

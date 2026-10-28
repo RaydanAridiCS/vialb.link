@@ -71,6 +71,8 @@ export const links = pgTable(
     claimTokenHash: text("claim_token_hash"),
     /** Unguessable token of the opt-in public stats page (`/stats/<token>`); `null` = no public page. */
     statsToken: text("stats_token"),
+    /** Opt-in conversion tracking: the redirect adds a random `vclid` to the destination and stores it on the click. */
+    conversionsEnabled: boolean("conversions_enabled").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
@@ -121,10 +123,20 @@ export const clicks = pgTable(
     isBot: boolean("is_bot").notNull().default(false),
     /** Which routing rule sent the visitor; `null` when the link has no rules. */
     routedBy: text("routed_by"),
+    /**
+     * Random per-click id (96 bits, derived from nothing) handed to the destination as `vclid` so it can report a
+     * conversion. A bearer secret: never exported or shown. `null` when the link does not track conversions.
+     */
+    clickRef: text("click_ref"),
   },
   (t) => [
     index("clicks_link_occurred_idx").on(t.linkId, t.occurredAt),
     index("clicks_link_country_idx").on(t.linkId, t.country),
     index("clicks_link_is_bot_idx").on(t.linkId, t.isBot),
+    // Clicks arrive in time order, so a BRIN index is tiny and makes "older than the cutoff" scans cheap.
+    uniqueIndex("clicks_click_ref_unique")
+      .on(t.clickRef)
+      .where(sql`${t.clickRef} is not null`),
+    index("clicks_occurred_brin").using("brin", t.occurredAt),
   ],
 );

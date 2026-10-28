@@ -86,6 +86,8 @@ export interface UpdateLinkCommand {
   tags?: string[];
   /** `true` turns the public stats page on (keeping its address), `false` turns it off. */
   publicStats?: boolean;
+  /** Turns conversion tracking (the `vclid` added to the destination) on or off. */
+  conversionsEnabled?: boolean;
   /** `undefined` keeps the current routing rules; an array (even empty) replaces them. */
   routingRules?: RoutingRule[];
   /** `undefined` keeps the current card, `null` removes it. */
@@ -598,6 +600,7 @@ export class LinkService {
       patch.expiresAt = resolveExpiresAt(cmd.expiration.preset, cmd.expiration.customAt, now);
     }
     if (cmd.maxClicks !== undefined) patch.maxClicks = cmd.maxClicks;
+    if (cmd.conversionsEnabled !== undefined) patch.conversionsEnabled = cmd.conversionsEnabled;
     if (cmd.publicStats !== undefined) {
       patch.statsToken = cmd.publicStats ? (link.statsToken ?? randomToken(16)) : null;
     }

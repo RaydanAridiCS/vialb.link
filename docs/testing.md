@@ -134,6 +134,12 @@ failed, and it was restored.
 | Let a sent email be claimed again after the stale timeout          | `report.service.test.ts` (**survived first**; test added) |
 | Count bots on the public stats page                                | `public-stats.test.ts`                                    |
 | Ignore "the scheduled hour has not come yet" in the schedule maths | `report.service.test.ts`                                  |
+| Accept three decimals in a conversion amount                       | `conversions-lib.test.ts`                                 |
+| Drop the conversion time window                                    | `conversions.test.ts`                                     |
+| `append` instead of `set` for the `vclid` (forged ids survive)     | `conversions-lib.test.ts`                                 |
+| Flip the sign of a period-over-period delta                        | `analytics-compare.test.ts` (5 tests)                     |
+| Retention deletes at `<=` the cutoff instead of `<`                | `retention.service.test.ts`                               |
+| Accept conversions on disabled links / from bot clicks             | `conversions.test.ts` (one each)                          |
 
 ## Coverage
 

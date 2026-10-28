@@ -1,10 +1,12 @@
 import { RATE_LIMITS } from "@/lib/constants";
+import { appendClickRef } from "@/lib/conversions";
 import { hasPixels, optsOutOfTracking, parseConsent, type LinkPixels } from "@/lib/pixels";
 import { needsGeo, pickRoute } from "@/lib/routing";
 import { CARD_HEIGHT, CARD_WIDTH } from "@/lib/social-card";
 import type { Link } from "@/server/domain/types";
 import { GoneError, NotFoundError, RateLimitedError, ValidationError } from "@/server/errors";
 import { isExpired } from "@/server/lib/expiry";
+import { randomToken } from "@/server/lib/hashing";
 import { renderPreviewHtml } from "@/server/lib/html";
 import { forwardQuery } from "@/server/lib/query";
 import { detectPlatform, isAnyBot } from "@/server/lib/user-agent";
@@ -20,13 +22,21 @@ export type RedirectDecision =
   | { kind: "gone"; reason: "disabled" | "expired" | "limit" }
   | { kind: "preview"; linkId: string; html: string }
   | { kind: "password" }
-  | { kind: "redirect"; linkId: string; destination: string; routedBy: string | null }
+  | {
+      kind: "redirect";
+      linkId: string;
+      destination: string;
+      routedBy: string | null;
+      /** The `vclid` added to `destination`, stored with the click; `null` unless the link tracks conversions. */
+      clickRef: string | null;
+    }
   /** The link has retargeting pixels: show the consent page, which forwards to `destination`. */
   | {
       kind: "pixel";
       linkId: string;
       destination: string;
       routedBy: string | null;
+      clickRef: string | null;
       pixels: LinkPixels;
       /** `granted` when the visitor already agreed; the page then loads tags without asking again. */
       consent: "ask" | "granted";
@@ -115,9 +125,23 @@ export class RedirectService {
     const target = this.deps.forwardQueryParams
       ? forwardQuery(destination, request.searchParams)
       : destination;
-    const pixel = await this.pixelStep(link, target, request.headers);
-    if (pixel) return { kind: "pixel", linkId: link.id, destination: target, routedBy, ...pixel };
-    return { kind: "redirect", linkId: link.id, destination: target, routedBy };
+    const { destination: finalTarget, clickRef } = this.withClickRef(link, target);
+    const pixel = await this.pixelStep(link, finalTarget, request.headers);
+    if (pixel) {
+      return { kind: "pixel", linkId: link.id, destination: finalTarget, routedBy, clickRef, ...pixel };
+    }
+    return { kind: "redirect", linkId: link.id, destination: finalTarget, routedBy, clickRef };
+  }
+
+  /**
+   * Links that track conversions hand the destination a fresh random id (`vclid`). It is derived from
+   * nothing about the visitor, and only real redirects get one (bots and previews never reach this point).
+   */
+  private withClickRef(link: Link, destination: string): { destination: string; clickRef: string | null } {
+    if (!link.conversionsEnabled || !/^https?:\/\//i.test(destination))
+      return { destination, clickRef: null };
+    const clickRef = randomToken(12);
+    return { destination: appendClickRef(destination, clickRef), clickRef };
   }
 
   /**
@@ -180,7 +204,7 @@ export class RedirectService {
   /** Password page submit. Generic errors only; rate limited per (IP, code) and per code. */
   async unlock(
     request: UnlockRequest,
-  ): Promise<{ linkId: string; destination: string; routedBy: string | null }> {
+  ): Promise<{ linkId: string; destination: string; routedBy: string | null; clickRef: string | null }> {
     await this.limit(`pw:ip:${request.ip ?? "unknown"}:${request.code}`, RATE_LIMITS.passwordPerIpCode);
     await this.limit(`pw:code:${request.code}`, RATE_LIMITS.passwordPerCode);
 
@@ -206,14 +230,11 @@ export class RedirectService {
       ip: request.ip,
       headers: request.headers,
     });
-    return {
-      linkId: link.id,
-      destination:
-        this.deps.forwardQueryParams && request.searchParams
-          ? forwardQuery(destination, request.searchParams)
-          : destination,
-      routedBy,
-    };
+    const target =
+      this.deps.forwardQueryParams && request.searchParams
+        ? forwardQuery(destination, request.searchParams)
+        : destination;
+    return { linkId: link.id, ...this.withClickRef(link, target), routedBy };
   }
 
   private async limit(key: string, rule: { limit: number; windowMs: number }) {

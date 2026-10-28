@@ -6,7 +6,10 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } f
 import { formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-const clicksConfig = { clicks: { label: "Clicks", color: "var(--chart-1)" } } satisfies ChartConfig;
+const clicksConfig = {
+  clicks: { label: "Clicks", color: "var(--chart-1)" },
+  previous: { label: "Previous period", color: "var(--muted-foreground)" },
+} satisfies ChartConfig;
 
 function subscribeReducedMotion(onChange: () => void) {
   const query = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -39,7 +42,7 @@ export function ClicksChart({
   className,
   compact = false,
 }: {
-  data: { bucket: string; clicks: number }[];
+  data: { bucket: string; clicks: number; previous?: number }[];
   bucket: "hour" | "day";
   className?: string;
   compact?: boolean;
@@ -90,6 +93,19 @@ export function ClicksChart({
             />
           }
         />
+        {data.some((p) => p.previous !== undefined) ? (
+          <Area
+            dataKey="previous"
+            type="monotone"
+            fill="none"
+            stroke="var(--color-previous)"
+            strokeWidth={1.5}
+            strokeDasharray="4 4"
+            dot={false}
+            activeDot={false}
+            isAnimationActive={false}
+          />
+        ) : null}
         <Area
           dataKey="clicks"
           type="monotone"

@@ -2,11 +2,12 @@
 
 Vialb runs a small scheduler inside the server process. There is no worker container and no queue.
 
-| Job                   | Runs             | Does                                                                   | Switched by                                         |
-| --------------------- | ---------------- | ---------------------------------------------------------------------- | --------------------------------------------------- |
-| `link-health`         | every 5 minutes  | Checks the links that are due ([link health](link-health.md))          | `HEALTH_MONITOR_ENABLED` / admin setting            |
-| `weekly-report`       | every 15 minutes | Sends the weekly report inside its send window ([reports](reports.md)) | `WEEKLY_REPORT_ENABLED` / admin setting, needs SMTP |
-| `broken-links-digest` | every 15 minutes | Sends the weekly list of broken links                                  | the two settings above                              |
+| Job                   | Runs             | Does                                                                                              | Switched by                                         |
+| --------------------- | ---------------- | ------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| `link-health`         | every 5 minutes  | Checks the links that are due ([link health](link-health.md))                                     | `HEALTH_MONITOR_ENABLED` / admin setting            |
+| `weekly-report`       | every 15 minutes | Sends the weekly report inside its send window ([reports](reports.md))                            | `WEEKLY_REPORT_ENABLED` / admin setting, needs SMTP |
+| `retention`           | every 24 hours   | Deletes old daily salts and, if set, clicks past the retention period ([retention](retention.md)) | always on (clicks only with a period)               |
+| `broken-links-digest` | every 15 minutes | Sends the weekly list of broken links                                                             | the two settings above                              |
 
 Each job checks its own switch on every pass, so changing a setting in the admin UI takes effect
 without a restart.

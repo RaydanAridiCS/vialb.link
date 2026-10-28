@@ -11,6 +11,7 @@ import type { PasswordHasher } from "@/server/ports/password-hasher";
 import type { ProbeResult, UrlProbe } from "@/server/ports/url-probe";
 import type { UrlSafetyChecker } from "@/server/ports/url-safety-checker";
 import { InMemoryBioRepository } from "@/server/repositories/in-memory/bio.repository.memory";
+import { InMemoryConversionRepository } from "@/server/repositories/in-memory/conversion.repository.memory";
 import { InMemoryJobRepository } from "@/server/repositories/in-memory/job.repository.memory";
 import {
   InMemoryEmailDeliveryRepository,
@@ -34,7 +35,9 @@ import { CardService } from "@/server/services/card.service";
 import { ApiKeyService } from "@/server/services/api-key.service";
 import { LinkService } from "@/server/services/link.service";
 import { QrService } from "@/server/services/qr.service";
+import { ConversionService } from "@/server/services/conversion.service";
 import { ReportService } from "@/server/services/report.service";
+import { RetentionService } from "@/server/services/retention.service";
 import { RedirectService } from "@/server/services/redirect.service";
 import { SettingsService } from "@/server/services/settings.service";
 import { WorkspaceService } from "@/server/services/workspace.service";
@@ -141,6 +144,8 @@ export interface FixtureOptions {
   pixelsEnabled?: boolean;
   healthMonitorEnabled?: boolean;
   weeklyReportEnabled?: boolean;
+  clickRetentionDays?: number;
+  conversionWindowDays?: number;
   healthFailureThreshold?: number;
   /** Batch size, concurrency and per-host pacing of the health monitor (defaults: no pacing). */
   healthPacing?: Partial<Pick<HealthMonitorDeps, "batchSize" | "concurrency" | "hostGapMs" | "sleep">>;
@@ -157,6 +162,7 @@ export function buildFixture(options: FixtureOptions = {}) {
   const deliveryRepo = new InMemoryEmailDeliveryRepository();
   const probe = new FakeUrlProbe();
   const clickRepo = new InMemoryClickRepository(linkRepo);
+  const conversionRepo = new InMemoryConversionRepository(clickRepo, linkRepo);
   const bioRepo = new InMemoryBioRepository(() => clock.now());
   const settingsRepo = new InMemorySettingsRepository();
   const userRepo = new InMemoryUserRepository();
@@ -180,6 +186,7 @@ export function buildFixture(options: FixtureOptions = {}) {
       weeklyReportEnabled: options.weeklyReportEnabled ?? false,
       reportSendDay: 1,
       reportSendHourUtc: 8,
+      clickRetentionDays: options.clickRetentionDays ?? 0,
     },
     () => clock.now().getTime(),
   );
@@ -220,6 +227,14 @@ export function buildFixture(options: FixtureOptions = {}) {
     clock,
     logger,
     limiter,
+    conversions: conversionRepo,
+  });
+  const conversions = new ConversionService({
+    conversions: conversionRepo,
+    limiter,
+    clock,
+    logger,
+    windowDays: options.conversionWindowDays ?? 30,
   });
   const workspaces = new WorkspaceService({
     workspaces: workspaceRepo,
@@ -264,6 +279,14 @@ export function buildFixture(options: FixtureOptions = {}) {
     siteUrl: SITE_URL,
     siteName: "Vialb",
   });
+  const retention = new RetentionService({
+    clicks: clickRepo,
+    settingsRepo,
+    settings,
+    clock,
+    logger,
+    sleep: async () => {},
+  });
   /** A person acting in a workspace they belong to, resolved the way a request does it. */
   const actAs = async (userId: string, workspaceId?: string, role: "user" | "admin" = "user") =>
     userActor(userId, role, await workspaces.resolveAccess(userId, workspaceId));
@@ -277,6 +300,9 @@ export function buildFixture(options: FixtureOptions = {}) {
     healthRepo,
     healthMonitor,
     reports,
+    retention,
+    conversions,
+    conversionRepo,
     preferencesRepo,
     deliveryRepo,
     jobRepo,

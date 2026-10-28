@@ -22,6 +22,7 @@ export interface SettingsUpdate {
   weeklyReportEnabled?: boolean | null;
   reportSendDay?: number | null;
   reportSendHourUtc?: number | null;
+  clickRetentionDays?: number | null;
 }
 
 /**
@@ -67,6 +68,7 @@ export class SettingsService {
       weeklyReportEnabled: null,
       reportSendDay: null,
       reportSendHourUtc: null,
+      clickRetentionDays: null,
     };
     try {
       const override = (await this.repo.get()) ?? fallbackOverride;
@@ -89,6 +91,12 @@ export class SettingsService {
         throw new ValidationError("The report day must be between 0 (Sunday) and 6 (Saturday)");
       }
       patch.reportSendDay = update.reportSendDay;
+    }
+    if (update.clickRetentionDays !== undefined) {
+      if (update.clickRetentionDays !== null && !isIntBetween(update.clickRetentionDays, 0, 3650)) {
+        throw new ValidationError("Click retention must be 0 (keep forever) or between 1 and 3650 days");
+      }
+      patch.clickRetentionDays = update.clickRetentionDays;
     }
     if (update.reportSendHourUtc !== undefined) {
       if (update.reportSendHourUtc !== null && !isIntBetween(update.reportSendHourUtc, 0, 23)) {
@@ -137,6 +145,7 @@ export class SettingsService {
       weeklyReportEnabled: override?.weeklyReportEnabled ?? this.defaults.weeklyReportEnabled,
       reportSendDay: override?.reportSendDay ?? this.defaults.reportSendDay,
       reportSendHourUtc: override?.reportSendHourUtc ?? this.defaults.reportSendHourUtc,
+      clickRetentionDays: override?.clickRetentionDays ?? this.defaults.clickRetentionDays,
     };
   }
 }

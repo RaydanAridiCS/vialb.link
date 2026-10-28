@@ -22,6 +22,7 @@ import type { RateLimiter } from "@/server/ports/rate-limiter";
 import { DrizzleBioRepository } from "@/server/repositories/drizzle/bio.repository.drizzle";
 import { DrizzleApiKeyRepository } from "@/server/repositories/drizzle/api-key.repository.drizzle";
 import { DrizzleClickRepository } from "@/server/repositories/drizzle/click.repository.drizzle";
+import { DrizzleConversionRepository } from "@/server/repositories/drizzle/conversion.repository.drizzle";
 import { DrizzleHealthRepository } from "@/server/repositories/drizzle/health.repository.drizzle";
 import { DrizzleJobRepository } from "@/server/repositories/drizzle/job.repository.drizzle";
 import { DrizzleEmailDeliveryRepository } from "@/server/repositories/drizzle/email-delivery.repository.drizzle";
@@ -41,7 +42,9 @@ import { CardService } from "@/server/services/card.service";
 import { ApiKeyService } from "@/server/services/api-key.service";
 import { LinkService } from "@/server/services/link.service";
 import { QrService } from "@/server/services/qr.service";
+import { ConversionService } from "@/server/services/conversion.service";
 import { ReportService } from "@/server/services/report.service";
+import { RetentionService } from "@/server/services/retention.service";
 import { RedirectService } from "@/server/services/redirect.service";
 import { SettingsService } from "@/server/services/settings.service";
 import { WorkspaceService } from "@/server/services/workspace.service";
@@ -75,6 +78,7 @@ function buildContainer() {
     linkHealth: new DrizzleLinkHealthRepository(db),
     preferences: new DrizzleUserPreferencesRepository(db),
     deliveries: new DrizzleEmailDeliveryRepository(db),
+    conversions: new DrizzleConversionRepository(db),
   };
 
   let limiter: RateLimiter = new MemoryRateLimiter();
@@ -116,6 +120,7 @@ function buildContainer() {
     weeklyReportEnabled: env.WEEKLY_REPORT_ENABLED,
     reportSendDay: env.REPORT_SEND_DAY,
     reportSendHourUtc: env.REPORT_SEND_HOUR_UTC,
+    clickRetentionDays: env.CLICK_RETENTION_DAYS,
   });
 
   const safety = env.SAFE_BROWSING_API_KEY
@@ -191,6 +196,14 @@ function buildContainer() {
     siteName: APP_NAME,
   });
 
+  const retention = new RetentionService({
+    clicks: repos.clicks,
+    settingsRepo: repos.settings,
+    settings,
+    clock,
+    logger,
+  });
+
   // Scheduled work. Each pass picks up whatever is due, so the intervals here only bound how late it can be.
   const jobList: Job[] = [
     {
@@ -212,6 +225,8 @@ function buildContainer() {
       isEnabled: () => reports.isBrokenLinksEnabled(),
       run: () => reports.runBrokenLinks(),
     },
+    // Always on: pruning old daily salts is part of the privacy design; click deletion needs a retention period.
+    { name: "retention", intervalMs: 24 * 3_600_000, run: () => retention.run() },
   ];
   const jobRunner = new JobRunner({ clock, repo: repos.jobs, jobs: jobList, logger });
 
@@ -223,6 +238,7 @@ function buildContainer() {
     jobRunner,
     healthMonitor,
     reports,
+    retention,
     workspaces,
     settings,
     abuse,
@@ -246,6 +262,14 @@ function buildContainer() {
       clock,
       logger,
       limiter,
+      conversions: repos.conversions,
+    }),
+    conversions: new ConversionService({
+      conversions: repos.conversions,
+      limiter,
+      clock,
+      logger,
+      windowDays: env.CONVERSION_WINDOW_DAYS,
     }),
     bio: new BioService({
       bio: repos.bio,

@@ -3,7 +3,7 @@
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useAction } from "next-safe-action/hooks";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import type { InstanceSettings, InstanceSettingsOverride } from "@/server/domain/types";
-import { updateInstanceSettingsAction } from "../actions";
+import { previewRetentionAction, updateInstanceSettingsAction } from "../actions";
 
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"] as const;
 
@@ -36,6 +36,22 @@ export function InstanceSettingsForm({
   const [reports, setReports] = useState<Tri>(tri(overrides.weeklyReportEnabled));
   const [reportDay, setReportDay] = useState(overrides.reportSendDay?.toString() ?? "");
   const [reportHour, setReportHour] = useState(overrides.reportSendHourUtc?.toString() ?? "");
+  const [retention, setRetention] = useState(overrides.clickRetentionDays?.toString() ?? "");
+  const preview = useAction(previewRetentionAction);
+  useEffect(() => {
+    const days = Number(retention);
+    if (retention === "" || !Number.isInteger(days) || days < 1) return;
+    const handle = setTimeout(() => preview.execute({ days }), 400);
+    return () => clearTimeout(handle);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `preview.execute` is stable
+  }, [retention]);
+  const checked = preview.result.data;
+  const retentionNote =
+    checked && checked.days === Number(retention)
+      ? checked.wouldDelete === 0
+        ? "Nothing is older than this today."
+        : `${checked.wouldDelete.toLocaleString("en")} of ${checked.total.toLocaleString("en")} stored clicks are older than this and would be deleted by the next daily run.`
+      : null;
   const [ttl, setTtl] = useState(overrides.anonLinkTtlHours?.toString() ?? "");
   const [domainsMode, setDomainsMode] = useState<"default" | "custom">(
     overrides.blockedDomains ? "custom" : "default",
@@ -72,6 +88,7 @@ export function InstanceSettingsForm({
             weeklyReportEnabled: reports,
             reportSendDay: reportDay === "" ? "" : Number(reportDay),
             reportSendHourUtc: reportHour === "" ? "" : Number(reportHour),
+            clickRetentionDays: retention === "" ? "" : Number(retention),
             anonLinkTtlHours: ttl === "" ? "" : Number(ttl),
             blockedDomains: domains,
             blockedDomainsMode: domainsMode,
@@ -192,6 +209,22 @@ export function InstanceSettingsForm({
             <p className="text-xs text-muted-foreground">
               Currently: {WEEKDAYS[effective.reportSendDay]} at{" "}
               {String(effective.reportSendHourUtc).padStart(2, "0")}:00 UTC.
+            </p>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="retention">Keep click data for (days)</Label>
+            <Input
+              id="retention"
+              type="number"
+              min={0}
+              max={3650}
+              placeholder={`Default: ${defaults.clickRetentionDays === 0 ? "forever" : defaults.clickRetentionDays}`}
+              value={retention}
+              onChange={(e) => setRetention(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground" data-testid="retention-note">
+              {retentionNote ??
+                `Currently: ${effective.clickRetentionDays === 0 ? "kept forever" : `${effective.clickRetentionDays} days`}. 0 keeps everything. Older clicks are deleted for good (totals on links stay).`}
             </p>
           </div>
           <div className="space-y-1.5">
