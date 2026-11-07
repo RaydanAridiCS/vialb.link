@@ -1,18 +1,18 @@
 # Git hooks (https://lefthook.dev). Enable once after cloning:
-#   npx lefthook install
+#   pnpm dlx lefthook install
 pre-commit:
   commands:
     lint-staged:
-      run: npx lint-staged
+      run: pnpm dlx lint-staged
 
 commit-msg:
   commands:
     commitlint:
-      run: npx commitlint --edit {1}
+      run: pnpm dlx commitlint --edit {1}
 
 pre-push:
   commands:
     typecheck:
-      run: npm run typecheck
+      run: pnpm run typecheck
     unit-tests:
-      run: npm run test:unit
+      run: pnpm run test:unit

@@ -6,7 +6,7 @@ export const E2E_DATABASE_URL =
   process.env.E2E_DATABASE_URL ?? "postgres://vialb:vialb@localhost:5432/vialb_e2e";
 
 /**
- * E2E tests run against the production build (`npm run build` first) with a
+ * E2E tests run against the production build (`pnpm run build` first) with a
  * dedicated database that is migrated and wiped in global setup.
  */
 export default defineConfig({
@@ -31,7 +31,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: `npx next start -p ${PORT}`,
+    command: `pnpm dlx next start -p ${PORT}`,
     // Liveness only: the web server starts before global setup creates the database.
     url: `${BASE_URL}/api/health?live`,
     // Opt-in only: silently reusing a stale server hides fresh build changes.

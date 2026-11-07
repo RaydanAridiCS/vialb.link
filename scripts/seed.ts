@@ -2,8 +2,8 @@
  * Development / screenshot seed: a demo user, a dozen sample links in two folders, ~30 days of synthetic
  * clicks, an A/B test with conversions, and one link the health monitor has flagged.
  *
- *   npm run seed            (idempotent: skips if the demo user exists)
- *   npm run seed -- --force (wipes the demo user's data and re-seeds)
+ *   pnpm run seed            (idempotent: skips if the demo user exists)
+ *   pnpm run seed -- --force (wipes the demo user's data and re-seeds)
  */
 import { randomUUID } from "node:crypto";
 import { hashPassword } from "better-auth/crypto";

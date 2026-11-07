@@ -15,4 +15,4 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Cache Components is intentionally disabled (`next.config.ts`): the nonce-based CSP in `src/proxy.ts` needs per-request rendering.
 - Domain errors use `Symbol.for` branding + `Symbol.hasInstance` because Next may bundle `src/server/errors.ts` into several chunks.
 - Every server action goes through the clients in `src/server/http/safe-action.ts`; the REST API through `withApiKey`.
-- Before finishing a change run: `npm run lint && npm run typecheck && npm test` (and `npm run build && npm run test:e2e` for UI/route changes).
+- Before finishing a change run: `pnpm run lint && pnpm run typecheck && pnpm test` (and `pnpm run build && pnpm run test:e2e` for UI/route changes).

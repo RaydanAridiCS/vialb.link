@@ -18,7 +18,7 @@ clicks. A link's own visit counter and its access limit are unaffected.
 
 ## Do we need rollups?
 
-The question was whether very large instances need pre-aggregated daily tables. `npm run bench:retention`
+The question was whether very large instances need pre-aggregated daily tables. `pnpm run bench:retention`
 builds a scratch database, inserts synthetic clicks, times the queries the app runs, applies the retention
 delete and times them again. On a development machine with **3,000,000 clicks over 400 days across 200
 links** (delete everything older than 90 days):

@@ -2,19 +2,19 @@
 
 Vialb tests at four levels. Each level has one job, so a failure points at the right place.
 
-| Layer           | Runs in                     | Location            | Needs                | Command                    |
-| --------------- | --------------------------- | ------------------- | -------------------- | -------------------------- |
-| **Unit**        | Node (Vitest `unit`)        | `tests/unit`        | nothing              | `npm run test:unit`        |
-| **Components**  | jsdom (Vitest `components`) | `tests/component`   | nothing              | `npm run test:components`  |
-| **Integration** | Node + real PostgreSQL      | `tests/integration` | Docker or a database | `npm run test:integration` |
-| **End to end**  | Real browser (Playwright)   | `tests/e2e`         | build + database     | `npm run test:e2e`         |
+| Layer           | Runs in                     | Location            | Needs                | Command                     |
+| --------------- | --------------------------- | ------------------- | -------------------- | --------------------------- |
+| **Unit**        | Node (Vitest `unit`)        | `tests/unit`        | nothing              | `pnpm run test:unit`        |
+| **Components**  | jsdom (Vitest `components`) | `tests/component`   | nothing              | `pnpm run test:components`  |
+| **Integration** | Node + real PostgreSQL      | `tests/integration` | Docker or a database | `pnpm run test:integration` |
+| **End to end**  | Real browser (Playwright)   | `tests/e2e`         | build + database     | `pnpm run test:e2e`         |
 
-`npm run test:unit` runs the first two (no Docker needed, a few seconds), `npm test` runs the
-first three, and `npm run test:coverage` adds coverage. Before finishing a change, run:
+`pnpm run test:unit` runs the first two (no Docker needed, a few seconds), `pnpm test` runs the
+first three, and `pnpm run test:coverage` adds coverage. Before finishing a change, run:
 
 ```bash
-npm run lint && npm run typecheck && npm test
-npm run build && npm run test:e2e    # for UI or route changes
+pnpm run lint && pnpm run typecheck && pnpm test
+pnpm run build && pnpm run test:e2e    # for UI or route changes
 ```
 
 ## What goes where
@@ -34,11 +34,11 @@ npm run build && npm run test:e2e    # for UI or route changes
 ## Running each layer
 
 ```bash
-npm run test:unit                     # unit + components, fast
-npx vitest run --project components tests/component/qr-dialog.test.tsx
-npx vitest run --project unit -t "contrast"    # by test name
-npm run test:integration              # Testcontainers starts postgres:17-alpine
-TEST_DATABASE_URL=postgres://... npm run test:integration   # or use your own server (wiped!)
+pnpm run test:unit                     # unit + components, fast
+pnpm dlx vitest run --project components tests/component/qr-dialog.test.tsx
+pnpm dlx vitest run --project unit -t "contrast"    # by test name
+pnpm run test:integration              # Testcontainers starts postgres:17-alpine
+TEST_DATABASE_URL=postgres://... pnpm run test:integration   # or use your own server (wiped!)
 ```
 
 `TEST_DATABASE_URL` must point at a throwaway database: the tests truncate every table.
@@ -47,9 +47,9 @@ TEST_DATABASE_URL=postgres://... npm run test:integration   # or use your own se
 
 ```bash
 docker compose -f docker-compose.dev.yml up -d      # a PostgreSQL server
-npm run build                                       # e2e runs the production build
-npx playwright install chromium                     # once
-E2E_DATABASE_URL=postgres://vialb:vialb@localhost:5432/vialb_e2e npm run test:e2e
+pnpm run build                                       # e2e runs the production build
+pnpm dlx playwright install chromium                     # once
+E2E_DATABASE_URL=postgres://vialb:vialb@localhost:5432/vialb_e2e pnpm run test:e2e
 ```
 
 - The suite creates, migrates and wipes the **`vialb_e2e`** database (never your dev data), then
@@ -158,13 +158,13 @@ failed, and it was restored.
 
 ## Coverage
 
-`npm run test:coverage` measures `src/server/**` and enforces 80% lines/functions/statements and
+`pnpm run test:coverage` measures `src/server/**` and enforces 80% lines/functions/statements and
 70% branches (see `vitest.config.mts`). Pure helpers under `src/lib` and `src/features/*/import`
 are also covered by the unit tests but are not part of the gate yet.
 
 ## Continuous integration
 
-`.github/workflows/ci.yml` runs lint, type check, formatting and `npm run test:unit` (unit +
+`.github/workflows/ci.yml` runs lint, type check, formatting and `pnpm run test:unit` (unit +
 components) in one job, integration tests with coverage against a Postgres service in another, then
 builds the app and runs the Playwright suite. The pre-push hook (`lefthook.yml`) runs the type
-check and `npm run test:unit`.
+check and `pnpm run test:unit`.

@@ -1,10 +1,10 @@
 /**
  * Regenerates the README screenshots in docs/images/ from the demo seed, in light and dark.
  *
- *   npm run screenshots   (needs a built app: `npm run build` first)
+ *   pnpm run screenshots   (needs a built app: `pnpm run build` first)
  *
  * It never touches your development database: it resets a scratch one (SHOTS_DATABASE_URL, default
- * `vialb_shots` on the server DATABASE_URL points at), migrates it, runs `npm run seed` against it,
+ * `vialb_shots` on the server DATABASE_URL points at), migrates it, runs `pnpm run seed` against it,
  * starts `next start` on a free port and drives Chromium through the pages. PNGs are optimised with sharp.
  */
 import { type ChildProcess, spawn } from "node:child_process";
@@ -99,10 +99,10 @@ async function main() {
 
   console.log(`[screenshots] resetting ${new URL(database).pathname.slice(1)}`);
   await resetDatabase(database);
-  await run("npm", ["run", "db:migrate"], env);
-  await run("npm", ["run", "seed"], env);
+  await run("pnpm", ["run", "db:migrate"], env);
+  await run("pnpm", ["run", "seed"], env);
 
-  const server = spawn("npx", ["next", "start", "-p", String(port)], {
+  const server = spawn("pnpm", ["dlx", "next", "start", "-p", String(port)], {
     env,
     stdio: "ignore",
     shell: process.platform === "win32",

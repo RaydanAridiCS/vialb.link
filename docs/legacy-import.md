@@ -51,9 +51,9 @@ A CSV with the same header row works too.
 
 ```bash
 # preview: validates rows and prints what would happen (code conflicts are only detected in a real run)
-npm run import:legacy -- ./legacy-links.json --dry-run
+pnpm run import:legacy -- ./legacy-links.json --dry-run
 # import
-npm run import:legacy -- ./legacy-links.json
+pnpm run import:legacy -- ./legacy-links.json
 ```
 
 With Docker, run it from a checkout of the repository with `DATABASE_URL`

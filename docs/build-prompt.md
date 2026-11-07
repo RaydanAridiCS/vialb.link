@@ -8,13 +8,13 @@ Do not copy that code. The requirements below are distilled from it, including i
 Project name: **Vialb** (keep the name in one constant/config so it is trivial to rename).
 
 Work in phases. At the end of each phase, run typecheck + lint + tests and commit with a Conventional Commit message.
-Before choosing versions, check the latest stable versions (`npm view <pkg> version`) and use them; do not use canary/beta.
+Before choosing versions, check the latest stable versions (`pnpm view <pkg> version`) and use them; do not use canary/beta.
 
 ---
 
 ## 1. Tech stack (use exactly this unless a package is dead/deprecated, then explain the swap)
 
-- **Runtime / PM:** Node.js current LTS, **npm**, `"packageManager"` field set, `.nvmrc`.
+- **Runtime / PM:** Node.js current LTS, **pnpm**, `"packageManager"` field set, `.nvmrc`.
 - **Framework:** **Next.js (latest stable, App Router, React Server Components, Server Actions, Route Handlers)**, `output: "standalone"`.
   Use the request-interception file name the installed Next version expects (`proxy.ts` on Next 16+, `middleware.ts` before).
 - **Language:** TypeScript `strict: true`, `noUncheckedIndexedAccess: true`, path alias `@/*`.
@@ -225,7 +225,7 @@ Order of checks:
 - `.github/`: `ISSUE_TEMPLATE/` (bug, feature, config.yml), `PULL_REQUEST_TEMPLATE.md`, `dependabot.yml` (npm + actions + docker, grouped), `FUNDING.yml` placeholder, `CODEOWNERS`.
 - Workflows: `ci.yml` (install with cache → lint → typecheck → unit → integration with Postgres service → build → Playwright E2E against built app), `release-please.yml`, `docker-publish.yml`, `codeql.yml`.
 - `.editorconfig`, `.gitattributes`, `.gitignore`, `.nvmrc`, `.vscode/extensions.json`.
-- `npm seed` script creating demo user + sample links + synthetic clicks for screenshots/dev.
+- `pnpm run seed` script creating demo user + sample links + synthetic clicks for screenshots/dev.
 
 ---
 
@@ -256,7 +256,7 @@ and inserts links (mapping users by email if they exist, otherwise assigning to 
 9. Docker, compose, entrypoint migrations, health check, GHCR workflow, self-hosting docs.
 10. OSS polish: README, CONTRIBUTING, CoC, SECURITY, templates, CI, release-please, dependabot, CodeQL, seed script, screenshots placeholders, legacy import script.
 
-**Definition of done:** `npm install && npm lint && npm typecheck && npm test && npm build && npm test:e2e` all pass, and `docker compose up` on a clean machine gives a working instance at `SITE_URL`. A new user can sign up, shorten a link, open it, and see the click in analytics within seconds. Summarize anything you deferred in `ROADMAP.md`.
+**Definition of done:** `pnpm install && pnpm run lint && pnpm run typecheck && pnpm test && pnpm run build && pnpm run test:e2e` all pass, and `docker compose up` on a clean machine gives a working instance at `SITE_URL`. A new user can sign up, shorten a link, open it, and see the click in analytics within seconds. Summarize anything you deferred in `ROADMAP.md`.
 
 Verification
 

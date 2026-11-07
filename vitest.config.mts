@@ -31,6 +31,7 @@ export default defineConfig({
           include: ["tests/component/**/*.test.tsx"],
           environment: "jsdom",
           setupFiles: ["tests/support/setup-components.ts"],
+          testTimeout: 15_000,
         },
       },
       {

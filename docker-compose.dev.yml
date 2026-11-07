@@ -1,4 +1,4 @@
-# Local development services only (the app runs on your machine with `npm run dev`).
+# Local development services only (the app runs on your machine with `pnpm run dev`).
 # Port already used? POSTGRES_PORT=5433 docker compose -f docker-compose.dev.yml up -d
 #   docker compose -f docker-compose.dev.yml up -d
 services:

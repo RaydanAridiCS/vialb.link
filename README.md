@@ -16,7 +16,7 @@
 
 ---
 
-<!-- Screenshots are generated: `npm run build && npm run screenshots` (scratch DB, demo seed, light + dark). -->
+<!-- Screenshots are generated: `pnpm run build && pnpm run screenshots` (scratch DB, demo seed, light + dark). -->
 
 <table>
 <tr>
@@ -69,12 +69,12 @@ Coolify/Dokploy, GeoLite2, backups and upgrades.
 ## Local development
 
 ```bash
-npm install
+pnpm install
 cp .env.example .env
 docker compose -f docker-compose.dev.yml up -d   # PostgreSQL 17
-npm run db:migrate
-npm run seed        # optional demo data → demo@vialb.local / demo-password-123
-npm run dev
+pnpm run db:migrate
+pnpm run seed        # optional demo data → demo@vialb.local / demo-password-123
+pnpm run dev
 ```
 
 Everything else (tests, scripts, conventions) is in [CONTRIBUTING.md](CONTRIBUTING.md).

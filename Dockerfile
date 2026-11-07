@@ -5,15 +5,17 @@
 ARG NODE_VERSION=24
 
 FROM node:${NODE_VERSION}-alpine AS base
-RUN apk add --no-cache libc6-compat
+RUN sed -i 's/dl-cdn.alpinelinux.org/uk.alpinelinux.org/g' /etc/apk/repositories && \
+    apk add --no-cache libc6-compat
+RUN corepack enable
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# ---- deps: install exactly what package-lock.json pins --------------------
+# ---- deps: install exactly what pnpm-lock.yaml pins -----------------------
 FROM base AS deps
-COPY package.json package-lock.json ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 # CI=true keeps lefthook from trying to install git hooks inside the image.
-RUN --mount=type=cache,target=/root/.npm CI=true npm ci --no-audit --no-fund
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store CI=true pnpm install --frozen-lockfile
 
 # ---- build: Next.js standalone output + bundled migration runner ----------
 FROM base AS build
@@ -24,7 +26,7 @@ COPY . .
 ENV SITE_URL=http://localhost:3000 \
     DATABASE_URL=postgres://build:build@localhost:5432/build \
     BETTER_AUTH_SECRET=build-time-placeholder-secret-not-used-at-runtime
-RUN npm run build && npm run build:migrate
+RUN pnpm run build && pnpm run build:migrate
 
 # ---- runner ---------------------------------------------------------------
 FROM node:${NODE_VERSION}-alpine AS runner
@@ -36,7 +38,9 @@ ENV NODE_ENV=production \
     MIGRATIONS_DIR=/app/migrations
 
 # QR codes with a frame are rasterised by sharp (librsvg), which needs a system font for the badge text.
-RUN apk add --no-cache fontconfig ttf-dejavu && \
+RUN sed -i 's/dl-cdn.alpinelinux.org/uk.alpinelinux.org/g' /etc/apk/repositories && \
+    apk update && \
+    apk add --no-cache fontconfig ttf-dejavu && \
     addgroup -S -g 1001 nodejs && adduser -S -u 1001 -G nodejs vialb
 
 COPY --from=build --chown=vialb:nodejs /app/.next/standalone ./
