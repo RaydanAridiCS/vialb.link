@@ -16,7 +16,6 @@ Security issues go through [private advisories](SECURITY.md), never public issue
 ```bash
 git clone https://github.com/RaydanAridiCS/vialb.link.git && cd vialb.link
 pnpm install
-pnpm dlx lefthook install          # git hooks: lint-staged, commitlint, pre-push checks
 cp .env.example .env          # defaults work for local development
 docker compose -f docker-compose.dev.yml up -d   # Postgres on :5432 (POSTGRES_PORT=… to change)
 pnpm run db:migrate
@@ -106,7 +105,7 @@ Read [docs/architecture.md](docs/architecture.md) before larger changes. In shor
 - Branch from `main`: `feat/short-description`, `fix/…`, `docs/…`.
 - Use [Conventional Commits](https://www.conventionalcommits.org):
   `feat(links): add tag filter`, `fix(redirect): …`, `docs: …`, `chore(deps): …`.
-  commitlint checks this in the `commit-msg` hook; release-please builds the
+  commitlint checks this in CI; release-please builds the
   changelog and version from it.
 - Keep PRs focused; fill in the PR template; CI (lint, typecheck, unit,
   integration, build, E2E, Docker build, CodeQL) must be green.

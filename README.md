@@ -141,7 +141,7 @@ and more examples in [docs/api.md](docs/api.md). Tags and the UTM builder are de
 | Security & privacy | argon2id, nonce-based CSP, hashed visitor IDs, rate limiting (memory/Redis), Turnstile, Safe Browsing                          |
 | API docs           | OpenAPI 3.1 via zod-to-openapi, Scalar                                                                                         |
 | Testing            | Vitest (unit + Testcontainers integration), Playwright (E2E), Testing Library                                                  |
-| Tooling            | ESLint (flat, typescript-eslint strict), Prettier, lefthook, lint-staged, commitlint, release-please                           |
+| Tooling            | ESLint (flat, typescript-eslint strict), Prettier, lint-staged, commitlint, release-please                                    |
 | Delivery           | Multi-stage Docker image (non-root, standalone), Docker Compose, GHCR, GitHub Actions, CodeQL, Dependabot                      |
 
 ## Architecture

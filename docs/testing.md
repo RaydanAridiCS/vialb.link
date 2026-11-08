@@ -166,5 +166,4 @@ are also covered by the unit tests but are not part of the gate yet.
 
 `.github/workflows/ci.yml` runs lint, type check, formatting and `pnpm run test:unit` (unit +
 components) in one job, integration tests with coverage against a Postgres service in another, then
-builds the app and runs the Playwright suite. The pre-push hook (`lefthook.yml`) runs the type
-check and `pnpm run test:unit`.
+builds the app and runs the Playwright suite.

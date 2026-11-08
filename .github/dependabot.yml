@@ -44,7 +44,6 @@ updates:
             "typescript*",
             "@typescript-eslint/*",
             "prettier*",
-            "lefthook",
             "lint-staged",
             "@commitlint/*",
           ]

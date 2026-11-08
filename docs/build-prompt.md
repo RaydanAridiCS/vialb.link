@@ -33,7 +33,7 @@ Before choosing versions, check the latest stable versions (`pnpm view <pkg> ver
 - **Anti-abuse (optional):** Cloudflare Turnstile for anonymous creation when keys are set; domain blocklist; optional Google Safe Browsing check when `SAFE_BROWSING_API_KEY` is set.
 - **Logging:** `pino` (pretty in dev, JSON in prod). **Env:** `@t3-oss/env-nextjs` + zod; app must fail fast on bad env.
 - **Testing:** **Vitest** (unit + integration), **Testcontainers** (`@testcontainers/postgresql`) for repository integration tests, **Playwright** for E2E, `@testing-library/react` for components.
-- **Quality:** ESLint (flat config, `next/core-web-vitals`, `typescript-eslint` strict), Prettier + `prettier-plugin-tailwindcss`, `lefthook` (or husky) + `lint-staged`, `commitlint` (conventional).
+- **Quality:** ESLint (flat config, `next/core-web-vitals`, `typescript-eslint` strict), Prettier + `prettier-plugin-tailwindcss`, `lint-staged`, `commitlint` (conventional).
 - **API docs:** OpenAPI 3.1 generated from zod (`zod-openapi` or `@asteasolutions/zod-to-openapi`), served at `/api/v1/openapi.json`, rendered at `/docs/api` (Scalar).
 
 ---
@@ -245,7 +245,7 @@ and inserts links (mapping users by email if they exist, otherwise assigning to 
 ---
 
 ## 11. Execution phases (commit after each, all checks green)
-1. Scaffold: Next.js + TS strict + Tailwind v4 + shadcn init + ESLint/Prettier/lefthook/commitlint + Vitest + Playwright + env validation + pino + MIT LICENSE + base README.
+1. Scaffold: Next.js + TS strict + Tailwind v4 + shadcn init + ESLint/Prettier/commitlint + Vitest + Playwright + env validation + pino + MIT LICENSE + base README.
 2. DB: Drizzle schema, migrations, docker-compose.dev, container.ts, repository interfaces + Drizzle + in-memory impls, integration tests.
 3. Auth: Better Auth (email/password, OAuth optional, 2FA, admin, sessions), auth pages, protected layouts, first-user-admin.
 4. Links: schemas, services, server actions, create form, landing quick box, dashboard table, edit, delete, enable/disable, QR.

@@ -14,7 +14,6 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # ---- deps: install exactly what pnpm-lock.yaml pins -----------------------
 FROM base AS deps
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
-# CI=true keeps lefthook from trying to install git hooks inside the image.
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store CI=true pnpm install --frozen-lockfile
 
 # ---- build: Next.js standalone output + bundled migration runner ----------

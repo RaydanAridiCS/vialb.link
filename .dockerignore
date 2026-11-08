@@ -16,4 +16,3 @@ docs
 !.env.example
 Dockerfile
 docker-compose*.yml
-lefthook.yml
