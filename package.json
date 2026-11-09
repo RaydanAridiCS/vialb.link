@@ -74,7 +74,7 @@
   "devDependencies": {
     "@commitlint/cli": "^21.2.3",
     "@commitlint/config-conventional": "^21.2.3",
-    "@playwright/test": "^1.64.1",
+    "@playwright/test": "^1.65.0",
     "@tailwindcss/turbopack": "^4",
     "@testcontainers/postgresql": "^12.2.1",
     "@testing-library/jest-dom": "^7.0.1",
@@ -93,7 +93,7 @@
     "esbuild": "^0.28.2",
     "eslint": "^10.13.0",
     "eslint-config-next": "16.4.2",
-    "jsdom": "^29.1.1",
+    "jsdom": "^31.0.0",
     "lint-staged": "^17.6.0",
     "pino-pretty": "^13.2.0",
     "prettier": "^3.9.10",
@@ -104,7 +104,7 @@
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.71.2",
     "vite": "^8.3.4",
-    "vitest": "^5.0.5"
+    "vitest": "^5.1.0"
   },
   "description": "Open-source, self-hostable URL shortener with privacy-friendly analytics.",
   "license": "MIT",
